@@ -1,6 +1,7 @@
 // src/services/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"; // 🔥 Adicionando o Firestore
 
 const firebaseConfig = {
   apiKey: "AIzaSyD1rCUhbYR7UApioX8UvqBiyiLr_1UQKCI",
@@ -19,4 +20,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-export { auth, provider };
+// Firestore (banco de dados)
+const db = getFirestore(app);
+
+export { auth, provider, db };
