@@ -18,7 +18,13 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Caminhos absolutos */
+    "baseUrl": "src",  // Define a pasta base para resolver os caminhos
+    "paths": {
+      "@services/*": ["services/*"]  // Agora você pode usar @services/firestoreService
+    }
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
