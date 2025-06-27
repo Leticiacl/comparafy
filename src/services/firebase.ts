@@ -33,8 +33,8 @@ const addListToFirestore = async (list) => {
   }
 };
 
-// Adicionando função para salvar economias no Firestore
-const addSavingsToFirestore = async (savings) => {
+// Função para adicionar economia ao Firestore
+export const addSavingsToFirestore = async (savings) => {
   try {
     const docRef = await addDoc(collection(db, "savings"), savings);
     console.log("Economia adicionada com ID: ", docRef.id);
@@ -44,7 +44,7 @@ const addSavingsToFirestore = async (savings) => {
 };
 
 // Função para obter economias do Firestore
-const getSavingsFromFirestore = async () => {
+export const getSavingsFromFirestore = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "savings"));
     const savings = querySnapshot.docs.map(doc => doc.data());
@@ -56,7 +56,7 @@ const getSavingsFromFirestore = async () => {
 };
 
 // Função para obter todas as listas do Firestore
-const getListsFromFirestore = async () => {
+export const getListsFromFirestore = async () => {
   try {
     const querySnapshot = await getDocs(collection(db, "lists"));
     const lists = querySnapshot.docs.map(doc => doc.data());
@@ -67,4 +67,5 @@ const getListsFromFirestore = async () => {
   }
 };
 
-export { auth, provider, db, addListToFirestore, getListsFromFirestore };
+// Exportação única das funções
+export { auth, provider, db, addListToFirestore }; // Somente as funções necessárias

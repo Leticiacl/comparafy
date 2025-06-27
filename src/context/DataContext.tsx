@@ -50,15 +50,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     savings: []
   });
 
-  // Buscando os dados ao carregar o app
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Buscar listas
-        const lists = await getListsFromFirestore();
-        // Buscar economias
-        const savings = await getSavingsFromFirestore();
-
+        const lists = await getListsFromFirestore(); // Obter listas
+        const savings = await getSavingsFromFirestore(); // Obter economias
         setData(prev => ({
           ...prev,
           lists: lists,
