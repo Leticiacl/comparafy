@@ -1,9 +1,7 @@
-// src/pages/Lists.tsx
-console.log("Path atual:", import.meta.url);
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, XIcon, MoreVerticalIcon } from 'lucide-react';
-import { fetchLists, createList } from '../services/firestoreService';  // Verifique o caminho
+import { fetchLists, createList } from '../services/firestoreService';
 import { showToast } from '../components/ui/Toaster';
 
 interface List {
@@ -23,36 +21,41 @@ const Lists: React.FC = () => {
   const [newListName, setNewListName] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const loadLists = async () => {
     const userId = sessionStorage.getItem("userId");
     if (userId) {
-      fetchLists(userId).then(setLists);
+      const fetchedLists = await fetchLists(userId);
+      setLists(fetchedLists);
     }
+  };
+
+  useEffect(() => {
+    loadLists();
   }, []);
 
   const handleCreateList = async () => {
     const userId = sessionStorage.getItem("userId");
     if (userId && newListName.trim()) {
       await createList(userId, newListName.trim());
+      showToast("Lista criada com sucesso", "success");
       setNewListName('');
       setIsModalOpen(false);
-      const updated = await fetchLists(userId);
-      setLists(updated);
-      showToast("Lista criada com sucesso", "success");
+      await loadLists();
     }
   };
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Minhas Listas</h1>
-
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="bg-yellow-500 text-black py-2 px-4 rounded mb-6"
-      >
-        <PlusIcon className="inline-block w-4 h-4 mr-2" />
-        Nova Lista
-      </button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Minhas Listas</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-yellow-500 text-black py-2 px-4 rounded flex items-center"
+        >
+          <PlusIcon className="w-4 h-4 mr-2" />
+          Nova Lista
+        </button>
+      </div>
 
       {lists.length > 0 ? (
         <div className="space-y-4">
@@ -60,25 +63,25 @@ const Lists: React.FC = () => {
             <div
               key={list.id}
               onClick={() => navigate(`/lists/${list.id}`)}
-              className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-pointer border"
+              className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 cursor-pointer"
             >
               <div className="flex justify-between items-center">
-                <h2 className="font-semibold">{list.name}</h2>
-                <MoreVerticalIcon className="w-5 h-5 text-gray-500" />
+                <h2 className="font-medium">{list.name}</h2>
+                <MoreVerticalIcon className="w-5 h-5 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-500 mt-1">
-                {list.items.length} itens
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {list.items.length} item{list.items.length !== 1 && 's'}
               </p>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">Você ainda não possui listas.</p>
+        <p className="text-gray-500 dark:text-gray-400">Você ainda não possui listas.</p>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-sm">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-medium">Nova lista</h2>
               <button onClick={() => setIsModalOpen(false)}>
@@ -90,12 +93,14 @@ const Lists: React.FC = () => {
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               placeholder="Nome da lista"
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white"
+              autoFocus
             />
             <div className="flex justify-end mt-4">
               <button
                 onClick={handleCreateList}
-                className="bg-yellow-500 text-black px-4 py-2 rounded"
+                className="bg-yellow-500 text-black font-medium px-4 py-2 rounded-lg"
+                disabled={!newListName.trim()}
               >
                 Criar
               </button>
