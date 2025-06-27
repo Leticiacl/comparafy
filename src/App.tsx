@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './context/ThemeContext';
 import { DataProvider } from './context/DataContext';
 import { Toaster } from './components/ui/Toaster';
+import Signup from './pages/Signup';  // Apenas uma importação de Signup
+
 // Pages
 import Onboarding from './pages/Onboarding';
 import Login from './pages/Login';
@@ -35,6 +37,7 @@ export function App() {
             <Routes>
               <Route path="/onboarding" element={onboardingCompleted ? <Navigate to="/dashboard" /> : <Onboarding onComplete={completeOnboarding} />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} /> {/* Rota de cadastro */}
               <Route path="/" element={<Layout />}>
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="lists" element={<Lists />} />
@@ -42,7 +45,6 @@ export function App() {
                 <Route path="compare" element={<Compare />} />
                 <Route path="scanner" element={<Scanner />} />
                 <Route path="profile" element={<Profile />} />
-                {/* Rota para exibir as economias */}
                 <Route path="savings" element={<Savings />} />
                 <Route path="/" element={<Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} />} />
               </Route>

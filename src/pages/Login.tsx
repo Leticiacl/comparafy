@@ -20,6 +20,7 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     } catch (error) {
       showToast('Erro ao fazer login com Google', 'error');
+      console.error('Erro no login com Google:', error); // Aqui está o log de erro para depuração
     }
   };
 
@@ -32,6 +33,7 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     } catch (error) {
       showToast('Erro ao entrar como visitante', 'error');
+      console.error('Erro no login anônimo:', error); // Log para depurar erros no login anônimo
     }
   };
 
@@ -76,7 +78,7 @@ const Login: React.FC = () => {
           onClick={handleGoogleLogin}
           className="w-full py-3 border border-gray-300 rounded-md flex items-center justify-center gap-2"
         >
-          <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
+          <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
           <span className="text-sm font-medium">Continuar com Google</span>
         </button>
 
@@ -89,7 +91,7 @@ const Login: React.FC = () => {
 
         <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
           Não tem uma conta?{' '}
-          <span className="text-yellow-600 font-medium cursor-pointer">
+          <span className="text-yellow-600 font-medium cursor-pointer" onClick={() => navigate('/signup')}>
             Cadastre-se
           </span>
         </p>
