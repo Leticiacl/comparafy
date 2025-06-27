@@ -13,15 +13,21 @@ import Compare from './pages/Compare';
 import Scanner from './pages/Scanner';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
+// Importando o componente Savings
+import Savings from './components/Savings';
+
 export function App() {
   const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
     return localStorage.getItem('onboardingCompleted') === 'true';
   });
+  
   const completeOnboarding = () => {
     localStorage.setItem('onboardingCompleted', 'true');
     setOnboardingCompleted(true);
   };
-  return <ThemeProvider>
+
+  return (
+    <ThemeProvider>
       <DataProvider>
         <div className="w-full min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 transition-colors duration-300">
           <Router>
@@ -35,6 +41,8 @@ export function App() {
                 <Route path="compare" element={<Compare />} />
                 <Route path="scanner" element={<Scanner />} />
                 <Route path="profile" element={<Profile />} />
+                {/* Nova Rota para exibir as Economias */}
+                <Route path="savings" element={<Savings />} />  
                 <Route path="/" element={<Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} />} />
               </Route>
             </Routes>
@@ -42,5 +50,6 @@ export function App() {
           <Toaster />
         </div>
       </DataProvider>
-    </ThemeProvider>;
+    </ThemeProvider>
+  );
 }
