@@ -1,9 +1,46 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { addSavingsToFirestore, getSavingsFromFirestore } from '../services/firebase'; // Importando as funções do firebase
+// src/context/DataContext.tsx
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { addSavingsToFirestore, getSavingsFromFirestore, getListsFromFirestore } from '../services/firebase'; // Importando as funções do Firebase
 
-const DataContext = createContext(null);
+// Tipos dos dados que estamos usando no contexto
+type Item = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: 'un' | 'g' | 'kg';
+  price: number;
+  notes?: string;
+  purchased: boolean;
+  storeId: string;
+};
 
-export const DataProvider = ({ children }) => {
+type ShoppingList = {
+  id: string;
+  name: string;
+  createdAt: Date;
+  items: Item[];
+};
+
+type Savings = {
+  month: string;
+  amount: number;
+};
+
+type DataContextType = {
+  data: {
+    lists: ShoppingList[];
+    stores: any[];  // Coloque o tipo correto para stores se souber
+    priceRecords: any[];  // Coloque o tipo correto para priceRecords se souber
+    products: any[];  // Coloque o tipo correto para products se souber
+    user: { name: string; email: string };
+    savings: Savings[];
+  };
+  addSavings: (month: string, amount: number) => void;
+};
+
+const DataContext = createContext<DataContextType | undefined>(undefined);
+
+export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [data, setData] = useState({
     lists: [],
     stores: [],
@@ -16,23 +53,27 @@ export const DataProvider = ({ children }) => {
   // Buscando os dados ao carregar o app
   useEffect(() => {
     const fetchData = async () => {
-      // Buscar listas
-      const lists = await getListsFromFirestore();
-      // Buscar economias
-      const savings = await getSavingsFromFirestore();
+      try {
+        // Buscar listas
+        const lists = await getListsFromFirestore();
+        // Buscar economias
+        const savings = await getSavingsFromFirestore();
 
-      setData(prev => ({
-        ...prev,
-        lists: lists,
-        savings: savings
-      }));
+        setData(prev => ({
+          ...prev,
+          lists: lists,
+          savings: savings
+        }));
+      } catch (error) {
+        console.error('Erro ao buscar dados do Firestore:', error);
+      }
     };
 
     fetchData();
   }, []);
 
   // Função para adicionar economia no Firestore e no estado local
-  const addSavings = async (month, amount) => {
+  const addSavings = async (month: string, amount: number) => {
     const newSavings = { month, amount };
 
     // Salvar economia no Firestore
@@ -52,10 +93,17 @@ export const DataProvider = ({ children }) => {
   );
 };
 
-export const useData = () => {
+export const useData = (): DataContextType => {
   const context = useContext(DataContext);
   if (context === undefined) {
+    console.error('useData must be used within a DataProvider');
     throw new Error('useData must be used within a DataProvider');
   }
+
+  // Apenas logar no modo de desenvolvimento
+  if (process.env.NODE_ENV === 'development') {
+    console.log(context);  // Verifique se o contexto está correto
+  }
+
   return context;
 };

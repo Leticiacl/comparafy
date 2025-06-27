@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+// src/App.tsx
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { DataProvider } from './context/DataContext';
@@ -20,7 +21,7 @@ export function App() {
   const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
     return localStorage.getItem('onboardingCompleted') === 'true';
   });
-  
+
   const completeOnboarding = () => {
     localStorage.setItem('onboardingCompleted', 'true');
     setOnboardingCompleted(true);
@@ -28,7 +29,7 @@ export function App() {
 
   return (
     <ThemeProvider>
-      <DataProvider>
+      <DataProvider>  {/* DataProvider garante que todos os dados estejam disponíveis */}
         <div className="w-full min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 transition-colors duration-300">
           <Router>
             <Routes>
@@ -41,8 +42,8 @@ export function App() {
                 <Route path="compare" element={<Compare />} />
                 <Route path="scanner" element={<Scanner />} />
                 <Route path="profile" element={<Profile />} />
-                {/* Nova Rota para exibir as Economias */}
-                <Route path="savings" element={<Savings />} />  
+                {/* Rota para exibir as economias */}
+                <Route path="savings" element={<Savings />} />
                 <Route path="/" element={<Navigate to={onboardingCompleted ? '/dashboard' : '/onboarding'} />} />
               </Route>
             </Routes>

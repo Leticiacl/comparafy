@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext'; // Importando o DataContext
 
 const Savings = () => {
-  const { data, addSavings } = useData(); // Pegando os dados e a função addSavings do contexto
-  const [month, setMonth] = useState('');  // Armazenando o mês digitado
-  const [amount, setAmount] = useState(0);  // Armazenando o valor economizado
+  const { data, addSavings } = useData();  // Pegando os dados e a função addSavings do contexto
+  const [month, setMonth] = useState('');
+  const [amount, setAmount] = useState(0);
 
   const handleAddSavings = () => {
-    // Verifica se mês e valor foram preenchidos corretamente
     if (month && amount > 0) {
-      addSavings(month, amount); // Chama a função para adicionar economia
+      addSavings(month, amount);  // Adiciona a economia ao Firestore e ao estado
     }
   };
 
@@ -22,7 +21,7 @@ const Savings = () => {
         <input
           type="text"
           value={month}
-          onChange={(e) => setMonth(e.target.value)}  // Atualiza o estado com o mês
+          onChange={(e) => setMonth(e.target.value)}  // Atualiza o mês
           placeholder="Digite o mês"
         />
       </div>
@@ -31,7 +30,7 @@ const Savings = () => {
         <input
           type="number"
           value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}  // Atualiza o estado com o valor
+          onChange={(e) => setAmount(Number(e.target.value))}  // Atualiza o valor economizado
           placeholder="Digite o valor economizado"
         />
       </div>
@@ -41,7 +40,7 @@ const Savings = () => {
       <ul>
         {data.savings.map((savings, index) => (
           <li key={index}>
-            {savings.month}: R$ {savings.amount}  {/* Exibe mês e valor das economias */}
+            {savings.month}: R$ {savings.amount}
           </li>
         ))}
       </ul>
