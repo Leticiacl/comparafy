@@ -1,9 +1,9 @@
 // src/pages/Login.tsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword, signInWithPopup, signInAnonymously } from 'firebase/auth';
 import { auth, provider } from '../services/firebase';
-import { signInWithPopup, signInAnonymously } from 'firebase/auth';
-import { AtSignIcon, LockIcon } from 'lucide-react';
 import { showToast } from '../components/ui/Toaster';
 
 const Login: React.FC = () => {
@@ -11,90 +11,82 @@ const Login: React.FC = () => {
   const [senha, setSenha] = useState('');
   const navigate = useNavigate();
 
-  const handleGoogleLogin = async () => {
+  const handleEmailLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      sessionStorage.setItem('userId', user.uid);
-      showToast('Login com Google realizado com sucesso!', 'success');
+      const result = await signInWithEmailAndPassword(auth, email, senha);
+      sessionStorage.setItem('userId', result.user.uid);
+      showToast('Login realizado com sucesso', 'success');
       navigate('/dashboard');
     } catch (error) {
-      showToast('Erro ao fazer login com Google', 'error');
-      console.error('Erro no login com Google:', error); // Aqui está o log de erro para depuração
+      showToast('Falha no login com e-mail', 'error');
     }
   };
 
-  const handleVisitanteLogin = async () => {
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      sessionStorage.setItem('userId', result.user.uid);
+      showToast('Login com Google bem-sucedido', 'success');
+      navigate('/dashboard');
+    } catch (error) {
+      showToast('Erro ao entrar com Google', 'error');
+    }
+  };
+
+  const handleAnonymousLogin = async () => {
     try {
       const result = await signInAnonymously(auth);
-      const user = result.user;
-      sessionStorage.setItem('userId', user.uid);
-      showToast('Você entrou como visitante.', 'success');
+      sessionStorage.setItem('userId', result.user.uid);
+      showToast('Login como visitante realizado', 'success');
       navigate('/dashboard');
     } catch (error) {
       showToast('Erro ao entrar como visitante', 'error');
-      console.error('Erro no login anônimo:', error); // Log para depurar erros no login anônimo
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-white dark:bg-black">
-      <img src="/COMPARAFY.png" alt="Logo Comparify" className="w-40 mb-6" />
-      <h2 className="text-xl font-medium text-gray-700 dark:text-gray-200 mb-4">Entre com sua conta</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-black px-4">
+      <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-6">Acessar o Comparify</h1>
 
-      <div className="w-full max-w-sm space-y-4">
-        <div className="relative">
-          <AtSignIcon className="absolute left-3 top-3.5 text-gray-400 w-5 h-5" />
+        <div className="space-y-4">
           <input
             type="email"
             placeholder="E-mail"
-            className="w-full p-3 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring focus:border-yellow-400 dark:bg-gray-800 dark:text-white"
           />
-        </div>
-        <div className="relative">
-          <LockIcon className="absolute left-3 top-3.5 text-gray-400 w-5 h-5" />
           <input
             type="password"
             placeholder="Senha"
-            className="w-full p-3 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring focus:border-yellow-400 dark:bg-gray-800 dark:text-white"
           />
+          <button
+            onClick={handleEmailLogin}
+            className="w-full bg-black text-white py-3 rounded-md hover:bg-gray-800 transition"
+          >
+            Entrar com e-mail
+          </button>
+          <p className="text-sm text-center">
+            Não tem conta? <span className="text-blue-600 cursor-pointer">Criar conta</span>
+          </p>
+          <div className="border-t border-gray-300 my-4" />
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full bg-red-500 text-white py-3 rounded-md hover:bg-red-600 transition"
+          >
+            Entrar com Google
+          </button>
+          <button
+            onClick={handleAnonymousLogin}
+            className="w-full bg-gray-400 text-white py-3 rounded-md hover:bg-gray-500 transition"
+          >
+            Entrar como visitante
+          </button>
         </div>
-
-        <button className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-md">
-          Entrar
-        </button>
-
-        <div className="flex items-center justify-center my-2">
-          <div className="border-t border-gray-300 flex-grow mr-3" />
-          <span className="text-gray-500">ou</span>
-          <div className="border-t border-gray-300 flex-grow ml-3" />
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full py-3 border border-gray-300 rounded-md flex items-center justify-center gap-2"
-        >
-          <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
-          <span className="text-sm font-medium">Continuar com Google</span>
-        </button>
-
-        <button
-          onClick={handleVisitanteLogin}
-          className="w-full py-3 bg-gray-100 text-gray-800 font-medium rounded-md"
-        >
-          Continuar como visitante
-        </button>
-
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
-          Não tem uma conta?{' '}
-          <span className="text-yellow-600 font-medium cursor-pointer" onClick={() => navigate('/signup')}>
-            Cadastre-se
-          </span>
-        </p>
       </div>
     </div>
   );
