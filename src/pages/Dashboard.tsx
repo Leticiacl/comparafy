@@ -19,12 +19,14 @@ const Dashboard: React.FC = () => {
   const handleCreateList = async () => {
     const userId = sessionStorage.getItem("userId");
     if (!userId || !newListName.trim()) return;
-    await createList(userId, newListName.trim());
+  
+    const newListId = await createList(userId, newListName.trim());
     setNewListName('');
     setIsModalOpen(false);
     await reloadLists();
     showToast('Lista criada com sucesso', 'success');
-  };
+    navigate(`/lists/${newListId}`);
+  };  
 
   return (
     <div className="space-y-6">

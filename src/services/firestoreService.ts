@@ -4,11 +4,13 @@ import { db } from "./firebase";  // Certifique-se de que o db está correto
 
 // Função para criar uma lista no Firestore
 export const createList = async (userId: string, name: string) => {
-  await addDoc(collection(db, "listas"), {
+  const docRef = await addDoc(collection(db, "listas"), {
     userId,
     name,
-    createdAt: new Date()
+    createdAt: new Date(),
+    items: []  // se sua lista depende desse array
   });
+  return docRef.id;  // <--- isso permite capturar o ID da nova lista
 };
 
 // Função para buscar as listas de um usuário no Firestore
