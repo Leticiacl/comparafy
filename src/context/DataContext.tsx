@@ -1,18 +1,7 @@
 // src/context/DataContext.tsx
-import React, {
-  createContext,
-  useState,
-  useContext,
-  useEffect,
-  ReactNode
-} from 'react';
-import {
-  addSavingsToFirestore,
-  getSavingsFromFirestore,
-  fetchLists
-} from '../services/firestoreService';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { addSavingsToFirestore, getSavingsFromFirestore, fetchLists } from '../services/firestoreService';
 
-// Tipos dos dados que estamos usando no contexto
 type Item = {
   id: string;
   name: string;
@@ -61,10 +50,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     savings: []
   });
 
-  // Carregar listas e savings do Firestore
   const loadData = async () => {
     try {
-      const userId = sessionStorage.getItem('userId');
+      const userId = sessionStorage.getItem("userId");
       if (!userId) return;
 
       const lists = await fetchLists(userId);
@@ -72,8 +60,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setData(prev => ({
         ...prev,
-        lists,
-        savings
+        lists: lists,
+        savings: savings
       }));
     } catch (error) {
       console.error('Erro ao buscar dados do Firestore:', error);
@@ -84,10 +72,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadData();
   }, []);
 
-  // Adiciona uma nova economia
   const addSavings = async (month: string, amount: number) => {
     const newSavings = { month, amount };
-
     await addSavingsToFirestore(newSavings);
 
     setData(prev => ({
@@ -105,14 +91,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useData = (): DataContextType => {
   const context = useContext(DataContext);
-
-  if (!context) {
+  if (context === undefined) {
     console.error('useData must be used within a DataProvider');
     throw new Error('useData must be used within a DataProvider');
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('Contexto carregado:', context);
+    console.log(context);
   }
 
   return context;
