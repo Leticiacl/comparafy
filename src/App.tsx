@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './context/ThemeContext';
 import { DataProvider } from './context/DataContext';
 import { Toaster } from './components/ui/Toaster';
-import Signup from './pages/Signup';  // Apenas uma importação de Signup
+import Signup from './pages/Signup';
 
 // Pages
 import Onboarding from './pages/Onboarding';
@@ -16,7 +16,6 @@ import Compare from './pages/Compare';
 import Scanner from './pages/Scanner';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
-// Importando o componente Savings
 import Savings from './components/Savings';
 
 export function App() {
@@ -32,12 +31,12 @@ export function App() {
   return (
     <ThemeProvider>
       <DataProvider>  {/* DataProvider garante que todos os dados estejam disponíveis */}
-        <div className="w-full min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
           <Router>
             <Routes>
               <Route path="/onboarding" element={onboardingCompleted ? <Navigate to="/dashboard" /> : <Onboarding onComplete={completeOnboarding} />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} /> {/* Rota de cadastro */}
+              <Route path="/signup" element={<Signup />} />
               <Route path="/" element={<Layout />}>
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="lists" element={<Lists />} />

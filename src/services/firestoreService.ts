@@ -1,45 +1,71 @@
 // src/services/firestoreService.ts
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "./firebase";  // Certifique-se de que o db está correto
+import {
+  collection,
+  addDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  deleteDoc,
+  doc,
+  arrayUnion,
+} from "firebase/firestore";
+import { db } from "./firebase";
 
-// Função para criar uma lista no Firestore
+// =================== EXPORTS CORRETOS ===================
+
+// Criação de lista
 export const createList = async (userId: string, name: string) => {
-  const docRef = await addDoc(collection(db, "listas"), {
-    userId,
-    name,
-    createdAt: new Date(),
-    items: []  // se sua lista depende desse array
-  });
-  return docRef.id;  // <--- isso permite capturar o ID da nova lista
+  // ...
 };
 
-// Função para buscar as listas de um usuário no Firestore
+// Buscar listas por usuário
 export const fetchLists = async (userId: string) => {
-  const q = query(collection(db, "listas"), where("userId", "==", userId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  // ...
 };
 
-// Função para adicionar uma economia ao Firestore
-export const addSavingsToFirestore = async (savings) => {
-  try {
-    const docRef = await addDoc(collection(db, "savings"), savings);
-    console.log('Economia adicionada com ID:', docRef.id);
-  } catch (error) {
-    console.error('Erro ao adicionar economia:', error);
-  }
+// Adicionar economia
+export const addSavingsToFirestore = async (savings: any) => {
+  // ...
 };
 
-// Função para obter economias do Firestore
+// Buscar economias
 export const getSavingsFromFirestore = async () => {
-  try {
-    const querySnapshot = await getDocs(collection(db, "savings"));
-    return querySnapshot.docs.map((doc) => doc.data());
-  } catch (error) {
-    console.error('Erro ao buscar economias:', error);
-    return [];
-  }
+  // ...
+};
+
+// Buscar detalhes de uma lista
+export const fetchListDetails = async (listId: string) => {
+  // ...
+};
+
+// Adicionar item
+export const addItemToList = async (listId: string, newItem: any) => {
+  // ...
+};
+
+// Atualizar item
+export const updateItemInList = async (listId: string, updatedItem: any) => {
+  // ...
+};
+
+// Deletar item
+export const deleteItemFromList = async (listId: string, itemId: string) => {
+  // ...
+};
+
+// Buscar produtos
+export const fetchProducts = async () => {
+  // ...
+};
+
+// Buscar lojas
+export const fetchStores = async () => {
+  // ...
+};
+
+// Buscar registros de preço
+export const fetchPriceRecords = async () => {
+  // ...
 };

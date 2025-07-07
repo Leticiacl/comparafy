@@ -1,6 +1,14 @@
-// src/context/DataContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { addSavingsToFirestore, getSavingsFromFirestore, fetchLists } from '../services/firestoreService';
+import {
+  addSavingsToFirestore,
+  getSavingsFromFirestore,
+  fetchLists,
+  fetchProducts,
+  fetchStores,
+  fetchPriceRecords
+} from '../services/firestoreService';
+
+// Tipagens
 
 type Item = {
   id: string;
@@ -25,12 +33,30 @@ type Savings = {
   amount: number;
 };
 
+type Product = {
+  id: string;
+  name: string;
+  category: string;
+};
+
+type Store = {
+  id: string;
+  name: string;
+};
+
+type PriceRecord = {
+  id: string;
+  productId: string;
+  storeId: string;
+  price: number;
+};
+
 type DataContextType = {
   data: {
     lists: ShoppingList[];
-    stores: any[];
-    priceRecords: any[];
-    products: any[];
+    stores: Store[];
+    priceRecords: PriceRecord[];
+    products: Product[];
     user: { name: string; email: string };
     savings: Savings[];
   };
@@ -55,13 +81,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userId = sessionStorage.getItem("userId");
       if (!userId) return;
 
-      const lists = await fetchLists(userId);
-      const savings = await getSavingsFromFirestore();
+      const [lists, savings, products, stores, priceRecords] = await Promise.all([
+        fetchLists(userId),
+        getSavingsFromFirestore(),
+        fetchProducts(),
+        fetchStores(),
+        fetchPriceRecords()
+      ]);
 
       setData(prev => ({
         ...prev,
-        lists: lists,
-        savings: savings
+        lists,
+        savings,
+        products,
+        stores,
+        priceRecords
       }));
     } catch (error) {
       console.error('Erro ao buscar dados do Firestore:', error);
@@ -94,10 +128,6 @@ export const useData = (): DataContextType => {
   if (context === undefined) {
     console.error('useData must be used within a DataProvider');
     throw new Error('useData must be used within a DataProvider');
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log(context);
   }
 
   return context;
