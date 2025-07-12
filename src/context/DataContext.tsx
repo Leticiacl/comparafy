@@ -1,3 +1,4 @@
+// src/context/DataContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import {
   addSavingsToFirestore,
@@ -7,9 +8,9 @@ import {
   fetchStores,
   fetchPriceRecords
 } from '../services/firestoreService';
+import { auth } from '../services/firebase';
 
 // Tipagens
-
 type Item = {
   id: string;
   name: string;
@@ -51,15 +52,24 @@ type PriceRecord = {
   price: number;
 };
 
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type DataState = {
+  lists: ShoppingList[];
+  stores: Store[];
+  priceRecords: PriceRecord[];
+  products: Product[];
+  user: User;
+  savings: Savings[];
+};
+
 type DataContextType = {
-  data: {
-    lists: ShoppingList[];
-    stores: Store[];
-    priceRecords: PriceRecord[];
-    products: Product[];
-    user: { name: string; email: string };
-    savings: Savings[];
-  };
+  data: DataState;
+  setData: React.Dispatch<React.SetStateAction<DataState>>;
   addSavings: (month: string, amount: number) => void;
   reloadLists: () => void;
 };
@@ -67,22 +77,22 @@ type DataContextType = {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [data, setData] = useState({
+  const [data, setData] = useState<DataState>({
     lists: [],
     stores: [],
     priceRecords: [],
     products: [],
-    user: { name: '', email: '' },
+    user: { id: '', name: '', email: '' },
     savings: []
   });
 
   const loadData = async () => {
     try {
-      const userId = sessionStorage.getItem("userId");
-      if (!userId) return;
+      const user = auth.currentUser;
+      if (!user || !user.uid) return;
 
       const [lists, savings, products, stores, priceRecords] = await Promise.all([
-        fetchLists(userId),
+        fetchLists(user.uid),
         getSavingsFromFirestore(),
         fetchProducts(),
         fetchStores(),
@@ -95,7 +105,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         savings,
         products,
         stores,
-        priceRecords
+        priceRecords,
+        user: {
+          id: user.uid,
+          name: user.displayName || 'Usuário',
+          email: user.email || 'visitante@exemplo.com'
+        }
       }));
     } catch (error) {
       console.error('Erro ao buscar dados do Firestore:', error);
@@ -103,7 +118,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    loadData();
+    const unsubscribe = auth.onAuthStateChanged(() => {
+      loadData(); // reexecuta ao detectar login
+    });
+
+    return () => unsubscribe(); // cleanup
   }, []);
 
   const addSavings = async (month: string, amount: number) => {
@@ -117,7 +136,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <DataContext.Provider value={{ data, addSavings, reloadLists: loadData }}>
+    <DataContext.Provider value={{ data, setData, addSavings, reloadLists: loadData }}>
       {children}
     </DataContext.Provider>
   );

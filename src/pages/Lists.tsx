@@ -1,100 +1,89 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PlusIcon, XIcon } from 'lucide-react';
-import { showToast } from '../components/ui/Toaster';
+// src/pages/Lists.tsx
+import React from 'react';
+import { PlusIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { createList } from '../services/firestoreService';
 
 const Lists: React.FC = () => {
   const { data, reloadLists } = useData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newListName, setNewListName] = useState('');
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    reloadLists();
-  }, [reloadLists]);
 
   const handleCreateList = async () => {
-    const userId = sessionStorage.getItem("userId");
-    if (!userId || !newListName.trim()) return;
+    alert('🟡 Clique detectado no botão'); // Para teste visual
 
-    const newListId = await createList(userId, newListName.trim());
-    setNewListName('');
-    setIsModalOpen(false);
-    reloadLists();
-    navigate(`/lists/${newListId}`);
+    try {
+      if (!data.user?.id) {
+        console.warn('⚠️ Usuário não encontrado:', data.user);
+        return;
+      }
+
+      const newList = await createList(data.user.id, 'Nova Lista');
+      await reloadLists();
+
+      // ✅ Corrigido: usar redirecionamento direto
+      window.location.href = `/lists/${newList.id}`;
+    } catch (error) {
+      console.error('❌ Erro ao criar nova lista:', error);
+    }
   };
 
   return (
-    <div className="p-6 pb-28 min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Olá, {data.user?.name || 'usuário'} 👋</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Suas listas de compras</p>
-        </div>
-        <img src="/LOGO_REDUZIDA.png" alt="Comparafy Logo" className="w-10 h-10 object-contain" />
-      </header>
-
-      <div className="grid gap-4">
-        {data.lists.map(list => {
-          const completedItems = list.items.filter(i => i.purchased).length;
-          const totalItems = list.items.length;
-          const totalSpent = list.items.filter(i => i.purchased).reduce((acc, i) => acc + (i.price * i.quantity), 0);
-          const progress = totalItems ? (completedItems / totalItems) * 100 : 0;
-
-          return (
-            <div
-              key={list.id}
-              className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 cursor-pointer"
-              onClick={() => navigate(`/lists/${list.id}`)}
-            >
-              <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-1">{list.name}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                {completedItems}/{totalItems} itens - R$ {totalSpent.toFixed(2)}
-              </p>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-yellow-400 h-2 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+    <div className="p-4 space-y-6 pb-24">
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Minhas Listas</h1>
+        <img
+          src="/LOGO_REDUZIDA.png"
+          alt="Logo Comparify"
+          className="w-10 h-10"
+        />
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium">Nova Lista</h2>
-              <button onClick={() => setIsModalOpen(false)}>
-                <XIcon className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <input
-              type="text"
-              placeholder="Nome da lista"
-              value={newListName}
-              onChange={e => setNewListName(e.target.value)}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded mb-4"
-            />
-            <button
-              onClick={handleCreateList}
-              className="w-full bg-yellow-500 text-black font-semibold py-2 rounded-lg"
-            >
-              Criar Lista
-            </button>
-          </div>
+      {/* Listas */}
+      {data.lists.length === 0 ? (
+        <p className="text-gray-500 text-center mt-12">Nenhuma lista encontrada.</p>
+      ) : (
+        <div className="space-y-4">
+          {data.lists.map((list: any) => {
+            const completed = list.items.filter((i: any) => i.purchased).length;
+            const total = list.items.length;
+            const totalValue = list.items.reduce(
+              (acc: number, i: any) => acc + i.price * i.quantity,
+              0
+            );
+
+            return (
+              <div
+                key={list.id}
+                className="bg-white p-4 rounded-xl shadow cursor-pointer"
+                onClick={() => (window.location.href = `/lists/${list.id}`)}
+              >
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-900 font-medium">{list.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {completed}/{total} itens
+                  </p>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded mt-2 overflow-hidden">
+                  <div
+                    className="h-full bg-yellow-500"
+                    style={{ width: `${(completed / total) * 100 || 0}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Total: R$ {totalValue.toFixed(2)}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
+      {/* Botão Nova Lista */}
       <button
-        onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-6 right-6 bg-yellow-500 text-black p-4 rounded-full shadow-lg z-50"
+        onClick={handleCreateList}
+        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mt-6"
       >
-        <PlusIcon className="w-6 h-6" />
+        <PlusIcon className="w-5 h-5" /> Nova lista
       </button>
     </div>
   );

@@ -15,7 +15,7 @@ const Login: React.FC = () => {
       const result = await signInWithEmailAndPassword(auth, email, senha);
       sessionStorage.setItem('userId', result.user.uid);
       showToast('Login realizado com sucesso', 'success');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       showToast('Falha no login com e-mail', 'error');
     }
@@ -26,7 +26,7 @@ const Login: React.FC = () => {
       const result = await signInWithPopup(auth, provider);
       sessionStorage.setItem('userId', result.user.uid);
       showToast('Login com Google bem-sucedido', 'success');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       showToast('Erro ao entrar com Google', 'error');
     }
@@ -37,7 +37,7 @@ const Login: React.FC = () => {
       const result = await signInAnonymously(auth);
       sessionStorage.setItem('userId', result.user.uid);
       showToast('Login como visitante realizado', 'success');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       showToast('Erro ao entrar como visitante', 'error');
     }
@@ -105,7 +105,7 @@ const Login: React.FC = () => {
           <p className="text-sm text-center text-gray-600 mt-4">
             Não tem uma conta?{' '}
             <span
-              onClick={() => showToast('Função de cadastro em desenvolvimento', 'info')}
+              onClick={() => showToast('Função de cadastro em desenvolvimento', 'success')}
               className="text-yellow-500 hover:underline cursor-pointer"
             >
               Cadastre-se
