@@ -1,5 +1,11 @@
 // src/context/DataContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode
+} from 'react';
 import {
   addSavingsToFirestore,
   getSavingsFromFirestore,
@@ -70,8 +76,8 @@ type DataState = {
 type DataContextType = {
   data: DataState;
   setData: React.Dispatch<React.SetStateAction<DataState>>;
-  addSavings: (month: string, amount: number) => void;
-  reloadLists: () => void;
+  addSavings: (month: string, amount: number) => Promise<void>;
+  reloadLists: () => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -89,7 +95,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadData = async () => {
     try {
       const user = auth.currentUser;
-      if (!user || !user.uid) return;
+      if (!user || !user.uid) {
+        console.warn('Usuário não autenticado');
+        return;
+      }
 
       const [lists, savings, products, stores, priceRecords] = await Promise.all([
         fetchLists(user.uid),
@@ -99,8 +108,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchPriceRecords()
       ]);
 
-      setData(prev => ({
-        ...prev,
+      setData({
         lists,
         savings,
         products,
@@ -111,28 +119,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: user.displayName || 'Usuário',
           email: user.email || 'visitante@exemplo.com'
         }
-      }));
+      });
     } catch (error) {
-      console.error('Erro ao buscar dados do Firestore:', error);
+      console.error('Erro ao carregar dados do Firestore:', error);
     }
   };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(() => {
-      loadData(); // reexecuta ao detectar login
+      loadData();
     });
 
-    return () => unsubscribe(); // cleanup
+    return () => unsubscribe();
   }, []);
 
   const addSavings = async (month: string, amount: number) => {
-    const newSavings = { month, amount };
-    await addSavingsToFirestore(newSavings);
-
-    setData(prev => ({
-      ...prev,
-      savings: [...prev.savings, newSavings]
-    }));
+    try {
+      const newSavings = { month, amount };
+      await addSavingsToFirestore(newSavings);
+      setData(prev => ({
+        ...prev,
+        savings: [...prev.savings, newSavings]
+      }));
+    } catch (error) {
+      console.error('Erro ao adicionar economia:', error);
+    }
   };
 
   return (
@@ -144,10 +155,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useData = (): DataContextType => {
   const context = useContext(DataContext);
-  if (context === undefined) {
-    console.error('useData must be used within a DataProvider');
+  if (!context) {
     throw new Error('useData must be used within a DataProvider');
   }
-
   return context;
 };

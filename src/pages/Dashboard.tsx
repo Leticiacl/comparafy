@@ -1,47 +1,36 @@
+// src/pages/Dashboard.tsx
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { ArrowUpRightIcon, PlusIcon } from 'lucide-react';
 import { createList } from '../services/firestoreService';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
   const { data, reloadLists } = useData();
-  const hasLists = data.lists && data.lists.length > 0;
-  const totalSavings =
-    data.savings?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+  const navigate = useNavigate();
 
-  console.log('👤 Usuário carregado no Dashboard:', data.user);
+  const hasLists = data.lists && data.lists.length > 0;
+  const totalSavings = data.savings?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
 
   const handleCreateList = async () => {
-    alert('🟡 Clique detectado no botão');
-    console.log('✅ Botão clicado');
-
     try {
       if (!data?.user?.id) {
         alert('⚠️ Usuário não identificado');
-        console.warn('⚠️ ID do usuário ausente:', data.user);
         return;
       }
 
-      console.log('📤 Criando lista para o usuário:', data.user.id);
       const newList = await createList(data.user.id, 'Nova Lista');
 
       if (!newList?.id) {
-        alert('❌ Lista não foi criada corretamente');
-        console.error('❌ Objeto retornado inválido:', newList);
+        alert('❌ Erro ao criar lista');
         return;
       }
 
-      console.log('📦 Nova lista criada com sucesso:', newList);
       await reloadLists();
-      console.log('🔄 Listas recarregadas');
-
-      // Redireciona para nova lista
-      window.location.href = `/lists/${newList.id}`;
+      navigate(`/lists/${newList.id}`);
     } catch (error: any) {
-      console.error('❌ Erro ao criar nova lista:', error);
-      alert(`❌ Erro ao criar lista: ${error?.message || error}`);
+      console.error('Erro ao criar nova lista:', error);
+      alert(`Erro: ${error?.message || error}`);
     }
   };
 
@@ -53,11 +42,7 @@ const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Olá!</h1>
           <p className="text-gray-500">Bem-vindo ao Comparify</p>
         </div>
-        <img
-          src="/LOGO_REDUZIDA.png"
-          alt="Logo Comparify"
-          className="w-10 h-10"
-        />
+        <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-10 h-10" />
       </div>
 
       {/* Economia Total */}
@@ -86,12 +71,12 @@ const Dashboard: React.FC = () => {
             </span>
           </div>
 
-          {data.lists.map((list: any) => {
-            const completed = list.items?.filter((i: any) => i.purchased).length || 0;
+          {data.lists.map((list) => {
+            const completed = list.items?.filter((i) => i.purchased).length || 0;
             const total = list.items?.length || 0;
             const totalValue =
               list.items?.reduce(
-                (acc: number, i: any) => acc + (i.price || 0) * (i.quantity || 0),
+                (acc, i) => acc + (i.price || 0) * (i.quantity || 0),
                 0
               ) || 0;
 
@@ -106,9 +91,7 @@ const Dashboard: React.FC = () => {
                 <div className="w-full h-2 bg-gray-200 rounded mt-2 overflow-hidden">
                   <div
                     className="h-full bg-yellow-500"
-                    style={{
-                      width: `${(completed / total) * 100 || 0}%`,
-                    }}
+                    style={{ width: `${(completed / total) * 100 || 0}%` }}
                   ></div>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">

@@ -1,3 +1,28 @@
+/* Tailwind base layer */
 @import 'tailwindcss/base';
+
+/* Tailwind components layer */
 @import 'tailwindcss/components';
+
+/* Tailwind utilities layer */
 @import 'tailwindcss/utilities';
+
+/* Font smoothing e reset leve */
+body {
+  @apply antialiased text-gray-900 bg-white;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Suporte a animações básicas */
+@layer utilities {
+  .animate-fade-in-up {
+    @apply opacity-0 translate-y-4 transition-all duration-300;
+  }
+
+  .animate-fade-in-up.show {
+    @apply opacity-100 translate-y-0;
+  }
+}

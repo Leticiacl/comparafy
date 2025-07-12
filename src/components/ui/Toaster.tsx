@@ -1,6 +1,11 @@
 // src/components/ui/Toaster.tsx
 import React, { useEffect, useState } from 'react';
-import { CheckCircleIcon, XCircleIcon, XIcon, InfoIcon } from 'lucide-react';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  XIcon,
+  InfoIcon
+} from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -30,11 +35,15 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
 
   return (
     <div
-      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[250px] max-w-[90%] z-50 animate-fade-in-up transition-all duration-300 bg-white dark:bg-gray-800 border-l-4 border-solid ${borderColorMap[type]}`}
+      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[250px] max-w-[90%] z-50 animate-fade-in-up transition-all duration-300 bg-white dark:bg-gray-800 border-l-4 ${borderColorMap[type]}`}
     >
       {iconMap[type]}
-      <p className="flex-grow text-sm">{message}</p>
-      <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+      <p className="flex-grow text-sm text-gray-800 dark:text-gray-100">{message}</p>
+      <button
+        onClick={onClose}
+        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+        aria-label="Fechar toast"
+      >
         <XIcon className="w-4 h-4" />
       </button>
     </div>
@@ -51,24 +60,31 @@ export const Toaster: React.FC = () => {
   const [toasts, setToasts] = useState<ToastData[]>([]);
 
   useEffect(() => {
-    const handleToast = (event: CustomEvent<{ message: string; type: ToastType }>) => {
-      const { message, type } = event.detail;
+    const handleToast = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message: string; type: ToastType }>;
+      const { message, type } = customEvent.detail;
       const id = Date.now().toString();
-      setToasts((prev: ToastData[]) => [...prev, { id, message, type }]);
+
+      setToasts((prev) => [...prev, { id, message, type }]);
     };
 
-    window.addEventListener('toast', handleToast as EventListener);
-    return () => window.removeEventListener('toast', handleToast as EventListener);
+    window.addEventListener('toast', handleToast);
+    return () => window.removeEventListener('toast', handleToast);
   }, []);
 
   const removeToast = (id: string) => {
-    setToasts((prev: ToastData[]) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   return (
     <>
       {toasts.map((toast) => (
-        <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => removeToast(toast.id)}
+        />
       ))}
     </>
   );
