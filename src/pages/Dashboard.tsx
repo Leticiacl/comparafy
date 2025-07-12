@@ -1,14 +1,17 @@
-// src/pages/Dashboard.tsx
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { ArrowUpRightIcon, PlusIcon } from 'lucide-react';
 import { createList } from '../services/firestoreService';
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { data, reloadLists } = useData();
   const hasLists = data.lists && data.lists.length > 0;
   const totalSavings =
     data.savings?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+
+  console.log('👤 Usuário carregado no Dashboard:', data.user);
 
   const handleCreateList = async () => {
     alert('🟡 Clique detectado no botão');
@@ -75,7 +78,12 @@ const Dashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-semibold text-gray-900">Listas recentes</h2>
-            <span className="text-sm text-yellow-500 cursor-pointer">Ver todas</span>
+            <span
+              className="text-sm text-yellow-500 cursor-pointer"
+              onClick={() => navigate('/lists')}
+            >
+              Ver todas
+            </span>
           </div>
 
           {data.lists.map((list: any) => {
