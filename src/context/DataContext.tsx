@@ -1,4 +1,3 @@
-// src/context/DataContext.tsx
 import React, {
   createContext,
   useState,
@@ -16,7 +15,6 @@ import {
 } from '../services/firestoreService';
 import { auth } from '../services/firebase';
 
-// Tipagens
 type Item = {
   id: string;
   name: string;
@@ -93,13 +91,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const loadData = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user || !user.uid) {
-        console.warn('Usuário não autenticado');
-        return;
-      }
+    const user = auth.currentUser;
+    if (!user || !user.uid) {
+      console.warn('Usuário não autenticado');
+      return;
+    }
 
+    try {
       const [lists, savings, products, stores, priceRecords] = await Promise.all([
         fetchLists(user.uid),
         getSavingsFromFirestore(),
@@ -116,12 +114,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         priceRecords,
         user: {
           id: user.uid,
-          name: user.displayName || 'Usuário',
+          name: user.displayName || 'Visitante',
           email: user.email || 'visitante@exemplo.com'
         }
       });
     } catch (error) {
-      console.error('Erro ao carregar dados do Firestore:', error);
+      console.error('Erro ao carregar dados:', error);
     }
   };
 
