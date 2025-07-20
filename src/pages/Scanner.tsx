@@ -1,7 +1,8 @@
+// src/pages/Scanner.tsx
 import React, { useRef, useState } from 'react';
 import Header from '../components/Header';
 import { showToast } from '../components/ui/Toaster';
-import { auth } from '../services/firebase';
+import BottomNav from '../components/BottomNav';
 
 const Scanner: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -74,6 +75,8 @@ const Scanner: React.FC = () => {
           </div>
         )}
       </div>
+
+      <BottomNav activeTab="scanner" />
     </div>
   );
 };

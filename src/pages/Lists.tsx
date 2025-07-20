@@ -1,9 +1,11 @@
+// src/pages/Lists.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { PlusIcon } from 'lucide-react';
 import { createList } from '../services/firestoreService';
 import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
 
 const Lists: React.FC = () => {
   const { data, reloadLists } = useData();
@@ -33,10 +35,8 @@ const Lists: React.FC = () => {
 
   return (
     <div className="p-4 space-y-6 pb-24">
-      {/* Cabeçalho com logo e logout */}
       <Header title="Minhas Listas" />
 
-      {/* Botão de nova lista */}
       <button
         onClick={handleCreateList}
         className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base"
@@ -45,7 +45,6 @@ const Lists: React.FC = () => {
         Nova lista
       </button>
 
-      {/* Listas */}
       <div className="space-y-4">
         {data.lists.length === 0 ? (
           <p className="text-gray-500 text-center mt-6">Você ainda não criou nenhuma lista.</p>
@@ -85,6 +84,8 @@ const Lists: React.FC = () => {
           })
         )}
       </div>
+
+      <BottomNav activeTab="lists" />
     </div>
   );
 };

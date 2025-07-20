@@ -1,6 +1,8 @@
+// src/pages/Compare.tsx
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
 
 const Compare: React.FC = () => {
   const { data } = useData();
@@ -99,8 +101,12 @@ const Compare: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p className="text-gray-500 text-center mt-6">Selecione duas listas para comparar.</p>
+        <p className="text-gray-500 text-center mt-6">
+          Selecione duas listas para comparar.
+        </p>
       )}
+
+      <BottomNav activeTab="compare" />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { toast } from "sonner";
 import { Mail, Lock } from "lucide-react";
@@ -18,8 +18,9 @@ const Register = () => {
 
     try {
       await createUserWithEmailAndPassword(auth, email, senha);
+      await signOut(auth); // ⛔ Desloga o usuário imediatamente
       toast.success("Conta criada com sucesso. Faça login.");
-      navigate("/login");
+      navigate("/login"); // 🔄 Redireciona para tela de login
     } catch (error: any) {
       if (error.code === "auth/weak-password") {
         toast.error("A senha precisa ter no mínimo 6 caracteres.");

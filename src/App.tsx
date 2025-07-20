@@ -8,6 +8,7 @@ import Scanner from './pages/Scanner';
 import Lists from './pages/Lists';
 import ListDetail from './pages/ListDetail';
 import Compare from './pages/Compare';
+import Profile from './pages/Profile';
 import Onboarding from './pages/Onboarding';
 import { DataProvider } from './context/DataContext';
 import { Toaster } from './components/ui/Toaster';
@@ -50,6 +51,7 @@ function App() {
               <Route path="/lists" element={<Lists />} />
               <Route path="/list/:id" element={<ListDetail />} />
               <Route path="/compare" element={<Compare />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>
           )}
