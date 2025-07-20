@@ -1,75 +1,68 @@
-// src/pages/Onboarding.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-interface Slide {
-  image: string;
-  title: string;
-  description: string;
-}
-
-const slides: Slide[] = [
+const slides = [
   {
-    image: '/slide1.png',
     title: 'Organize suas compras',
-    description: 'Monte listas personalizadas e economize tempo no supermercado.',
+    image: '/slide1.png',
+    description: 'Crie listas personalizadas e mantenha tudo sob controle ao fazer compras.',
   },
   {
-    image: '/slide2.png',
     title: 'Compare preços',
-    description: 'Veja qual mercado tem os melhores preços para seus produtos.',
+    image: '/slide2.png',
+    description: 'Veja onde cada item está mais barato e economize de verdade.',
   },
   {
+    title: 'Acompanhe seus gastos',
     image: '/slide3.png',
-    title: 'Economize mais',
-    description: 'Acompanhe seu histórico de economia a cada compra realizada.',
+    description: 'Visualize o quanto já economizou e planeje melhor suas finanças.',
   },
 ];
 
 const Onboarding: React.FC = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
 
-  const handleNext = () => {
-    if (currentIndex === slides.length - 1) {
-      navigate('/login');
+  const nextSlide = () => {
+    if (currentSlide < slides.length - 1) {
+      setCurrentSlide((prev) => prev + 1);
     } else {
-      setCurrentIndex((prev) => prev + 1);
+      navigate('/login');
     }
   };
 
   return (
-    <div className="flex flex-col justify-between items-center min-h-screen bg-white px-6 py-10 text-center">
-      <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center justify-between min-h-screen bg-white px-6 pt-12 pb-10">
+      {/* Logo */}
+      <img src="/COMPARAFY.png" alt="Comparify" className="w-32 h-auto mb-4" />
+
+      {/* Slide content */}
+      <div className="text-center">
         <img
-          src={slides[currentIndex].image}
-          alt={slides[currentIndex].title}
-          className="w-64 h-64 object-contain mb-6"
+          src={slides[currentSlide].image}
+          alt={slides[currentSlide].title}
+          className="w-64 h-64 object-contain mx-auto mb-6"
         />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {slides[currentIndex].title}
-        </h2>
-        <p className="text-gray-600 max-w-sm">{slides[currentIndex].description}</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{slides[currentSlide].title}</h2>
+        <p className="text-gray-500 text-base max-w-md mx-auto">{slides[currentSlide].description}</p>
       </div>
 
-      {/* Indicador de progresso */}
-      <div className="flex gap-2 mt-6">
+      {/* Indicadores de progresso */}
+      <div className="flex items-center justify-center gap-2 mt-6">
         {slides.map((_, i) => (
           <div
             key={i}
-            className={`w-3 h-3 rounded-full ${
-              i === currentIndex ? 'bg-yellow-500' : 'bg-gray-300'
-            }`}
+            className={`w-3 h-3 rounded-full ${i === currentSlide ? 'bg-yellow-500' : 'bg-gray-300'}`}
           />
         ))}
       </div>
 
       {/* Botão */}
       <button
-        onClick={handleNext}
+        onClick={nextSlide}
         className="mt-8 w-full max-w-md bg-yellow-500 text-black font-semibold py-3 px-6 rounded-xl shadow"
       >
-        {currentIndex === slides.length - 1 ? 'Começar' : 'Avançar'}
+        {currentSlide === slides.length - 1 ? 'Começar' : 'Próximo'}
       </button>
     </div>
   );
