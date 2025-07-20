@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
@@ -9,7 +10,7 @@ import ListDetail from './pages/ListDetail';
 import Compare from './pages/Compare';
 import Onboarding from './pages/Onboarding';
 import { DataProvider } from './context/DataContext';
-import Toaster from './components/ui/Toaster'; // ✅ IMPORTAR
+import { Toaster } from './components/ui/Toaster'; // ✅ CORRIGIDO
 
 function App() {
   const hasUser = sessionStorage.getItem('userId');
@@ -17,7 +18,7 @@ function App() {
   return (
     <BrowserRouter>
       <DataProvider>
-        {/* ✅ Toaster montado fora das rotas, visível em toda a aplicação */}
+        {/* ✅ Toaster montado fora das rotas */}
         <Toaster />
 
         <Routes>
