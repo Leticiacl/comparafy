@@ -20,8 +20,9 @@ const Register = () => {
       await createUserWithEmailAndPassword(auth, email, senha);
       toast.success("Conta criada com sucesso. Faça login.");
       navigate("/login");
-    } catch (error) {
-      toast.error("Erro ao criar conta. Verifique os dados.");
+    } catch (error: any) {
+      console.error("Erro ao criar conta:", error);
+      toast.error(`Erro: ${error.message}`);
     }
   };
 
