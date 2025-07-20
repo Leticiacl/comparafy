@@ -1,3 +1,4 @@
+// src/pages/Login.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,7 +8,8 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { Mail, Lock, Google } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
+import { FcGoogle } from 'react-icons/fc'; // ✅ ícone Google corrigido
 
 export default function Login() {
   const navigate = useNavigate();
@@ -102,7 +104,7 @@ export default function Login() {
         onClick={loginComGoogle}
         className="w-full max-w-sm flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-medium py-2 rounded-lg hover:bg-gray-50 transition"
       >
-        <Google className="w-5 h-5" />
+        <FcGoogle className="w-5 h-5" /> {/* ✅ corrigido */}
         Entrar com Google
       </button>
 
