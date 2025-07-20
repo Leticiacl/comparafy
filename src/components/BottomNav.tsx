@@ -1,63 +1,45 @@
 // src/components/BottomNav.tsx
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Home,
   List,
-  ScanBarcode,
-  BadgePercent,
+  BarChart,
+  Camera,
   User,
 } from 'lucide-react';
 
-const BottomNav = () => {
-  const location = useLocation();
+interface BottomNavProps {
+  activeTab: 'home' | 'lists' | 'compare' | 'scanner' | 'profile' | '';
+}
+
+const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
   const navigate = useNavigate();
 
-  const isActive = (path: string) => location.pathname === path;
+  const tabs = [
+    { name: 'Início', icon: <Home size={22} />, route: '/inicio', key: 'home' },
+    { name: 'Listas', icon: <List size={22} />, route: '/listas', key: 'lists' },
+    { name: 'Comparar', icon: <BarChart size={22} />, route: '/comparar', key: 'compare' },
+    { name: 'Scanner', icon: <Camera size={22} />, route: '/scanner', key: 'scanner' },
+    { name: 'Perfil', icon: <User size={22} />, route: '/perfil', key: 'profile' },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-      <div className="flex justify-around items-center h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-sm flex justify-around items-center h-16 z-50">
+      {tabs.map((tab) => (
         <button
-          onClick={() => navigate('/')}
-          className="flex flex-col items-center text-xs"
+          key={tab.key}
+          onClick={() => navigate(tab.route)}
+          className="flex flex-col items-center justify-center text-xs font-medium"
         >
-          <Home className={`h-5 w-5 ${isActive('/') ? 'text-yellow-500' : 'text-gray-400'}`} />
-          <span className={`${isActive('/') ? 'text-yellow-500' : 'text-gray-400'}`}>Início</span>
+          <div className={activeTab === tab.key ? 'text-yellow-500' : 'text-gray-500'}>
+            {tab.icon}
+          </div>
+          <span className={activeTab === tab.key ? 'text-yellow-500 text-[11px]' : 'text-gray-500 text-[11px]'}>
+            {tab.name}
+          </span>
         </button>
-
-        <button
-          onClick={() => navigate('/lists')}
-          className="flex flex-col items-center text-xs"
-        >
-          <List className={`h-5 w-5 ${isActive('/lists') ? 'text-yellow-500' : 'text-gray-400'}`} />
-          <span className={`${isActive('/lists') ? 'text-yellow-500' : 'text-gray-400'}`}>Listas</span>
-        </button>
-
-        <button
-          onClick={() => navigate('/scanner')}
-          className="flex flex-col items-center text-xs"
-        >
-          <ScanBarcode className={`h-5 w-5 ${isActive('/scanner') ? 'text-yellow-500' : 'text-gray-400'}`} />
-          <span className={`${isActive('/scanner') ? 'text-yellow-500' : 'text-gray-400'}`}>Scanner</span>
-        </button>
-
-        <button
-          onClick={() => navigate('/compare')}
-          className="flex flex-col items-center text-xs"
-        >
-          <BadgePercent className={`h-5 w-5 ${isActive('/compare') ? 'text-yellow-500' : 'text-gray-400'}`} />
-          <span className={`${isActive('/compare') ? 'text-yellow-500' : 'text-gray-400'}`}>Comparar</span>
-        </button>
-
-        <button
-          onClick={() => navigate('/profile')}
-          className="flex flex-col items-center text-xs"
-        >
-          <User className={`h-5 w-5 ${isActive('/profile') ? 'text-yellow-500' : 'text-gray-400'}`} />
-          <span className={`${isActive('/profile') ? 'text-yellow-500' : 'text-gray-400'}`}>Perfil</span>
-        </button>
-      </div>
+      ))}
     </nav>
   );
 };

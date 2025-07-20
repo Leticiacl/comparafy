@@ -2,66 +2,40 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth } from '../firebase';
 import BottomNav from '../components/BottomNav';
-import {
-  ArrowRightOnRectangleIcon,
-  BellIcon,
-  DocumentTextIcon,
-  PencilSquareIcon,
-  UserCircleIcon,
-  CameraIcon,
-} from '@heroicons/react/24/outline';
+import { LogOut } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await signOut(auth);
+    sessionStorage.clear();
     navigate('/');
   };
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
-      <div className="flex flex-col items-center py-6 space-y-2">
-        <UserCircleIcon className="h-20 w-20 text-gray-400" />
-        <h2 className="text-xl font-semibold text-gray-900">Minha Conta</h2>
+    <div className="p-4 pb-28 bg-white min-h-screen">
+      <div className="flex justify-end mb-4">
+        <img src="/LOGO_REDUZIDA.png" alt="Comparafy" className="h-8" />
       </div>
 
-      <div className="space-y-1 px-4 text-sm text-gray-800">
-        <div className="flex items-center justify-between py-4 border-b">
-          <span className="flex items-center gap-2">
-            <PencilSquareIcon className="h-5 w-5 text-gray-500" />
-            Editar nome
-          </span>
-        </div>
-        <div className="flex items-center justify-between py-4 border-b">
-          <span className="flex items-center gap-2">
-            <CameraIcon className="h-5 w-5 text-gray-500" />
-            Alterar foto de perfil
-          </span>
-        </div>
-        <div className="flex items-center justify-between py-4 border-b">
-          <span className="flex items-center gap-2">
-            <BellIcon className="h-5 w-5 text-gray-500" />
-            Notificações
-          </span>
-        </div>
-        <div className="flex items-center justify-between py-4 border-b">
-          <span className="flex items-center gap-2">
-            <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-            Termos de uso
-          </span>
-        </div>
-      </div>
+      <h1 className="text-2xl font-semibold text-gray-800 mb-6">Perfil</h1>
 
-      {/* Botão de sair - somente nesta tela */}
-      <div className="mt-auto px-4">
+      <div className="space-y-4">
+        {/* Exemplo de seção: editar nome ou configurações futuras */}
+        <div className="bg-gray-50 p-4 rounded-xl shadow-sm">
+          <p className="text-gray-700">Nome do usuário</p>
+          <p className="text-sm text-gray-400">Opções de edição em breve</p>
+        </div>
+
+        {/* Botão de sair - visível apenas aqui */}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 text-red-500 text-sm mt-6"
+          className="flex items-center justify-center gap-2 w-full bg-red-100 text-red-600 font-medium py-3 rounded-xl shadow-sm"
         >
-          <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          <LogOut size={18} />
           Sair da conta
         </button>
       </div>

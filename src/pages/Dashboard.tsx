@@ -1,76 +1,101 @@
 // src/pages/Dashboard.tsx
 import React from 'react';
-import { useData } from '../context/DataContext';
 import { useNavigate } from 'react-router-dom';
+import { useData } from '../context/DataContext';
+import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
 import BottomNav from '../components/BottomNav';
-import { ArrowUpRight } from 'lucide-react';
+import LOGO from '../assets/LOGO_REDUZIDA.png';
 
-const Dashboard = () => {
-  const { data, addNewList } = useData();
+const Dashboard: React.FC = () => {
+  const { data, createList } = useData();
   const navigate = useNavigate();
 
-  const totalSavings = data.savings.reduce((acc, curr) => acc + curr.value, 0);
+  const totalSavings = data.savings.reduce((acc, value) => acc + value, 0);
+
+  const handleNewList = async () => {
+    const name = prompt('Digite o nome da nova lista:');
+    if (name) {
+      const newListId = await createList(name);
+      navigate(`/lista/${newListId}`);
+    }
+  };
+
+  const handleOpenList = (id: string) => {
+    navigate(`/lista/${id}`);
+  };
 
   return (
-    <div className="pb-20 px-4 pt-6">
-      <h1 className="text-3xl font-bold">Olá!</h1>
-      <p className="text-gray-500 mb-4">Bem-vindo ao Comparify</p>
+    <div className="p-4 pb-24 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Olá!</h1>
+          <p className="text-gray-500">Bem-vindo ao Comparify</p>
+        </div>
+        <img src={LOGO} alt="Logo Comparify" className="h-8 w-auto" />
+      </div>
 
-      <div className="bg-white p-4 rounded-lg shadow flex items-center gap-4 mb-6">
-        <div className="bg-yellow-100 text-yellow-500 p-3 rounded-full">
-          <ArrowUpRight />
+      <div className="bg-white rounded-xl shadow p-4 flex items-center gap-4">
+        <div className="bg-yellow-100 p-3 rounded-full">
+          <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
         </div>
         <div>
           <p className="text-sm text-gray-500">Economia total</p>
-          <p className="text-xl font-semibold">R$ {totalSavings.toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-900">R$ {totalSavings.toFixed(2)}</p>
         </div>
       </div>
 
-      {data.lists.length > 0 && (
-        <>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-semibold">Listas recentes</h2>
-            <button
-              onClick={() => navigate('/lists')}
-              className="text-yellow-500 text-sm"
-            >
-              Ver todas
-            </button>
-          </div>
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-semibold text-gray-900">Listas recentes</h2>
+          <button onClick={() => navigate('/listas')} className="text-yellow-500 text-sm font-medium">
+            Ver todas
+          </button>
+        </div>
 
-          <div className="space-y-4 mb-6">
-            {data.lists.slice(0, 3).map((list) => (
-              <div
-                key={list.id}
-                onClick={() => navigate(`/list/${list.id}`)}
-                className="bg-white p-4 rounded-lg shadow cursor-pointer"
-              >
-                <h3 className="text-lg font-medium">{list.name}</h3>
-                <div className="h-2 bg-gray-200 rounded mt-2">
-                  <div
-                    className="h-2 bg-yellow-500 rounded"
-                    style={{
-                      width: `${(data.items[list.id]?.length || 0) * 10}%`,
-                    }}
-                  ></div>
+        {data.lists.length === 0 ? (
+          <p className="text-gray-500 text-center">Nenhuma lista criada ainda.</p>
+        ) : (
+          <div className="space-y-3">
+            {data.lists.map((list) => {
+              const items = data.items?.[list.id] || [];
+              const total = items.reduce((acc, item) => acc + (item.price || 0), 0);
+              const purchased = items.filter((i) => i.purchased).length;
+              const progress = items.length > 0 ? (purchased / items.length) * 100 : 0;
+
+              return (
+                <div
+                  key={list.id}
+                  className="bg-white p-4 rounded-xl shadow cursor-pointer"
+                  onClick={() => handleOpenList(list.id)}
+                >
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900">{list.name}</h2>
+                    <p className="text-sm text-gray-500">{purchased}/{items.length} itens</p>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
+                    <div
+                      className="h-2 bg-yellow-400 rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Total: R$ {total.toFixed(2)} — {items.length} itens
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Total: R$ 0.00 — {data.items[list.id]?.length || 0} itens
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       <button
-        onClick={addNewList}
+        onClick={handleNewList}
         className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base"
       >
         + Nova lista
       </button>
 
-      <BottomNav />
+      <BottomNav activeTab="home" />
     </div>
   );
 };
