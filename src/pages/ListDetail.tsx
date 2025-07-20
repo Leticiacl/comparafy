@@ -1,91 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchListDetails } from '../services/firestoreService';
-import { ArrowLeftIcon, PlusIcon } from 'lucide-react';
-
-type Item = {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  purchased: boolean;
-};
-
-type ListType = {
-  id: string;
-  name: string;
-  items: Item[];
-};
+import { useData } from '../context/DataContext';
+import Header from '../components/Header';
 
 const ListDetail: React.FC = () => {
-  const { id } = useParams();
-  const [list, setList] = useState<ListType | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+  const { data } = useData();
 
-  useEffect(() => {
-    const loadList = async () => {
-      try {
-        if (id) {
-          const listData = await fetchListDetails(id);
-          if (listData) {
-            setList(listData);
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao carregar lista:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadList();
-  }, [id]);
-
-  if (loading) {
-    return <div className="p-4 text-gray-700">Carregando...</div>;
-  }
+  const list = data.lists.find((list) => list.id === id);
 
   if (!list) {
-    return <div className="p-4 text-gray-500">Lista não encontrada.</div>;
+    return (
+      <div className="p-4 text-center text-gray-500">
+        Lista não encontrada.
+      </div>
+    );
   }
 
-  const total = list.items?.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 0), 0);
+  const totalValue =
+    list.items?.reduce(
+      (acc, item) => acc + (item.price || 0) * (item.quantity || 0),
+      0
+    ) || 0;
 
   return (
-    <div className="p-4 space-y-6 pb-20">
-      {/* Cabeçalho */}
-      <div className="flex justify-between items-center">
-        <button onClick={() => window.history.back()} className="text-gray-600">
-          <ArrowLeftIcon className="w-6 h-6" />
-        </button>
-        <h1 className="text-lg font-bold text-gray-900">Minhas Listas</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-8 h-8" />
-      </div>
+    <div className="p-4 space-y-4 pb-24">
+      {/* Cabeçalho reaproveitado */}
+      <Header title={list.name} />
 
-      {/* Resumo da Lista */}
-      <div className="bg-white p-4 rounded-xl shadow space-y-1">
-        <h2 className="text-lg font-semibold text-gray-900">{list.name}</h2>
-        <p className="text-sm text-gray-500">Itens: {list.items.length}</p>
-        <p className="text-sm text-gray-500">Total: R$ {total.toFixed(2)}</p>
-      </div>
+      {/* Itens da lista */}
+      {list.items?.length > 0 ? (
+        <div className="space-y-4">
+          {list.items.map((item, index) => (
+            <div key={index} className="bg-white p-4 rounded-xl shadow">
+              <div className="flex justify-between items-center">
+                <p className="text-gray-900 font-medium">{item.name}</p>
+                <span className="text-sm text-gray-500">
+                  {item.quantity}x R$ {item.price?.toFixed(2)}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500">
+                Total: R$ {(item.price || 0 * item.quantity || 0).toFixed(2)}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 text-center">Nenhum item nesta lista.</p>
+      )}
 
-      {/* Itens da Lista */}
-      <div className="space-y-3">
-        {list.items.map((item) => (
-          <div key={item.id} className="bg-white p-4 rounded-xl shadow">
-            <p className="font-semibold text-gray-900">{item.name}</p>
-            <p className="text-sm text-gray-500">Qtd: {item.quantity}</p>
-            <p className="text-sm text-gray-500">Preço: R$ {item.price.toFixed(2)}</p>
-          </div>
-        ))}
+      {/* Total */}
+      <div className="pt-4 text-right text-lg font-semibold text-gray-900">
+        Total da lista: R$ {totalValue.toFixed(2)}
       </div>
-
-      {/* Botão de Adicionar Item */}
-      <button
-        className="fixed bottom-6 right-6 bg-yellow-500 text-white rounded-full p-4 shadow-lg hover:bg-yellow-600"
-        onClick={() => alert('Em breve: adicionar item')}
-      >
-        <PlusIcon className="w-6 h-6" />
-      </button>
     </div>
   );
 };

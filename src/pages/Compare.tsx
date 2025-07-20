@@ -1,85 +1,105 @@
-import React, { useState, useMemo } from 'react';
-import {
-  ArrowLeftIcon,
-  StarIcon
-} from 'lucide-react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
 
 const Compare: React.FC = () => {
-  const { lists } = useData();
-  const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const navigate = useNavigate();
+  const { data } = useData();
+  const [listAId, setListAId] = useState<string>('');
+  const [listBId, setListBId] = useState<string>('');
 
-  const comparisons = useMemo(() => {
-    if (!selectedProduct) return [];
-    const results: any[] = [];
-    lists.forEach(list => {
-      list.items.forEach(item => {
-        if (item.name.toLowerCase().includes(selectedProduct.toLowerCase())) {
-          results.push({
-            listName: list.name,
-            price: item.price * item.quantity,
-            item,
-          });
-        }
-      });
+  const listA = data.lists.find((list) => list.id === listAId);
+  const listB = data.lists.find((list) => list.id === listBId);
+
+  const compareItems = () => {
+    if (!listA || !listB) return [];
+
+    const allItemNames = Array.from(
+      new Set([
+        ...(listA.items?.map((item) => item.name) || []),
+        ...(listB.items?.map((item) => item.name) || []),
+      ])
+    );
+
+    return allItemNames.map((name) => {
+      const itemA = listA.items?.find((i) => i.name === name);
+      const itemB = listB.items?.find((i) => i.name === name);
+
+      const priceA = itemA?.price || 0;
+      const priceB = itemB?.price || 0;
+
+      return {
+        name,
+        priceA,
+        priceB,
+      };
     });
-    return results.sort((a, b) => a.price - b.price);
-  }, [lists, selectedProduct]);
+  };
+
+  const comparisons = compareItems();
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-      <header className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(-1)}>
-          <ArrowLeftIcon className="w-6 h-6 text-gray-700 dark:text-white" />
-        </button>
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-          Comparar Produtos
-        </h1>
-      </header>
+    <div className="p-4 space-y-6 pb-24">
+      <Header title="Comparar Listas" />
 
-      <input
-        type="text"
-        placeholder="Digite o nome do produto"
-        value={selectedProduct}
-        onChange={e => setSelectedProduct(e.target.value)}
-        className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl mb-6"
-      />
+      {/* Seletores de listas */}
+      <div className="space-y-4">
+        <select
+          className="w-full p-2 border rounded-md"
+          value={listAId}
+          onChange={(e) => setListAId(e.target.value)}
+        >
+          <option value="">Selecione a primeira lista</option>
+          {data.lists.map((list) => (
+            <option key={list.id} value={list.id}>
+              {list.name}
+            </option>
+          ))}
+        </select>
 
-      {selectedProduct && comparisons.length === 0 && (
-        <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
-          Nenhuma comparação encontrada.
-        </p>
-      )}
+        <select
+          className="w-full p-2 border rounded-md"
+          value={listBId}
+          onChange={(e) => setListBId(e.target.value)}
+        >
+          <option value="">Selecione a segunda lista</option>
+          {data.lists.map((list) => (
+            <option key={list.id} value={list.id}>
+              {list.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      {comparisons.length > 0 && (
-        <div className="grid gap-4">
-          {comparisons.map((comp, idx) => (
+      {/* Tabela de comparação */}
+      {listA && listB && comparisons.length > 0 ? (
+        <div className="space-y-3 mt-6">
+          {comparisons.map((item, idx) => (
             <div
               key={idx}
-              className={`p-4 rounded-xl shadow border relative transition-all ${
-                idx === 0
-                  ? 'bg-yellow-100 dark:bg-yellow-900 border-yellow-300 dark:border-yellow-700'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-              }`}
+              className="bg-white p-4 rounded-xl shadow text-sm space-y-1"
             >
-              {idx === 0 && (
-                <div className="absolute top-2 right-2">
-                  <StarIcon className="w-5 h-5 text-yellow-500" />
-                </div>
-              )}
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{comp.listName}</p>
-              <p className="text-base font-medium text-gray-800 dark:text-white">{comp.item.name}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                {comp.item.quantity} {comp.item.unit} - R$ {comp.item.price.toFixed(2)} un.
-              </p>
-              <p className="text-lg font-bold text-yellow-700 dark:text-yellow-400 mt-1">
-                Total: R$ {comp.price.toFixed(2)}
-              </p>
+              <p className="font-semibold text-gray-800">{item.name}</p>
+              <div className="flex justify-between">
+                <p
+                  className={`${
+                    item.priceA < item.priceB ? 'text-green-600 font-bold' : 'text-gray-600'
+                  }`}
+                >
+                  Lista A: R$ {item.priceA.toFixed(2)}
+                </p>
+                <p
+                  className={`${
+                    item.priceB < item.priceA ? 'text-green-600 font-bold' : 'text-gray-600'
+                  }`}
+                >
+                  Lista B: R$ {item.priceB.toFixed(2)}
+                </p>
+              </div>
             </div>
           ))}
         </div>
+      ) : (
+        <p className="text-gray-500 text-center mt-6">Selecione duas listas para comparar.</p>
       )}
     </div>
   );

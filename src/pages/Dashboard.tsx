@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { ArrowUpRightIcon, PlusIcon } from 'lucide-react';
 import { createList } from '../services/firestoreService';
 import { useNavigate } from 'react-router-dom';
+import LogoutButton from '../components/LogoutButton';
 
 const Dashboard: React.FC = () => {
   const { data, reloadLists } = useData();
@@ -42,7 +43,10 @@ const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Olá!</h1>
           <p className="text-gray-500">Bem-vindo ao Comparify</p>
         </div>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-10 h-10" />
+        <div className="flex flex-col items-end gap-1">
+          <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-10 h-10" />
+          <LogoutButton />
+        </div>
       </div>
 
       {/* Economia Total */}
