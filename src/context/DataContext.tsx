@@ -6,44 +6,62 @@ import { auth } from '../services/firebase';
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const userId = auth.currentUser?.uid;
-
+  const [user, setUser] = useState(null);
   const [data, setData] = useState({
+    user: null,
     lists: [],
     items: {},
     savings: [],
   });
 
   useEffect(() => {
-    if (!userId) return;
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        const userData = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+        };
 
-    const fetchData = async () => {
-      const lists = await getLists(userId);
-      const savings = await getSavings(userId);
+        setUser(userData);
 
-      const items = {};
-      for (const list of lists) {
-        items[list.id] = await getListItems(userId, list.id);
+        // Carrega dados do Firestore
+        const lists = await getLists(userData.id);
+        const savings = await getSavings(userData.id);
+
+        const items = {};
+        for (const list of lists) {
+          items[list.id] = await getListItems(userData.id, list.id);
+        }
+
+        setData({
+          user: userData,
+          lists,
+          items,
+          savings,
+        });
       }
+    });
 
-      setData({ lists, items, savings });
-    };
+    return () => unsubscribe();
+  }, []);
 
-    fetchData();
-  }, [userId]);
+  const reloadLists = async () => {
+    if (!user?.id) return;
+    const lists = await getLists(user.id);
+    const items = {};
+    for (const list of lists) {
+      items[list.id] = await getListItems(user.id, list.id);
+    }
 
-  const addNewList = async (name) => {
-    if (!userId) return;
-    const newList = await createList(userId, name);
     setData((prev) => ({
       ...prev,
-      lists: [...prev.lists, newList],
-      items: { ...prev.items, [newList.id]: [] },
+      lists,
+      items,
     }));
   };
 
   return (
-    <DataContext.Provider value={{ data, addNewList }}>
+    <DataContext.Provider value={{ data, reloadLists }}>
       {children}
     </DataContext.Provider>
   );

@@ -13,12 +13,13 @@ const Lists: React.FC = () => {
 
   const handleCreateList = async () => {
     try {
-      if (!data?.user?.id) {
+      const userId = data?.user?.id;
+      if (!userId) {
         alert('⚠️ Usuário não identificado');
         return;
       }
 
-      const newList = await createList(data.user.id, 'Nova Lista');
+      const newList = await createList(userId, 'Nova Lista');
 
       if (!newList?.id) {
         alert('❌ Erro ao criar lista');
@@ -26,7 +27,7 @@ const Lists: React.FC = () => {
       }
 
       await reloadLists();
-      navigate(`/lists/${newList.id}`);
+      navigate(`/list/${newList.id}`);
     } catch (error: any) {
       console.error('Erro ao criar nova lista:', error);
       alert(`Erro: ${error?.message || error}`);
@@ -62,7 +63,7 @@ const Lists: React.FC = () => {
               <div
                 key={list.id}
                 className="bg-white p-4 rounded-xl shadow cursor-pointer"
-                onClick={() => navigate(`/lists/${list.id}`)}
+                onClick={() => navigate(`/list/${list.id}`)}
               >
                 <div className="flex justify-between items-center">
                   <p className="text-gray-900 font-medium">{list.name}</p>

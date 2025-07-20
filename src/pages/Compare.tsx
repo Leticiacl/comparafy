@@ -101,12 +101,10 @@ const Compare: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p className="text-gray-500 text-center mt-6">
-          Selecione duas listas para comparar.
-        </p>
+        <p className="text-gray-500 text-center mt-6">Selecione duas listas para comparar.</p>
       )}
 
-      <BottomNav activeTab="compare" />
+      <BottomNav />
     </div>
   );
 };

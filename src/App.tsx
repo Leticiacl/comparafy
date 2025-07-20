@@ -17,11 +17,11 @@ import { auth } from './services/firebase';
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [userAuthenticated, setUserAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUserAuthenticated(!!user);
+      setIsAuthenticated(!!user);
       setLoading(false);
     });
 
@@ -29,17 +29,22 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-600">
+        Carregando...
+      </div>
+    );
   }
 
   return (
     <BrowserRouter>
       <DataProvider>
         <Toaster />
+
         <Routes>
-          {!userAuthenticated ? (
+          {!isAuthenticated ? (
             <>
-              <Route path="/" element={<Onboarding onComplete={() => {}} />} />
+              <Route path="/" element={<Onboarding />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="*" element={<Navigate to="/" />} />
@@ -49,7 +54,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/scanner" element={<Scanner />} />
               <Route path="/lists" element={<Lists />} />
-              <Route path="/list/:id" element={<ListDetail />} />
+              <Route path="/lists/:id" element={<ListDetail />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/" />} />

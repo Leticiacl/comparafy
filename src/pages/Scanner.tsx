@@ -2,6 +2,7 @@
 import React, { useRef, useState } from 'react';
 import Header from '../components/Header';
 import { showToast } from '../components/ui/Toaster';
+import { auth } from '../services/firebase';
 import BottomNav from '../components/BottomNav';
 
 const Scanner: React.FC = () => {
@@ -76,7 +77,7 @@ const Scanner: React.FC = () => {
         )}
       </div>
 
-      <BottomNav activeTab="scanner" />
+      <BottomNav />
     </div>
   );
 };

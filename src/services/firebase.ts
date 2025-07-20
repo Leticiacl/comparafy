@@ -3,18 +3,18 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// ✅ Suas credenciais reais do Firebase
+// ✅ Configuração correta do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD1rCUhbYR7UApioX8UvqBiyiLr_1UQKCI",
   authDomain: "comparafy.firebaseapp.com",
   projectId: "comparafy",
-  storageBucket: "comparafy.firebasestorage.app",
+  storageBucket: "comparafy.appspot.com", // ✅ Corrigido aqui
   messagingSenderId: "605554593459",
   appId: "1:605554593459:web:927294878e9317ecb2eac6",
   measurementId: "G-VE8E5YZXN0"
 };
 
-// ✅ Inicializa o app
+// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 
 // 🔐 Auth
@@ -24,5 +24,5 @@ const provider = new GoogleAuthProvider();
 // 🔥 Firestore
 const db = getFirestore(app);
 
-// ✅ Exporta corretamente
+// Exporta tudo corretamente
 export { auth, db, provider };
