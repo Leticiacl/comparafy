@@ -1,103 +1,37 @@
 // src/services/firestoreService.ts
-import {
-  collection,
-  addDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  updateDoc,
-  deleteDoc,
-  doc,
-  arrayUnion
-} from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { collection, addDoc, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
-// Tipagem opcional para item
-type Item = {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  price: number;
-  purchased: boolean;
-  storeId: string;
-  notes?: string;
-};
-
-// ✅ Criação de lista
-export const createList = async (_userId: string, name: string) => {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Usuário não autenticado');
-
-  const docRef = await addDoc(collection(db, 'lists'), {
-    userId: user.uid,
-    name,
-    items: [],
-    createdAt: new Date()
-  });
-
-  const snapshot = await getDoc(docRef);
-  return { id: snapshot.id, ...snapshot.data() };
-};
-
-// ✅ Buscar listas por usuário
-export const fetchLists = async (userId: string) => {
-  const q = query(collection(db, 'lists'), where('userId', '==', userId));
-  const snapshot = await getDocs(q);
+// 🔄 Obter listas do usuário
+export const getLists = async (userId: string) => {
+  const snapshot = await getDocs(collection(db, 'users', userId, 'lists'));
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// ✅ Buscar detalhes de uma lista
-export const fetchListDetails = async (listId: string) => {
-  const listRef = doc(db, 'lists', listId);
-  const snapshot = await getDoc(listRef);
-  if (!snapshot.exists()) throw new Error('Lista não encontrada');
-  return { id: snapshot.id, ...snapshot.data() };
+// 🔄 Obter itens de uma lista
+export const getListItems = async (userId: string, listId: string) => {
+  const snapshot = await getDocs(collection(db, 'users', userId, 'lists', listId, 'items'));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// ✅ Atualizar nome ou metadados da lista
-export const updateList = async (
-  listId: string,
-  data: Partial<{ name: string }>
-) => {
-  const listRef = doc(db, 'lists', listId);
-  await updateDoc(listRef, data);
+// 💰 Obter economias do usuário
+export const getSavings = async (userId: string) => {
+  const snapshot = await getDocs(collection(db, 'users', userId, 'savings'));
+  return snapshot.docs.map(doc => doc.data());
 };
 
-// ✅ Adicionar item à lista
-export const addItemToList = async (listId: string, newItem: Item) => {
-  const listRef = doc(db, 'lists', listId);
-  await updateDoc(listRef, {
-    items: arrayUnion(newItem)
+// ➕ Criar nova lista
+export const createList = async (userId: string, name: string) => {
+  const docRef = await addDoc(collection(db, 'users', userId, 'lists'), {
+    name,
+    createdAt: new Date().toISOString(),
   });
+  const docSnap = await getDoc(docRef);
+  return { id: docRef.id, ...docSnap.data() };
 };
 
-// ✅ Adicionar economia ao Firestore
-export const addSavingsToFirestore = async (savings: { month: string; amount: number }) => {
-  await addDoc(collection(db, 'savings'), savings);
-};
-
-// ✅ Buscar economias do Firestore
-export const getSavingsFromFirestore = async () => {
-  const snapshot = await getDocs(collection(db, 'savings'));
-  return snapshot.docs.map(doc => doc.data());
-};
-
-// ✅ Buscar produtos
-export const fetchProducts = async () => {
-  const snapshot = await getDocs(collection(db, 'products'));
-  return snapshot.docs.map(doc => doc.data());
-};
-
-// ✅ Buscar lojas
-export const fetchStores = async () => {
-  const snapshot = await getDocs(collection(db, 'stores'));
-  return snapshot.docs.map(doc => doc.data());
-};
-
-// ✅ Buscar histórico de preços
-export const fetchPriceRecords = async () => {
-  const snapshot = await getDocs(collection(db, 'prices'));
-  return snapshot.docs.map(doc => doc.data());
+// 📦 Obter dados de uma lista específica
+export const fetchListDetails = async (userId: string, listId: string) => {
+  const snapshot = await getDocs(collection(db, 'users', userId, 'lists', listId, 'items'));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

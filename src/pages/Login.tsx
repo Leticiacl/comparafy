@@ -1,128 +1,79 @@
-// src/pages/Login.tsx
+// Login.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signInAnonymously,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword, signInAnonymously, signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../services/firebase';
-import { showToast } from '../components/ui/Toaster';
-import { AtSignIcon, LockIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
-const Login: React.FC = () => {
+const Login = () => {
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   const handleEmailLogin = async () => {
-    if (!email || !senha) {
-      showToast('Preencha todos os campos', 'error');
-      return;
-    }
-
     try {
-      const result = await signInWithEmailAndPassword(auth, email, senha);
-      sessionStorage.setItem('userId', result.user.uid);
-      showToast('Login realizado com sucesso', 'success');
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success('Login realizado com sucesso!');
       navigate('/');
-    } catch (error: any) {
-      console.error('Erro no login com e-mail:', error);
-      showToast('Falha no login com e-mail', 'error');
+    } catch (error) {
+      toast.error('Erro ao fazer login: ' + error.message);
     }
   };
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      sessionStorage.setItem('userId', result.user.uid);
-      showToast('Login com Google bem-sucedido', 'success');
+      await signInWithPopup(auth, provider);
+      toast.success('Login com Google realizado!');
       navigate('/');
-    } catch (error: any) {
-      console.error('Erro no login com Google:', error);
-      showToast('Erro ao entrar com Google', 'error');
+    } catch (error) {
+      toast.error('Erro no login com Google: ' + error.message);
     }
   };
 
   const handleAnonymousLogin = async () => {
     try {
-      const result = await signInAnonymously(auth);
-      sessionStorage.setItem('userId', result.user.uid);
-      showToast('Login como visitante realizado', 'success');
+      await signInAnonymously(auth);
+      toast.success('Login como visitante realizado!');
       navigate('/');
-    } catch (error: any) {
-      console.error('Erro no login anônimo:', error);
-      showToast('Erro ao entrar como visitante', 'error');
+    } catch (error) {
+      toast.error('Erro ao entrar como visitante: ' + error.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-md">
-        <div className="flex justify-center mb-6">
-          <img src="/LOGO_REDUZIDA.png" alt="Comparify" className="h-16" />
-        </div>
-        <h2 className="text-center text-gray-600 mb-6 text-lg">Entre com sua conta</h2>
-        <div className="space-y-4">
-          <div className="relative">
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <AtSignIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          </div>
-          <div className="relative">
-            <input
-              type="password"
-              placeholder="Senha"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <LockIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          </div>
-          <button
-            onClick={handleEmailLogin}
-            className="w-full bg-yellow-500 text-white font-semibold py-3 rounded-lg hover:bg-yellow-600 transition"
-          >
-            Entrar
-          </button>
-          <div className="flex items-center justify-center text-gray-400 text-sm">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-4">ou</span>
-            <div className="flex-1 border-t border-gray-300"></div>
-          </div>
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full border border-gray-300 text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition flex items-center justify-center gap-2"
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="w-5 h-5"
-            />
-            Continuar com Google
-          </button>
-          <button
-            onClick={handleAnonymousLogin}
-            className="w-full bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition"
-          >
-            Continuar como visitante
-          </button>
-          <p className="text-sm text-center text-gray-600 mt-4">
-            Não tem uma conta?{' '}
-            <span
-              onClick={() => navigate('/register')}
-              className="text-yellow-500 hover:underline cursor-pointer"
-            >
-              Cadastre-se
-            </span>
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4">
+      <h1 className="text-2xl font-bold">Entrar no Comparafy</h1>
+
+      <input
+        type="email"
+        placeholder="Email"
+        className="border p-2 rounded w-full max-w-md"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Senha"
+        className="border p-2 rounded w-full max-w-md"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button onClick={handleEmailLogin} className="bg-yellow-500 text-black px-4 py-2 rounded font-semibold w-full max-w-md">
+        Entrar
+      </button>
+
+      <button onClick={handleGoogleLogin} className="bg-red-500 text-white px-4 py-2 rounded font-semibold w-full max-w-md">
+        Entrar com Google
+      </button>
+
+      <button onClick={handleAnonymousLogin} className="bg-gray-700 text-white px-4 py-2 rounded font-semibold w-full max-w-md">
+        Continuar como visitante
+      </button>
+
+      <button onClick={() => navigate('/register')} className="text-blue-500 underline">
+        Cadastre-se
+      </button>
     </div>
   );
 };

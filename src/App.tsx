@@ -1,6 +1,6 @@
 // src/App.tsx
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -10,23 +10,38 @@ import ListDetail from './pages/ListDetail';
 import Compare from './pages/Compare';
 import Onboarding from './pages/Onboarding';
 import { DataProvider } from './context/DataContext';
-import { Toaster } from './components/ui/Toaster'; // ✅ CORRIGIDO
+import { Toaster } from './components/ui/Toaster';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './services/firebase';
 
 function App() {
-  const hasUser = sessionStorage.getItem('userId');
+  const [loading, setLoading] = useState(true);
+  const [userAuthenticated, setUserAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserAuthenticated(!!user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+  }
 
   return (
     <BrowserRouter>
       <DataProvider>
-        {/* ✅ Toaster montado fora das rotas */}
         <Toaster />
-
         <Routes>
-          {!hasUser ? (
+          {!userAuthenticated ? (
             <>
               <Route path="/" element={<Onboarding onComplete={() => {}} />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="*" element={<Navigate to="/" />} />
             </>
           ) : (
             <>
@@ -35,6 +50,7 @@ function App() {
               <Route path="/lists" element={<Lists />} />
               <Route path="/list/:id" element={<ListDetail />} />
               <Route path="/compare" element={<Compare />} />
+              <Route path="*" element={<Navigate to="/" />} />
             </>
           )}
         </Routes>

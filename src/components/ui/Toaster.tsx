@@ -1,98 +1,15 @@
 // src/components/ui/Toaster.tsx
-import React, { useEffect, useState } from 'react';
-import {
-  CheckCircleIcon,
-  XCircleIcon,
-  XIcon,
-  InfoIcon
-} from 'lucide-react';
+import { toast, Toaster as Sonner } from 'sonner';
 
-type ToastType = 'success' | 'error' | 'info';
-
-type ToastProps = {
-  message: string;
-  type: ToastType;
-  onClose: () => void;
+// Componente para exibir os toasts
+export const Toaster = () => {
+  return <Sonner richColors position="top-center" />;
 };
 
-const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const iconMap: Record<ToastType, JSX.Element> = {
-    success: <CheckCircleIcon className="w-5 h-5 text-green-500" />,
-    error: <XCircleIcon className="w-5 h-5 text-red-500" />,
-    info: <InfoIcon className="w-5 h-5 text-blue-500" />
-  };
-
-  const borderColorMap: Record<ToastType, string> = {
-    success: 'border-l-green-500',
-    error: 'border-l-red-500',
-    info: 'border-l-blue-500'
-  };
-
-  return (
-    <div
-      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[250px] max-w-[90%] z-50 animate-fade-in-up transition-all duration-300 bg-white dark:bg-gray-800 border-l-4 ${borderColorMap[type]}`}
-    >
-      {iconMap[type]}
-      <p className="flex-grow text-sm text-gray-800 dark:text-gray-100">{message}</p>
-      <button
-        onClick={onClose}
-        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-        aria-label="Fechar toast"
-      >
-        <XIcon className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
-
-type ToastData = {
-  id: string;
-  message: string;
-  type: ToastType;
-};
-
-export const Toaster: React.FC = () => {
-  const [toasts, setToasts] = useState<ToastData[]>([]);
-
-  useEffect(() => {
-    const handleToast = (event: Event) => {
-      const customEvent = event as CustomEvent<{ message: string; type: ToastType }>;
-      const { message, type } = customEvent.detail;
-      const id = Date.now().toString();
-
-      setToasts((prev) => [...prev, { id, message, type }]);
-    };
-
-    window.addEventListener('toast', handleToast);
-    return () => window.removeEventListener('toast', handleToast);
-  }, []);
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
-
-  return (
-    <>
-      {toasts.map((toast) => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => removeToast(toast.id)}
-        />
-      ))}
-    </>
-  );
-};
-
-export const showToast = (message: string, type: ToastType = 'success') => {
-  const event = new CustomEvent('toast', {
-    detail: { message, type }
-  });
-  window.dispatchEvent(event);
+// Funções de toast que podem ser usadas globalmente
+export const showToast = {
+  success: (msg: string) => toast.success(msg),
+  error: (msg: string) => toast.error(msg),
+  warning: (msg: string) => toast.warning(msg),
+  info: (msg: string) => toast.info(msg),
 };
