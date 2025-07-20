@@ -7,84 +7,91 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { auth, provider } from '../services/firebase';
-import { showToast } from '../components/ui/Toaster';
+import { toast } from 'sonner';
 
 const Login = () => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
-  const loginWithEmail = async () => {
+  const handleEmailLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      sessionStorage.setItem('userId', auth.currentUser?.uid || '');
-      showToast.success('Login com email realizado!');
       navigate('/');
     } catch (error: any) {
-      showToast.error('Erro no login com email: ' + error.message);
+      toast.error('Erro no login: ' + error.message);
     }
   };
 
-  const loginWithGoogle = async () => {
+  const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, provider);
-      sessionStorage.setItem('userId', auth.currentUser?.uid || '');
-      showToast.success('Login com Google realizado!');
       navigate('/');
     } catch (error: any) {
-      showToast.error('Erro no login com Google: ' + error.message);
+      toast.error('Erro no login com Google: ' + error.message);
     }
   };
 
-  const loginAsGuest = async () => {
+  const handleAnonymousLogin = async () => {
     try {
       await signInAnonymously(auth);
-      sessionStorage.setItem('userId', auth.currentUser?.uid || '');
-      showToast.success('Login como visitante realizado!');
       navigate('/');
     } catch (error: any) {
-      showToast.error('Erro ao logar como visitante: ' + error.message);
+      toast.error('Erro ao entrar como visitante: ' + error.message);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 gap-6">
-      <h1 className="text-2xl font-bold">Bem-vindo ao Comparafy</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">
+      <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-16 h-16 mb-4" />
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Bem-vindo ao Comparafy</h1>
 
-      <div className="flex flex-col gap-3 w-full max-w-md">
-        <input
-          type="email"
-          placeholder="Email"
-          className="border p-2 rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          className="border p-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button onClick={loginWithEmail} className="bg-yellow-500 text-black font-semibold py-2 rounded">
-          Entrar com Email
-        </button>
+      <input
+        type="email"
+        placeholder="Email"
+        className="border border-gray-300 rounded-md p-2 w-full max-w-sm mb-3"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-        <button onClick={loginWithGoogle} className="bg-red-500 text-white font-semibold py-2 rounded">
-          Entrar com Google
-        </button>
+      <input
+        type="password"
+        placeholder="Senha"
+        className="border border-gray-300 rounded-md p-2 w-full max-w-sm mb-4"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-        <button onClick={loginAsGuest} className="bg-gray-700 text-white font-semibold py-2 rounded">
-          Continuar como visitante
-        </button>
+      <button
+        onClick={handleEmailLogin}
+        className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-2 px-4 rounded w-full max-w-sm mb-3"
+      >
+        Entrar com Email
+      </button>
 
-        <button
+      <button
+        onClick={handleGoogleLogin}
+        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded w-full max-w-sm mb-3"
+      >
+        Entrar com Google
+      </button>
+
+      <button
+        onClick={handleAnonymousLogin}
+        className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded w-full max-w-sm mb-4"
+      >
+        Continuar como visitante
+      </button>
+
+      <p className="text-sm text-blue-600">
+        Ainda não tem conta?{' '}
+        <span
           onClick={() => navigate('/register')}
-          className="text-blue-600 underline text-sm"
+          className="underline cursor-pointer"
         >
-          Ainda não tem conta? Cadastre-se
-        </button>
-      </div>
+          Cadastre-se
+        </span>
+      </p>
     </div>
   );
 };

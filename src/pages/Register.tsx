@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
-import { showToast } from '../components/ui/Toaster';
+import { toast } from 'sonner';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -13,43 +13,44 @@ const Register = () => {
   const handleRegister = async () => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      sessionStorage.setItem('userId', auth.currentUser?.uid || '');
-      showToast.success('Cadastro realizado com sucesso!');
+      toast.success('Cadastro realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
-      showToast.error('Erro ao cadastrar: ' + error.message);
+      toast.error('Erro ao cadastrar: ' + error.message);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4">
-      <h1 className="text-2xl font-bold">Cadastre-se no Comparafy</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-white">
+      <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-16 h-16 mb-4" />
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Cadastre-se no Comparafy</h1>
 
       <input
         type="email"
         placeholder="Email"
-        className="border p-2 rounded w-full max-w-md"
+        className="border border-gray-300 rounded-md p-2 w-full max-w-sm mb-3"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
+
       <input
         type="password"
         placeholder="Senha"
-        className="border p-2 rounded w-full max-w-md"
+        className="border border-gray-300 rounded-md p-2 w-full max-w-sm mb-4"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
 
       <button
         onClick={handleRegister}
-        className="bg-yellow-500 text-black px-4 py-2 rounded font-semibold w-full max-w-md"
+        className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-2 px-4 rounded w-full max-w-sm mb-3"
       >
         Cadastrar
       </button>
 
       <button
         onClick={() => navigate('/login')}
-        className="text-blue-500 underline"
+        className="text-blue-600 underline text-sm"
       >
         Já tenho uma conta
       </button>

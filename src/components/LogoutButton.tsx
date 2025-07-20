@@ -1,26 +1,23 @@
 // src/components/LogoutButton.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { showToast } from './ui/Toaster';
 
-const LogoutButton = () => {
+const LogoutButton: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut(auth);
-    sessionStorage.removeItem('userId');
-    showToast.success('Logout realizado com sucesso!');
+    await auth.signOut();
+    sessionStorage.clear();
     navigate('/login');
   };
 
   return (
     <button
       onClick={handleLogout}
-      className="text-sm text-red-600 underline mt-4"
+      className="text-red-500 underline text-sm text-right"
     >
-      Sair do Comparafy
+      Sair do Comparafy.
     </button>
   );
 };
