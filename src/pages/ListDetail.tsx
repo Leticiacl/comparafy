@@ -4,13 +4,21 @@ import { useParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
+import { Pencil } from 'lucide-react';
 
 const ListDetail: React.FC = () => {
   const { id } = useParams();
-  const { data } = useData();
+  const { data, updateListNameInContext } = useData();
 
   const list = data.lists.find((l) => l.id === id);
   const items = data.items?.[id || ''] || [];
+
+  const handleRename = () => {
+    const newName = prompt('Digite o novo nome da lista:', list?.name || '');
+    if (newName && newName !== list?.name) {
+      updateListNameInContext(list.id, newName);
+    }
+  };
 
   if (!list) {
     return (
@@ -24,8 +32,19 @@ const ListDetail: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      <Header title={list.name} />
+      {/* Título com botão de editar */}
+      <div className="flex items-center justify-between">
+        <Header title={list.name} />
+        <button
+          onClick={handleRename}
+          className="text-gray-500 hover:text-yellow-500"
+          title="Editar nome"
+        >
+          <Pencil className="w-5 h-5" />
+        </button>
+      </div>
 
+      {/* Lista de itens */}
       {items.length === 0 ? (
         <p className="text-center text-gray-500">Nenhum item nesta lista.</p>
       ) : (

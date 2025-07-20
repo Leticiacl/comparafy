@@ -1,5 +1,5 @@
 // src/services/firestoreService.ts
-import { collection, addDoc, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 // 🔄 Obter listas do usuário
@@ -28,6 +28,12 @@ export const createList = async (userId: string, name: string) => {
   });
   const docSnap = await getDoc(docRef);
   return { id: docRef.id, ...docSnap.data() };
+};
+
+// ✏️ Atualizar nome da lista
+export const updateListName = async (userId: string, listId: string, newName: string) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  await updateDoc(listRef, { name: newName });
 };
 
 // 📦 Obter dados de uma lista específica

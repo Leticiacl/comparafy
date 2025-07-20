@@ -1,67 +1,69 @@
-// DataContext.tsx
+// src/context/DataContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getLists, getListItems, getSavings, createList } from '../services/firestoreService';
+import { getLists, getListItems, getSavings, createList, updateListName } from '../services/firestoreService';
 import { auth } from '../services/firebase';
+import { useNavigate } from 'react-router-dom';
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const userId = auth.currentUser?.uid;
+  const navigate = useNavigate();
+
   const [data, setData] = useState({
-    user: null,
     lists: [],
     items: {},
     savings: [],
   });
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-        };
+    if (!userId) return;
 
-        setUser(userData);
+    const fetchData = async () => {
+      const lists = await getLists(userId);
+      const savings = await getSavings(userId);
 
-        // Carrega dados do Firestore
-        const lists = await getLists(userData.id);
-        const savings = await getSavings(userData.id);
-
-        const items = {};
-        for (const list of lists) {
-          items[list.id] = await getListItems(userData.id, list.id);
-        }
-
-        setData({
-          user: userData,
-          lists,
-          items,
-          savings,
-        });
+      const items = {};
+      for (const list of lists) {
+        items[list.id] = await getListItems(userId, list.id);
       }
-    });
 
-    return () => unsubscribe();
-  }, []);
+      setData({ lists, items, savings });
+    };
 
-  const reloadLists = async () => {
-    if (!user?.id) return;
-    const lists = await getLists(user.id);
-    const items = {};
-    for (const list of lists) {
-      items[list.id] = await getListItems(user.id, list.id);
-    }
+    fetchData();
+  }, [userId]);
+
+  const addNewList = async () => {
+    if (!userId) return;
+
+    const name = prompt("Digite o nome da nova lista:");
+    if (!name) return;
+
+    const newList = await createList(userId, name);
+    setData((prev) => ({
+      ...prev,
+      lists: [...prev.lists, newList],
+      items: { ...prev.items, [newList.id]: [] },
+    }));
+
+    navigate(`/list/${newList.id}`);
+  };
+
+  const updateListNameInContext = async (listId, newName) => {
+    if (!userId || !listId || !newName) return;
+    await updateListName(userId, listId, newName);
 
     setData((prev) => ({
       ...prev,
-      lists,
-      items,
+      lists: prev.lists.map((list) =>
+        list.id === listId ? { ...list, name: newName } : list
+      ),
     }));
   };
 
   return (
-    <DataContext.Provider value={{ data, reloadLists }}>
+    <DataContext.Provider value={{ data, addNewList, updateListNameInContext }}>
       {children}
     </DataContext.Provider>
   );

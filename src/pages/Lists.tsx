@@ -1,92 +1,43 @@
 // src/pages/Lists.tsx
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { PlusIcon } from 'lucide-react';
-import { createList } from '../services/firestoreService';
-import Header from '../components/Header';
+import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 
-const Lists: React.FC = () => {
-  const { data, reloadLists } = useData();
+const Lists = () => {
+  const { data, addNewList } = useData();
   const navigate = useNavigate();
 
-  const handleCreateList = async () => {
-    try {
-      const userId = data?.user?.id;
-      if (!userId) {
-        alert('⚠️ Usuário não identificado');
-        return;
-      }
-
-      const newList = await createList(userId, 'Nova Lista');
-
-      if (!newList?.id) {
-        alert('❌ Erro ao criar lista');
-        return;
-      }
-
-      await reloadLists();
-      navigate(`/list/${newList.id}`);
-    } catch (error: any) {
-      console.error('Erro ao criar nova lista:', error);
-      alert(`Erro: ${error?.message || error}`);
-    }
-  };
-
   return (
-    <div className="p-4 space-y-6 pb-24">
-      <Header title="Minhas Listas" />
+    <div className="pb-20 px-4 pt-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">Minhas Listas</h1>
+        <img src="/COMPARAFY.png" alt="Logo" className="h-8" />
+      </div>
 
       <button
-        onClick={handleCreateList}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base"
+        onClick={addNewList}
+        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mb-6"
       >
-        <PlusIcon className="w-5 h-5" />
-        Nova lista
+        + Nova lista
       </button>
 
       <div className="space-y-4">
-        {data.lists.length === 0 ? (
-          <p className="text-gray-500 text-center mt-6">Você ainda não criou nenhuma lista.</p>
-        ) : (
-          data.lists.map((list) => {
-            const completed = list.items?.filter((i) => i.purchased).length || 0;
-            const total = list.items?.length || 0;
-            const totalValue =
-              list.items?.reduce(
-                (acc, i) => acc + (i.price || 0) * (i.quantity || 0),
-                0
-              ) || 0;
-
-            return (
-              <div
-                key={list.id}
-                className="bg-white p-4 rounded-xl shadow cursor-pointer"
-                onClick={() => navigate(`/list/${list.id}`)}
-              >
-                <div className="flex justify-between items-center">
-                  <p className="text-gray-900 font-medium">{list.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {completed}/{total} itens
-                  </p>
-                </div>
-                <div className="w-full h-2 bg-gray-200 rounded mt-2 overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-500"
-                    style={{ width: `${(completed / total) * 100 || 0}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Total: R$ {totalValue.toFixed(2)}
-                </p>
-              </div>
-            );
-          })
-        )}
+        {data.lists.map((list) => (
+          <div
+            key={list.id}
+            onClick={() => navigate(`/list/${list.id}`)}
+            className="bg-white p-4 rounded-lg shadow cursor-pointer"
+          >
+            <h2 className="text-lg font-medium">{list.name}</h2>
+            <div className="text-sm text-gray-500">
+              {data.items[list.id]?.length || 0} itens
+            </div>
+          </div>
+        ))}
       </div>
 
-      <BottomNav activeTab="lists" />
+      <BottomNav />
     </div>
   );
 };
