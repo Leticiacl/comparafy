@@ -21,8 +21,15 @@ const Register = () => {
       toast.success("Conta criada com sucesso. Faça login.");
       navigate("/login");
     } catch (error: any) {
-      console.error("Erro ao criar conta:", error);
-      toast.error(`Erro: ${error.message}`);
+      if (error.code === "auth/weak-password") {
+        toast.error("A senha precisa ter no mínimo 6 caracteres.");
+      } else if (error.code === "auth/email-already-in-use") {
+        toast.error("Este e-mail já está em uso.");
+      } else if (error.code === "auth/invalid-email") {
+        toast.error("E-mail inválido.");
+      } else {
+        toast.error(`Erro: ${error.message}`);
+      }
     }
   };
 
@@ -48,7 +55,7 @@ const Register = () => {
           <Lock className="w-5 h-5 text-gray-400 mr-2" />
           <input
             type="password"
-            placeholder="Senha"
+            placeholder="Senha (mínimo 6 caracteres)"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             className="flex-1 outline-none text-sm bg-transparent"
