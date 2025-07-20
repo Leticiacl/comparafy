@@ -1,33 +1,33 @@
 // src/components/BottomNav.tsx
 import React from 'react';
-import { HomeIcon, ListIcon, CameraIcon, CompareIcon, UserIcon } from 'lucide-react';
+import { HomeIcon, ListIcon, CameraIcon, CircleEqualIcon, UserIcon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const BottomNav: React.FC = () => {
-  const navigate = useNavigate();
+const BottomNav = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const navItems = [
-    { label: 'Início', icon: <HomeIcon className="w-5 h-5" />, path: '/dashboard' },
-    { label: 'Listas', icon: <ListIcon className="w-5 h-5" />, path: '/lists' },
-    { label: 'Scanner', icon: <CameraIcon className="w-5 h-5" />, path: '/scanner' },
-    { label: 'Comparar', icon: <CompareIcon className="w-5 h-5" />, path: '/compare' },
-    { label: 'Perfil', icon: <UserIcon className="w-5 h-5" />, path: '/profile' },
+  const tabs = [
+    { name: 'Início', icon: <HomeIcon size={22} />, path: '/dashboard' },
+    { name: 'Listas', icon: <ListIcon size={22} />, path: '/lists' },
+    { name: 'Scanner', icon: <CameraIcon size={22} />, path: '/scanner' },
+    { name: 'Comparar', icon: <CircleEqualIcon size={22} />, path: '/compare' },
+    { name: 'Perfil', icon: <UserIcon size={22} />, path: '/profile' },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md z-50">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-inner">
       <div className="flex justify-around items-center h-16">
-        {navItems.map((item) => (
+        {tabs.map((tab) => (
           <button
-            key={item.label}
-            onClick={() => navigate(item.path)}
-            className={`flex flex-col items-center justify-center text-xs font-medium ${
-              location.pathname === item.path ? 'text-yellow-500' : 'text-gray-500'
+            key={tab.name}
+            onClick={() => navigate(tab.path)}
+            className={`flex flex-col items-center justify-center text-sm ${
+              location.pathname === tab.path ? 'text-yellow-500 font-semibold' : 'text-gray-500'
             }`}
           >
-            {item.icon}
-            <span>{item.label}</span>
+            {tab.icon}
+            <span>{tab.name}</span>
           </button>
         ))}
       </div>
