@@ -16,7 +16,7 @@ const Compare: React.FC = () => {
     const results: any[] = [];
     lists.forEach(list => {
       list.items.forEach(item => {
-        if (item.name.toLowerCase() === selectedProduct.toLowerCase()) {
+        if (item.name.toLowerCase().includes(selectedProduct.toLowerCase())) {
           results.push({
             listName: list.name,
             price: item.price * item.quantity,
@@ -46,6 +46,12 @@ const Compare: React.FC = () => {
         onChange={e => setSelectedProduct(e.target.value)}
         className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-xl mb-6"
       />
+
+      {selectedProduct && comparisons.length === 0 && (
+        <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
+          Nenhuma comparação encontrada.
+        </p>
+      )}
 
       {comparisons.length > 0 && (
         <div className="grid gap-4">

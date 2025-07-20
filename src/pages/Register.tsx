@@ -12,6 +12,11 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
 
   const handleRegister = async () => {
+    if (!email || !senha) {
+      showToast('Preencha todos os campos', 'error');
+      return;
+    }
+
     try {
       const result = await createUserWithEmailAndPassword(auth, email, senha);
       sessionStorage.setItem('userId', result.user.uid);

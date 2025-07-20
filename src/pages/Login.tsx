@@ -16,6 +16,11 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const handleEmailLogin = async () => {
+    if (!email || !senha) {
+      showToast('Preencha todos os campos', 'error');
+      return;
+    }
+
     try {
       const result = await signInWithEmailAndPassword(auth, email, senha);
       sessionStorage.setItem('userId', result.user.uid);
