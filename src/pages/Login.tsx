@@ -1,106 +1,124 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword, signInAnonymously, signInWithPopup } from "firebase/auth";
-import { auth, provider } from "../services/firebase";
-import { toast } from "sonner";
-import { FcGoogle } from "react-icons/fc";
-import { Mail, Lock } from "lucide-react";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  signInWithEmailAndPassword,
+  signInAnonymously,
+  GoogleAuthProvider,
+  signInWithPopup
+} from 'firebase/auth';
+import { auth } from '../services/firebase';
+import { Mail, Lock, Google } from 'lucide-react';
 
-const Login = () => {
+export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = async () => {
+  const loginComEmailSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, senha);
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error("Email ou senha inválidos.");
+      sessionStorage.setItem('userLogged', 'true');
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError('Erro ao fazer login. Verifique seu email e senha.');
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const loginComGoogle = async () => {
     try {
+      const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error(`Erro no login com Google: ${error}`);
+      sessionStorage.setItem('userLogged', 'true');
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(`Erro no login com Google: ${err.message}`);
     }
   };
 
-  const handleAnonymousLogin = async () => {
+  const loginComoVisitante = async () => {
     try {
       await signInAnonymously(auth);
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error("Erro ao entrar como visitante.");
+      sessionStorage.setItem('userLogged', 'true');
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError('Erro ao entrar como visitante.');
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-white">
-      <img src="/COMPARAFY.png" alt="Logo" className="h-12 object-contain mb-8" />
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+      <img src="/COMPARAFY.png" alt="Logo Comparify" className="w-40 mb-8" />
 
-      <h1 className="text-xl font-bold mb-6 text-gray-900">Entrar no Comparify</h1>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Entrar no Comparify</h2>
 
-      <div className="w-full max-w-sm space-y-4">
+      {error && (
+        <div className="bg-red-100 text-red-800 px-4 py-2 rounded mb-4 text-sm w-full max-w-sm text-center">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={loginComEmailSenha} className="w-full max-w-sm space-y-4">
         <div className="flex items-center border rounded-lg px-3 py-2">
-          <Mail className="w-5 h-5 text-gray-400 mr-2" />
+          <Mail className="text-gray-400 mr-2 w-5 h-5" />
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 outline-none text-sm bg-transparent"
+            required
+            className="flex-1 outline-none text-sm"
           />
         </div>
 
         <div className="flex items-center border rounded-lg px-3 py-2">
-          <Lock className="w-5 h-5 text-gray-400 mr-2" />
+          <Lock className="text-gray-400 mr-2 w-5 h-5" />
           <input
             type="password"
             placeholder="Senha"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="flex-1 outline-none text-sm bg-transparent"
+            required
+            className="flex-1 outline-none text-sm"
           />
         </div>
 
         <button
-          onClick={handleLogin}
-          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow"
+          type="submit"
+          className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-xl transition"
         >
           Entrar
         </button>
+      </form>
 
-        <div className="flex items-center my-2">
-          <hr className="flex-grow border-gray-300" />
-          <span className="px-2 text-sm text-gray-400">ou</span>
-          <hr className="flex-grow border-gray-300" />
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl flex items-center justify-center gap-2"
-        >
-          <FcGoogle className="w-5 h-5" />
-          Entrar com Google
-        </button>
-
-        <button
-          onClick={handleAnonymousLogin}
-          className="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-xl"
-        >
-          Continuar como visitante
-        </button>
-
-        <p className="text-sm text-center mt-4 text-blue-600">
-          <a href="/register">Cadastre-se</a>
-        </p>
+      <div className="flex items-center w-full max-w-sm my-4">
+        <hr className="flex-grow border-t border-gray-300" />
+        <span className="mx-3 text-gray-400 text-sm">ou</span>
+        <hr className="flex-grow border-t border-gray-300" />
       </div>
+
+      <button
+        onClick={loginComGoogle}
+        className="w-full max-w-sm flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-medium py-2 rounded-lg hover:bg-gray-50 transition"
+      >
+        <Google className="w-5 h-5" />
+        Entrar com Google
+      </button>
+
+      <button
+        onClick={loginComoVisitante}
+        className="w-full max-w-sm mt-3 bg-gray-100 text-gray-700 font-medium py-2 rounded-lg hover:bg-gray-200 transition"
+      >
+        Continuar como visitante
+      </button>
+
+      <p className="mt-6 text-sm text-gray-500">
+        Ainda não tem uma conta?{' '}
+        <a href="/register" className="text-blue-600 hover:underline">
+          Cadastre-se
+        </a>
+      </p>
     </div>
   );
-};
-
-export default Login;
+}

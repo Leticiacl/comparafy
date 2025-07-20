@@ -1,3 +1,4 @@
+// src/pages/Onboarding.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -5,20 +6,17 @@ const slides = [
   {
     image: "/slide1.png",
     title: "Organize suas compras",
-    description:
-      "Crie listas personalizadas e mantenha tudo sob controle ao fazer compras.",
+    description: "Crie listas personalizadas e mantenha tudo sob controle ao fazer compras.",
   },
   {
     image: "/slide2.png",
     title: "Compare preços facilmente",
-    description:
-      "Compare os preços dos produtos entre diferentes supermercados.",
+    description: "Adicione produtos e compare os preços em diferentes mercados.",
   },
   {
     image: "/slide3.png",
-    title: "Economize mais",
-    description:
-      "Descubra onde comprar mais barato e acompanhe sua economia total.",
+    title: "Economize de verdade",
+    description: "Veja quanto está economizando em tempo real e maximize seu orçamento.",
   },
 ];
 
@@ -35,32 +33,32 @@ const Onboarding: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white px-6 pt-10 pb-8">
+    <div className="flex flex-col h-screen justify-between px-6 py-10 bg-white">
       <div className="flex justify-center">
         <img
           src="/COMPARAFY.png"
-          alt="Comparafy"
-          className="h-10 object-contain"
+          alt="Logo Comparafy"
+          className="w-32 h-auto"
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center flex-grow">
+      <div className="flex flex-col items-center justify-center flex-grow text-center">
         <img
           src={slides[currentSlide].image}
-          alt="Onboarding"
-          className="w-52 h-52 object-contain mb-8"
+          alt={slides[currentSlide].title}
+          className="max-w-[200px] max-h-[200px] mb-6 object-contain"
+          style={{ imageRendering: "auto" }}
         />
-        <h2 className="text-xl font-bold text-center text-gray-900 mb-3">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
           {slides[currentSlide].title}
         </h2>
-        <p className="text-center text-gray-500 text-base max-w-sm">
-          {slides[currentSlide].description}
-        </p>
+        <p className="text-gray-500 px-4">{slides[currentSlide].description}</p>
+      </div>
 
-        {/* Indicadores */}
-        <div className="flex space-x-2 mt-8">
+      <div className="flex flex-col items-center gap-6">
+        <div className="flex gap-2">
           {slides.map((_, index) => (
-            <div
+            <span
               key={index}
               className={`w-3 h-3 rounded-full ${
                 index === currentSlide ? "bg-yellow-500" : "bg-gray-300"
@@ -68,15 +66,13 @@ const Onboarding: React.FC = () => {
             />
           ))}
         </div>
+        <button
+          onClick={handleNext}
+          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow text-base"
+        >
+          {currentSlide === slides.length - 1 ? "Começar" : "Próximo"}
+        </button>
       </div>
-
-      {/* Botão */}
-      <button
-        onClick={handleNext}
-        className="bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow text-center mt-6"
-      >
-        {currentSlide === slides.length - 1 ? "Começar" : "Próximo"}
-      </button>
     </div>
   );
 };
