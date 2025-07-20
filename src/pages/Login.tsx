@@ -1,131 +1,104 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  signInWithEmailAndPassword,
-  signInAnonymously,
-  signInWithPopup,
-} from 'firebase/auth';
-import { auth, provider } from '../services/firebase';
-import { toast } from 'sonner';
-import { FcGoogle } from 'react-icons/fc';
-import { Mail, Lock } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { signInWithEmailAndPassword, signInAnonymously, signInWithPopup } from "firebase/auth";
+import { auth, provider } from "../services/firebase";
+import { toast } from "sonner";
+import { FcGoogle } from "react-icons/fc";
+import { Mail, Lock } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
 
-  const loginWithEmail = async () => {
+  const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast.success('Login realizado com sucesso!');
-      sessionStorage.setItem('uid', auth.currentUser?.uid || '');
-      navigate('/');
-    } catch (error: any) {
-      toast.error('Erro no login: ' + error.message);
+      await signInWithEmailAndPassword(auth, email, senha);
+      navigate("/dashboard");
+    } catch (error) {
+      toast.error("Email ou senha inválidos.");
     }
   };
 
-  const loginWithGoogle = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      sessionStorage.setItem('uid', user.uid);
-      toast.success('Login com Google realizado!');
-      navigate('/');
-    } catch (error: any) {
-      toast.error('Erro no login com Google: ' + error.message);
+      await signInWithPopup(auth, provider);
+      navigate("/dashboard");
+    } catch (error) {
+      toast.error(`Erro no login com Google: ${error}`);
     }
   };
 
-  const loginAsGuest = async () => {
+  const handleAnonymousLogin = async () => {
     try {
-      const result = await signInAnonymously(auth);
-      sessionStorage.setItem('uid', result.user.uid);
-      toast.success('Login como visitante realizado!');
-      navigate('/');
-    } catch (error: any) {
-      toast.error('Erro no login anônimo: ' + error.message);
+      await signInAnonymously(auth);
+      navigate("/dashboard");
+    } catch (error) {
+      toast.error("Erro ao entrar como visitante.");
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">
-      {/* Logo */}
-      <img
-        src="/COMPARAFY.png"
-        alt="Logo Comparify"
-        className="w-28 h-28 mb-6"
-      />
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-white">
+      <img src="/COMPARAFY.png" alt="Logo" className="h-12 object-contain mb-8" />
 
-      {/* Título */}
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Entrar no Comparify
-      </h1>
+      <h1 className="text-xl font-bold mb-6 text-gray-900">Entrar no Comparify</h1>
 
-      {/* Email */}
-      <div className="w-full max-w-sm mb-3 relative">
-        <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
-        <input
-          type="email"
-          placeholder="Email"
-          className="pl-10 pr-4 py-2 border rounded-lg w-full text-gray-800"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <div className="w-full max-w-sm space-y-4">
+        <div className="flex items-center border rounded-lg px-3 py-2">
+          <Mail className="w-5 h-5 text-gray-400 mr-2" />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 outline-none text-sm bg-transparent"
+          />
+        </div>
+
+        <div className="flex items-center border rounded-lg px-3 py-2">
+          <Lock className="w-5 h-5 text-gray-400 mr-2" />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            className="flex-1 outline-none text-sm bg-transparent"
+          />
+        </div>
+
+        <button
+          onClick={handleLogin}
+          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow"
+        >
+          Entrar
+        </button>
+
+        <div className="flex items-center my-2">
+          <hr className="flex-grow border-gray-300" />
+          <span className="px-2 text-sm text-gray-400">ou</span>
+          <hr className="flex-grow border-gray-300" />
+        </div>
+
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl flex items-center justify-center gap-2"
+        >
+          <FcGoogle className="w-5 h-5" />
+          Entrar com Google
+        </button>
+
+        <button
+          onClick={handleAnonymousLogin}
+          className="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-xl"
+        >
+          Continuar como visitante
+        </button>
+
+        <p className="text-sm text-center mt-4 text-blue-600">
+          <a href="/register">Cadastre-se</a>
+        </p>
       </div>
-
-      {/* Senha */}
-      <div className="w-full max-w-sm mb-4 relative">
-        <Lock className="absolute left-3 top-3.5 text-gray-400" size={18} />
-        <input
-          type="password"
-          placeholder="Senha"
-          className="pl-10 pr-4 py-2 border rounded-lg w-full text-gray-800"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-
-      {/* Botão Entrar */}
-      <button
-        onClick={loginWithEmail}
-        className="bg-yellow-500 text-black font-semibold py-2 rounded-lg w-full max-w-sm shadow mb-4"
-      >
-        Entrar
-      </button>
-
-      {/* Separador */}
-      <div className="flex items-center w-full max-w-sm my-2">
-        <div className="flex-grow h-px bg-gray-300" />
-        <span className="mx-2 text-sm text-gray-400">ou</span>
-        <div className="flex-grow h-px bg-gray-300" />
-      </div>
-
-      {/* Botão Google */}
-      <button
-        onClick={loginWithGoogle}
-        className="flex items-center justify-center gap-2 bg-white border py-2 rounded-lg w-full max-w-sm mb-3 shadow"
-      >
-        <FcGoogle size={20} />
-        <span className="text-gray-700">Entrar com Google</span>
-      </button>
-
-      {/* Botão visitante */}
-      <button
-        onClick={loginAsGuest}
-        className="bg-gray-100 text-gray-800 font-medium py-2 rounded-lg w-full max-w-sm mb-4"
-      >
-        Continuar como visitante
-      </button>
-
-      {/* Link cadastro */}
-      <button
-        onClick={() => navigate('/register')}
-        className="text-sm text-blue-500 underline mt-2"
-      >
-        Cadastre-se
-      </button>
     </div>
   );
 };

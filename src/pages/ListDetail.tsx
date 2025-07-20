@@ -1,7 +1,8 @@
+// src/pages/ListDetail.tsx
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
 
 const ListDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ const ListDetail: React.FC = () => {
     return (
       <div className="p-4 text-center text-gray-500">
         Lista não encontrada.
+        <BottomNav />
       </div>
     );
   }
@@ -25,8 +27,11 @@ const ListDetail: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      {/* Cabeçalho reaproveitado */}
-      <Header title={list.name} />
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold text-gray-900">{list.name}</h1>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-10 h-10" />
+      </div>
 
       {/* Itens da lista */}
       {list.items?.length > 0 ? (
@@ -53,6 +58,8 @@ const ListDetail: React.FC = () => {
       <div className="pt-4 text-right text-lg font-semibold text-gray-900">
         Total da lista: R$ {totalValue.toFixed(2)}
       </div>
+
+      <BottomNav />
     </div>
   );
 };

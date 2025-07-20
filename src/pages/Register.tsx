@@ -1,79 +1,70 @@
-import React, { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../services/firebase';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { Mail, Lock } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../services/firebase";
+import { toast } from "sonner";
+import { Mail, Lock } from "lucide-react";
 
 const Register = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
 
   const handleRegister = async () => {
+    if (!email || !senha) {
+      toast.error("Preencha todos os campos.");
+      return;
+    }
+
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      toast.success('Cadastro realizado com sucesso!');
-      sessionStorage.setItem('uid', auth.currentUser?.uid || '');
-      navigate('/');
-    } catch (error: any) {
-      toast.error('Erro ao cadastrar: ' + error.message);
+      await createUserWithEmailAndPassword(auth, email, senha);
+      toast.success("Conta criada com sucesso. Faça login.");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Erro ao criar conta. Verifique os dados.");
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">
-      {/* Logo */}
-      <img
-        src="/COMPARAFY.png"
-        alt="Logo Comparify"
-        className="w-28 h-28 mb-6"
-      />
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-white">
+      <img src="/COMPARAFY.png" alt="Logo" className="h-12 object-contain mb-8" />
 
-      {/* Título */}
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Cadastre-se no Comparify
-      </h1>
+      <h1 className="text-xl font-bold mb-6 text-gray-900">Criar conta</h1>
 
-      {/* Email */}
-      <div className="w-full max-w-sm mb-3 relative">
-        <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
-        <input
-          type="email"
-          placeholder="Email"
-          className="pl-10 pr-4 py-2 border rounded-lg w-full text-gray-800"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <div className="w-full max-w-sm space-y-4">
+        <div className="flex items-center border rounded-lg px-3 py-2">
+          <Mail className="w-5 h-5 text-gray-400 mr-2" />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 outline-none text-sm bg-transparent"
+          />
+        </div>
+
+        <div className="flex items-center border rounded-lg px-3 py-2">
+          <Lock className="w-5 h-5 text-gray-400 mr-2" />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            className="flex-1 outline-none text-sm bg-transparent"
+          />
+        </div>
+
+        <button
+          onClick={handleRegister}
+          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow"
+        >
+          Criar conta
+        </button>
+
+        <p className="text-sm text-center mt-4 text-blue-600">
+          <a href="/login">Já tem conta? Faça login</a>
+        </p>
       </div>
-
-      {/* Senha */}
-      <div className="w-full max-w-sm mb-4 relative">
-        <Lock className="absolute left-3 top-3.5 text-gray-400" size={18} />
-        <input
-          type="password"
-          placeholder="Senha"
-          className="pl-10 pr-4 py-2 border rounded-lg w-full text-gray-800"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-
-      {/* Botão Cadastrar */}
-      <button
-        onClick={handleRegister}
-        className="bg-yellow-500 text-black font-semibold py-2 rounded-lg w-full max-w-sm shadow mb-4"
-      >
-        Cadastrar
-      </button>
-
-      {/* Link login */}
-      <button
-        onClick={() => navigate('/login')}
-        className="text-sm text-blue-500 underline mt-2"
-      >
-        Já tenho uma conta
-      </button>
     </div>
   );
 };
