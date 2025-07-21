@@ -1,3 +1,5 @@
+// src/context/DataContext.tsx
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
   createList,
@@ -5,7 +7,6 @@ import {
   updateListName,
 } from '../services/firestoreService'
 import { auth } from "../services/firebase";
-
 
 export interface ListType {
   id: string
@@ -39,7 +40,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const userId = auth.currentUser?.uid
     if (!userId) return
     const newList = await createList(userId, name)
-    setLists((prev) => [...prev, newList])
+    if (newList) {
+      setLists((prev) => [...prev, newList])
+    }
   }
 
   const updateListNameInContext = async (id: string, newName: string) => {

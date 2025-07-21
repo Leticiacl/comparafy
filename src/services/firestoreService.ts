@@ -1,49 +1,56 @@
+// src/services/firestoreService.ts
+
 import {
   collection,
   addDoc,
   getDocs,
-  doc,
-  getDoc,
+  query,
+  where,
   updateDoc,
-} from 'firebase/firestore';
-import { db } from './firebase';
+  doc,
+} from "firebase/firestore";
+import { db } from "./firebase";
 
-// 🔄 Obter listas do usuário
-export const getLists = async (userId: string) => {
-  const snapshot = await getDocs(collection(db, 'users', userId, 'lists'));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+// Cria uma nova lista para o usuário
+export const createList = async (userId: string, listName: string = "Nova lista") => {
+  try {
+    const docRef = await addDoc(collection(db, "lists"), {
+      name: listName,
+      userId,
+      items: [],
+      createdAt: new Date().toISOString(),
+    });
+    return { id: docRef.id, name: listName, items: [] };
+  } catch (error) {
+    console.error("Erro ao criar lista:", error);
+    return null;
+  }
 };
 
-// 🔄 Obter itens de uma lista
-export const getListItems = async (userId: string, listId: string) => {
-  const snapshot = await getDocs(collection(db, 'users', userId, 'lists', listId, 'items'));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+// Busca listas do Firestore para o usuário autenticado
+export const fetchLists = async (userId: string) => {
+  try {
+    const q = query(collection(db, "lists"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    const lists = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return lists;
+  } catch (error) {
+    console.error("Erro ao buscar listas:", error);
+    return [];
+  }
 };
 
-// 💰 Obter economias do usuário
-export const getSavings = async (userId: string) => {
-  const snapshot = await getDocs(collection(db, 'users', userId, 'savings'));
-  return snapshot.docs.map((doc) => doc.data());
-};
-
-// ➕ Criar nova lista
-export const createList = async (userId: string, name: string) => {
-  const docRef = await addDoc(collection(db, 'users', userId, 'lists'), {
-    name,
-    createdAt: new Date().toISOString(),
-  });
-  const docSnap = await getDoc(docRef);
-  return { id: docRef.id, ...docSnap.data() };
-};
-
-// 📦 Obter dados de uma lista específica
-export const fetchListDetails = async (userId: string, listId: string) => {
-  const snapshot = await getDocs(collection(db, 'users', userId, 'lists', listId, 'items'));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-};
-
-// ✏️ Atualizar nome da lista
+// Atualiza o nome da lista
 export const updateListName = async (userId: string, listId: string, newName: string) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  await updateDoc(listRef, { name: newName });
+  try {
+    const listRef = doc(db, "lists", listId);
+    await updateDoc(listRef, {
+      name: newName,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar nome da lista:", error);
+  }
 };

@@ -1,49 +1,58 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+// src/components/BottomNav.tsx
+
 import {
   HomeIcon,
-  ListIcon,
-  ScanBarcodeIcon,
-  ReplaceIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
+  QrCodeIcon,
   UserIcon,
-} from 'lucide-react'
+} from "@heroicons/react/24/outline";
+import { useNavigate } from "react-router-dom";
 
-interface BottomNavProps {
-  activeTab: 'home' | 'lists' | 'scanner' | 'compare' | 'profile'
+interface Props {
+  activeTab: "home" | "listas" | "comparar" | "scanner" | "profile";
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
-  const navigate = useNavigate()
+const BottomNav = ({ activeTab }: Props) => {
+  const navigate = useNavigate();
 
-  const getIconColor = (tab: string) =>
-    activeTab === tab ? '#FACC15' : '#9CA3AF'
+  const tabs = [
+    { name: "Início", icon: HomeIcon, route: "/inicio", key: "home" },
+    { name: "Listas", icon: ListBulletIcon, route: "/listas", key: "listas" },
+    { name: "Comparar", icon: Squares2X2Icon, route: "/comparar", key: "comparar" },
+    { name: "Scanner", icon: QrCodeIcon, route: "/scanner", key: "scanner" },
+    { name: "Perfil", icon: UserIcon, route: "/perfil", key: "profile" },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md z-50">
-      <div className="flex justify-between items-center px-6 py-2">
-        <button onClick={() => navigate('/dashboard')} className="flex flex-col items-center text-xs">
-          <HomeIcon size={24} color={getIconColor('home')} />
-          Início
-        </button>
-        <button onClick={() => navigate('/lists')} className="flex flex-col items-center text-xs">
-          <ListIcon size={24} color={getIconColor('lists')} />
-          Listas
-        </button>
-        <button onClick={() => navigate('/compare')} className="flex flex-col items-center text-xs">
-          <ReplaceIcon size={24} color={getIconColor('compare')} />
-          Comparar
-        </button>
-        <button onClick={() => navigate('/scanner')} className="flex flex-col items-center text-xs">
-          <ScanBarcodeIcon size={24} color={getIconColor('scanner')} />
-          Scanner
-        </button>
-        <button onClick={() => navigate('/profile')} className="flex flex-col items-center text-xs">
-          <UserIcon size={24} color={getIconColor('profile')} />
-          Perfil
-        </button>
-      </div>
-    </nav>
-  )
-}
+    <nav className="bg-white border-t border-gray-200 px-4 py-2 flex justify-between items-center">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = tab.key === activeTab;
 
-export default BottomNav
+        return (
+          <button
+            key={tab.key}
+            onClick={() => navigate(tab.route)}
+            className="flex flex-col items-center justify-center text-xs"
+          >
+            <Icon
+              className={`h-6 w-6 ${
+                isActive ? "text-yellow-500" : "text-gray-400"
+              }`}
+            />
+            <span
+              className={`text-[11px] ${
+                isActive ? "text-yellow-500 font-medium" : "text-gray-500"
+              }`}
+            >
+              {tab.name}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+};
+
+export default BottomNav;
