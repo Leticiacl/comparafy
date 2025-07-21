@@ -4,7 +4,8 @@ import {
   fetchLists,
   updateListName,
 } from '../services/firestoreService'
-import { auth } from '@/firebase' // ✅ caminho absoluto com alias
+import { auth } from "../services/firebase";
+
 
 export interface ListType {
   id: string
