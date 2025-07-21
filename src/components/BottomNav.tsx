@@ -4,7 +4,7 @@ import {
   HomeIcon,
   ListIcon,
   ScanBarcodeIcon,
-  CompareIcon,
+  ReplaceIcon,
   UserIcon,
 } from 'lucide-react'
 
@@ -16,7 +16,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
   const navigate = useNavigate()
 
   const getIconColor = (tab: string) =>
-    activeTab === tab ? '#FACC15' : '#9CA3AF' // Amarelo ou cinza
+    activeTab === tab ? '#FACC15' : '#9CA3AF'
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-md z-50">
@@ -30,7 +30,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
           Listas
         </button>
         <button onClick={() => navigate('/compare')} className="flex flex-col items-center text-xs">
-          <CompareIcon size={24} color={getIconColor('compare')} />
+          <ReplaceIcon size={24} color={getIconColor('compare')} />
           Comparar
         </button>
         <button onClick={() => navigate('/scanner')} className="flex flex-col items-center text-xs">
