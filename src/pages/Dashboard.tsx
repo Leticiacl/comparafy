@@ -1,98 +1,80 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DataContext } from '../context/DataContext';
 import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
-import { useData } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 
-export default function Dashboard() {
-  const { data, addNewList } = useData();
+const Dashboard = () => {
+  const { data, createListAndRedirect } = useContext(DataContext);
   const navigate = useNavigate();
 
-  const totalSavings = data.savings.reduce(
-    (acc, item) => acc + (item.value || 0),
-    0
-  );
+  const totalSavings = data?.savings?.reduce((acc, cur) => acc + Number(cur.value), 0) || 0;
 
   return (
-    <div className="min-h-screen pb-28 bg-white flex flex-col items-center px-4">
-      {/* Logo */}
-      <img
-        src="/LOGO_REDUZIDA.png"
-        alt="Comparify"
-        className="w-20 h-auto mt-8 mb-4"
-      />
-
-      {/* Título */}
-      <h1 className="text-2xl font-semibold text-gray-800">Olá!</h1>
-      <p className="text-gray-500 mb-6">Bem-vindo ao Comparify</p>
-
-      {/* Bloco de economia */}
-      <div className="bg-yellow-100 w-full p-4 rounded-xl flex items-center justify-between shadow">
+    <div className="min-h-screen bg-white flex flex-col pb-20">
+      <div className="flex justify-between items-center p-4">
         <div>
-          <p className="text-gray-500 text-sm">Você economizou</p>
-          <p className="text-2xl font-bold text-gray-800">
-            R$ {totalSavings.toFixed(2)}
-          </p>
+          <h1 className="text-xl font-semibold">Olá!</h1>
+          <p className="text-sm text-gray-500">Bem-vindo ao Comparify</p>
         </div>
-        <ArrowUpRightIcon className="h-8 w-8 text-yellow-500" />
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-12 h-12" />
       </div>
 
-      {/* Botão Nova Lista */}
-      <button
-        onClick={addNewList}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mt-6"
-      >
-        + Nova lista
-      </button>
+      <div className="p-4">
+        <div className="bg-yellow-100 p-4 rounded-xl shadow flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Economia total</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              R$ {totalSavings.toFixed(2)}
+            </p>
+          </div>
+          <ArrowUpRightIcon className="w-6 h-6 text-yellow-500" />
+        </div>
+      </div>
 
-      {/* Listas recentes */}
-      {data.lists.length > 0 && (
-        <div className="w-full mt-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">
-            Minhas listas
-          </h2>
-          <div className="space-y-3">
-            {data.lists.map((list) => {
-              const items = data.items[list.id] || [];
-              const checkedCount = items.filter((item) => item.checked).length;
-              const total = items.length;
-              const totalValue = items.reduce(
-                (sum, item) => sum + (item.price || 0),
-                0
-              );
+      <div className="p-4">
+        <button
+          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base"
+          onClick={createListAndRedirect}
+        >
+          + Nova lista
+        </button>
+      </div>
 
-              const percentage = total === 0 ? 0 : (checkedCount / total) * 100;
-
-              return (
-                <div
-                  key={list.id}
-                  className="bg-white p-4 rounded-xl shadow border border-gray-200"
-                  onClick={() => navigate(`/list/${list.id}`)}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-gray-800">{list.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {checkedCount}/{total}
-                    </p>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2">
-                    <div
-                      className="bg-yellow-500 h-2.5 rounded-full"
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-gray-700 font-medium">
-                    Total: R$ {totalValue.toFixed(2)}
-                  </p>
+      {data?.lists && data.lists.length > 0 && (
+        <div className="px-4">
+          <h2 className="text-lg font-semibold mb-2">Listas recentes</h2>
+          <div className="flex flex-col gap-4">
+            {data.lists.map((list) => (
+              <div
+                key={list.id}
+                className="bg-gray-100 rounded-xl p-4 shadow cursor-pointer"
+                onClick={() => navigate(`/list/${list.id}`)}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold">{list.name}</h3>
+                  <span className="text-sm text-gray-500">
+                    {list.items?.length || 0} itens
+                  </span>
                 </div>
-              );
-            })}
+                <div className="w-full bg-gray-300 h-2 rounded-full">
+                  <div
+                    className="bg-yellow-500 h-2 rounded-full"
+                    style={{ width: `${(list.checkedCount || 0) / (list.items?.length || 1) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="text-right text-sm font-semibold mt-2 text-gray-700">
+                  Total: R$ {Number(list.total || 0).toFixed(2)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Navegação inferior */}
       <BottomNav activeTab="home" />
     </div>
   );
-}
+};
+
+export default Dashboard;
