@@ -21,9 +21,13 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Caminhos absolutos */
-    "baseUrl": "src",  // Define a pasta base para resolver os caminhos
+    "baseUrl": "src",
     "paths": {
-      "@services/*": ["services/*"]  // Agora você pode usar @services/firestoreService
+      "@/*": ["*"],
+      "@services/*": ["services/*"],
+      "@components/*": ["components/*"],
+      "@pages/*": ["pages/*"],
+      "@context/*": ["context/*"]
     }
   },
   "include": ["src"],
