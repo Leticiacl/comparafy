@@ -1,20 +1,22 @@
 // src/components/Header.tsx
 import React from 'react';
-import LogoutButton from './LogoutButton';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   title: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ title }) => {
+  const navigate = useNavigate();
+
   return (
-    <div className="flex justify-between items-center mb-6">
-      <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-      <div className="flex flex-col items-end gap-1">
-        <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="w-10 h-10" />
-        <LogoutButton />
-      </div>
-    </div>
+    <header className="flex items-center justify-between px-4 py-4 bg-white shadow-sm">
+      <button onClick={() => navigate(-1)} className="text-gray-500 text-xl">
+        ←
+      </button>
+      <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
+      <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-8 h-8" />
+    </header>
   );
 };
 

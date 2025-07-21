@@ -2,44 +2,45 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Home,
-  List,
-  BarChart,
-  Camera,
-  User,
+  HomeIcon,
+  ListBulletIcon,
+  ScanBarcodeIcon,
+  CompareIcon,
+  UserCircleIcon
 } from 'lucide-react';
 
 interface BottomNavProps {
-  activeTab: 'home' | 'lists' | 'compare' | 'scanner' | 'profile' | '';
+  activeTab: 'home' | 'lists' | 'scanner' | 'compare' | 'profile';
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
   const navigate = useNavigate();
 
-  const tabs = [
-    { name: 'Início', icon: <Home size={22} />, route: '/inicio', key: 'home' },
-    { name: 'Listas', icon: <List size={22} />, route: '/listas', key: 'lists' },
-    { name: 'Comparar', icon: <BarChart size={22} />, route: '/comparar', key: 'compare' },
-    { name: 'Scanner', icon: <Camera size={22} />, route: '/scanner', key: 'scanner' },
-    { name: 'Perfil', icon: <User size={22} />, route: '/perfil', key: 'profile' },
-  ];
+  const iconClass = (tab: string) =>
+    tab === activeTab ? 'text-yellow-500' : 'text-gray-400';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-sm flex justify-around items-center h-16 z-50">
-      {tabs.map((tab) => (
-        <button
-          key={tab.key}
-          onClick={() => navigate(tab.route)}
-          className="flex flex-col items-center justify-center text-xs font-medium"
-        >
-          <div className={activeTab === tab.key ? 'text-yellow-500' : 'text-gray-500'}>
-            {tab.icon}
-          </div>
-          <span className={activeTab === tab.key ? 'text-yellow-500 text-[11px]' : 'text-gray-500 text-[11px]'}>
-            {tab.name}
-          </span>
-        </button>
-      ))}
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50">
+      <button onClick={() => navigate('/inicio')} className="flex flex-col items-center">
+        <HomeIcon className={`w-6 h-6 ${iconClass('home')}`} />
+        <span className="text-xs">Início</span>
+      </button>
+      <button onClick={() => navigate('/listas')} className="flex flex-col items-center">
+        <ListBulletIcon className={`w-6 h-6 ${iconClass('lists')}`} />
+        <span className="text-xs">Listas</span>
+      </button>
+      <button onClick={() => navigate('/compare')} className="flex flex-col items-center">
+        <CompareIcon className={`w-6 h-6 ${iconClass('compare')}`} />
+        <span className="text-xs">Comparar</span>
+      </button>
+      <button onClick={() => navigate('/scanner')} className="flex flex-col items-center">
+        <ScanBarcodeIcon className={`w-6 h-6 ${iconClass('scanner')}`} />
+        <span className="text-xs">Scanner</span>
+      </button>
+      <button onClick={() => navigate('/profile')} className="flex flex-col items-center">
+        <UserCircleIcon className={`w-6 h-6 ${iconClass('profile')}`} />
+        <span className="text-xs">Perfil</span>
+      </button>
     </nav>
   );
 };

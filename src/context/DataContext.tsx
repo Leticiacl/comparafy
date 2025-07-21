@@ -1,6 +1,11 @@
-// src/context/DataContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getLists, getListItems, getSavings, createList, updateListName } from '../services/firestoreService';
+import {
+  getLists,
+  getListItems,
+  getSavings,
+  createList,
+  updateListName,
+} from '../services/firestoreService';
 import { auth } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -37,7 +42,7 @@ export const DataProvider = ({ children }) => {
   const addNewList = async () => {
     if (!userId) return;
 
-    const name = prompt("Digite o nome da nova lista:");
+    const name = prompt('Digite o nome da nova lista:');
     if (!name) return;
 
     const newList = await createList(userId, name);
@@ -51,7 +56,7 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateListNameInContext = async (listId, newName) => {
-    if (!userId || !listId || !newName) return;
+    if (!userId) return;
     await updateListName(userId, listId, newName);
 
     setData((prev) => ({
