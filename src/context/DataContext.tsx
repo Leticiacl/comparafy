@@ -4,7 +4,7 @@ import {
   fetchLists,
   updateListName,
 } from '../services/firestoreService'
-import { auth } from '../../firebase' // <- caminho corrigido
+import { auth } from '../firebase' // ✅ Caminho corrigido aqui
 
 export interface ListType {
   id: string
