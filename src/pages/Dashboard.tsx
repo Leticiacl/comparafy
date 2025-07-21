@@ -1,103 +1,91 @@
 // src/pages/Dashboard.tsx
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useData } from '../context/DataContext';
-import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
-import BottomNav from '../components/BottomNav';
-import LOGO from '../assets/LOGO_REDUZIDA.png';
+import { useContext } from 'react'
+import { DataContext } from '../DataContext'
+import { useNavigate } from 'react-router-dom'
+import { ArrowUpRightIcon } from '@heroicons/react/24/outline'
+import BottomNav from '../components/BottomNav'
 
-const Dashboard: React.FC = () => {
-  const { data, createList } = useData();
-  const navigate = useNavigate();
-
-  const totalSavings = data.savings.reduce((acc, value) => acc + value, 0);
+export default function Dashboard() {
+  const { data, createList } = useContext(DataContext)
+  const navigate = useNavigate()
 
   const handleNewList = async () => {
-    const name = prompt('Digite o nome da nova lista:');
-    if (name) {
-      const newListId = await createList(name);
-      navigate(`/lista/${newListId}`);
-    }
-  };
-
-  const handleOpenList = (id: string) => {
-    navigate(`/lista/${id}`);
-  };
+    const listName = prompt('Nome da nova lista:')
+    if (!listName) return
+    const id = await createList(listName)
+    if (id) navigate(`/list/${id}`)
+  }
 
   return (
-    <div className="p-4 pb-24 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Olá!</h1>
-          <p className="text-gray-500">Bem-vindo ao Comparify</p>
-        </div>
-        <img src={LOGO} alt="Logo Comparify" className="h-8 w-auto" />
-      </div>
-
-      <div className="bg-white rounded-xl shadow p-4 flex items-center gap-4">
-        <div className="bg-yellow-100 p-3 rounded-full">
-          <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Economia total</p>
-          <p className="text-xl font-bold text-gray-900">R$ {totalSavings.toFixed(2)}</p>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold text-gray-900">Listas recentes</h2>
-          <button onClick={() => navigate('/listas')} className="text-yellow-500 text-sm font-medium">
-            Ver todas
-          </button>
-        </div>
-
-        {data.lists.length === 0 ? (
-          <p className="text-gray-500 text-center">Nenhuma lista criada ainda.</p>
-        ) : (
-          <div className="space-y-3">
-            {data.lists.map((list) => {
-              const items = data.items?.[list.id] || [];
-              const total = items.reduce((acc, item) => acc + (item.price || 0), 0);
-              const purchased = items.filter((i) => i.purchased).length;
-              const progress = items.length > 0 ? (purchased / items.length) * 100 : 0;
-
-              return (
-                <div
-                  key={list.id}
-                  className="bg-white p-4 rounded-xl shadow cursor-pointer"
-                  onClick={() => handleOpenList(list.id)}
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-gray-900">{list.name}</h2>
-                    <p className="text-sm text-gray-500">{purchased}/{items.length} itens</p>
-                  </div>
-                  <div className="w-full h-2 bg-gray-200 rounded-full mt-2">
-                    <div
-                      className="h-2 bg-yellow-400 rounded-full"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Total: R$ {total.toFixed(2)} — {items.length} itens
-                  </p>
-                </div>
-              );
-            })}
+    <div className="min-h-screen bg-white flex flex-col justify-between pb-20">
+      <div className="p-5">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">Olá!</h1>
+            <p className="text-sm text-zinc-500">Bem-vindo ao Comparify</p>
           </div>
-        )}
+          <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-10 w-10" />
+        </div>
+
+        <div className="mt-6 p-4 rounded-2xl bg-white border shadow-sm flex items-center gap-4">
+          <div className="bg-yellow-100 rounded-full p-2">
+            <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
+          </div>
+          <div>
+            <p className="text-xs text-zinc-500">Economia total</p>
+            <p className="text-2xl font-bold text-zinc-900">
+              R$ {data.savings.reduce((acc, cur) => acc + cur.value, 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-semibold text-zinc-900">Listas recentes</h2>
+            <button className="text-yellow-500 text-sm" onClick={() => navigate('/lists')}>
+              Ver todas
+            </button>
+          </div>
+
+          {data.lists.map((list) => {
+            const doneCount = list.items.filter((item) => item.checked).length
+            const totalCount = list.items.length
+            const totalPrice = list.items.reduce((acc, cur) => acc + (cur.price || 0), 0)
+            const percent = totalCount ? (doneCount / totalCount) * 100 : 0
+
+            return (
+              <div
+                key={list.id}
+                onClick={() => navigate(`/list/${list.id}`)}
+                className="p-4 bg-white border rounded-xl shadow mb-4 cursor-pointer"
+              >
+                <div className="flex justify-between mb-1">
+                  <span className="font-medium text-zinc-900">{list.name}</span>
+                  <span className="text-sm text-zinc-500">
+                    {doneCount}/{totalCount} itens
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-zinc-200 rounded-full mb-1 overflow-hidden">
+                  <div
+                    className="h-full bg-yellow-500 rounded-full"
+                    style={{ width: `${percent}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-zinc-500">Total: R$ {totalPrice.toFixed(2)}</p>
+              </div>
+            )
+          })}
+        </div>
+
+        <button
+          onClick={handleNewList}
+          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mt-4"
+        >
+          <span className="text-xl">+</span> Nova lista
+        </button>
       </div>
 
-      <button
-        onClick={handleNewList}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base"
-      >
-        + Nova lista
-      </button>
-
-      <BottomNav activeTab="home" />
+      <BottomNav activeTab="inicio" />
     </div>
-  );
-};
-
-export default Dashboard;
+  )
+}
