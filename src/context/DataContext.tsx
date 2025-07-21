@@ -1,77 +1,68 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
-  getLists,
-  getListItems,
-  getSavings,
   createList,
+  fetchLists,
   updateListName,
-} from '../services/firestoreService';
-import { auth } from '../services/firebase';
-import { useNavigate } from 'react-router-dom';
+} from '../services/firestoreService'
+import { auth } from '../firebase'
 
-const DataContext = createContext();
+export interface ListType {
+  id: string
+  name: string
+  items: any[]
+}
 
-export const DataProvider = ({ children }) => {
-  const userId = auth.currentUser?.uid;
-  const navigate = useNavigate();
+interface DataContextType {
+  lists: ListType[]
+  createNewList: (name: string) => Promise<void>
+  updateListNameInContext: (id: string, newName: string) => Promise<void>
+}
 
-  const [data, setData] = useState({
-    lists: [],
-    items: {},
-    savings: [],
-  });
+export const DataContext = createContext<DataContextType | undefined>(undefined)
+
+export const DataProvider = ({ children }: { children: React.ReactNode }) => {
+  const [lists, setLists] = useState<ListType[]>([])
+
+  const loadLists = async () => {
+    const userId = auth.currentUser?.uid
+    if (!userId) return
+    const fetchedLists = await fetchLists(userId)
+    setLists(fetchedLists)
+  }
 
   useEffect(() => {
-    if (!userId) return;
+    loadLists()
+  }, [])
 
-    const fetchData = async () => {
-      const lists = await getLists(userId);
-      const savings = await getSavings(userId);
+  const createNewList = async (name: string) => {
+    const userId = auth.currentUser?.uid
+    if (!userId) return
+    const newList = await createList(userId, name)
+    setLists((prev) => [...prev, newList])
+  }
 
-      const items = {};
-      for (const list of lists) {
-        items[list.id] = await getListItems(userId, list.id);
-      }
-
-      setData({ lists, items, savings });
-    };
-
-    fetchData();
-  }, [userId]);
-
-  const addNewList = async () => {
-    if (!userId) return;
-
-    const name = prompt('Digite o nome da nova lista:');
-    if (!name) return;
-
-    const newList = await createList(userId, name);
-    setData((prev) => ({
-      ...prev,
-      lists: [...prev.lists, newList],
-      items: { ...prev.items, [newList.id]: [] },
-    }));
-
-    navigate(`/list/${newList.id}`);
-  };
-
-  const updateListNameInContext = async (listId, newName) => {
-    if (!userId) return;
-    await updateListName(userId, listId, newName);
-
-    setData((prev) => ({
-      ...prev,
-      lists: prev.lists.map((list) =>
-        list.id === listId ? { ...list, name: newName } : list
-      ),
-    }));
-  };
+  const updateListNameInContext = async (id: string, newName: string) => {
+    const userId = auth.currentUser?.uid
+    if (!userId) return
+    await updateListName(userId, id, newName)
+    setLists((prevLists) =>
+      prevLists.map((list) =>
+        list.id === id ? { ...list, name: newName } : list
+      )
+    )
+  }
 
   return (
-    <DataContext.Provider value={{ data, addNewList, updateListNameInContext }}>
+    <DataContext.Provider value={{ lists, createNewList, updateListNameInContext }}>
       {children}
     </DataContext.Provider>
-  );
-};
+  )
+}
 
-export const useData = () => useContext(DataContext);
+export const useData = () => {
+  const context = useContext(DataContext)
+  if (!context) {
+    throw new Error('useData deve ser usado dentro de um DataProvider')
+  }
+  return context
+}
