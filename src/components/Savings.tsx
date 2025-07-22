@@ -1,51 +1,38 @@
 // src/components/Savings.tsx
-import React, { useState } from 'react';
-import { useData } from '../context/DataContext'; // Importando o DataContext
+import React from 'react'
+import { ArrowUpRightIcon } from '@heroicons/react/24/outline'
+import { useData } from '../context/DataContext'
 
 const Savings = () => {
-  const { data, addSavings } = useData();  // Pegando os dados e a função addSavings do contexto
-  const [month, setMonth] = useState('');
-  const [amount, setAmount] = useState(0);
+  const { lists } = useData()
 
-  const handleAddSavings = () => {
-    if (month && amount > 0) {
-      addSavings(month, amount);  // Adiciona a economia ao Firestore e ao estado
-    }
-  };
+  const totalSavings = lists.reduce((acc, list) => {
+    return (
+      acc +
+      list.items.reduce((sum: number, item: any) => {
+        return sum + (item.originalPrice && item.currentPrice
+          ? item.originalPrice - item.currentPrice
+          : 0)
+      }, 0)
+    )
+  }, 0)
 
   return (
-    <div>
-      <h2>Economias</h2>
-      <div>
-        <label>Mes:</label>
-        <input
-          type="text"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}  // Atualiza o mês
-          placeholder="Digite o mês"
-        />
+    <div className="bg-white rounded-2xl shadow p-4 flex items-center gap-4">
+      {/* Ícone circular */}
+      <div className="bg-yellow-100 rounded-full p-3">
+        <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
       </div>
-      <div>
-        <label>Valor:</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}  // Atualiza o valor economizado
-          placeholder="Digite o valor economizado"
-        />
-      </div>
-      <button onClick={handleAddSavings}>Adicionar Economia</button>
 
-      <h3>Economias Registradas:</h3>
-      <ul>
-        {data.savings.map((savings, index) => (
-          <li key={index}>
-            {savings.month}: R$ {savings.amount}
-          </li>
-        ))}
-      </ul>
+      {/* Texto */}
+      <div>
+        <p className="text-gray-500 text-sm">Economia total</p>
+        <p className="text-2xl font-bold text-gray-900">
+          R$ {totalSavings.toFixed(2)}
+        </p>
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export default Savings;
+export default Savings
