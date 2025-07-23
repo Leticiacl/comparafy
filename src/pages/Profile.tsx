@@ -46,22 +46,6 @@ const Profile: React.FC = () => {
           </div>
 
           <div className="flex justify-between items-center">
-            <span>Notificações</span>
-            <label className="inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-yellow-400"></div>
-            </label>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span>Modo escuro</span>
-            <label className="inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-yellow-400"></div>
-            </label>
-          </div>
-
-          <div className="flex justify-between items-center">
             <span>Termos e condições</span>
             <button className="text-blue-500 font-medium">Ver</button>
           </div>

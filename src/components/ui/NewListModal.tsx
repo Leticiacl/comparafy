@@ -1,51 +1,51 @@
-// src/components/ui/NewListModal.tsx
-
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { useData } from '../../context/DataContext'
 
 interface NewListModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreate: (name: string) => void;
+  isOpen: boolean
+  onClose: () => void
 }
 
-export const NewListModal: React.FC<NewListModalProps> = ({
-  isOpen,
-  onClose,
-  onCreate,
-}) => {
-  const [listName, setListName] = useState('');
+export const NewListModal: React.FC<NewListModalProps> = ({ isOpen, onClose }) => {
+  const { createNewList } = useData()
+  const [listName, setListName] = useState('')
 
-  if (!isOpen) return null;
+  const handleCreate = async () => {
+    if (listName.trim() !== '') {
+      await createNewList(listName)
+      setListName('')
+      onClose()
+    }
+  }
+
+  if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-md w-11/12 max-w-md">
-        <h2 className="text-lg font-semibold mb-4">Criar nova lista</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-xl p-6 w-11/12 max-w-md shadow-xl">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Criar nova lista</h2>
         <input
           type="text"
-          placeholder="Nome da lista"
           value={listName}
           onChange={(e) => setListName(e.target.value)}
-          className="w-full border rounded-lg p-2 mb-4"
+          placeholder="Nome da lista"
+          className="w-full border border-gray-300 rounded-md px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-500"
         />
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:underline"
+            className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
           >
             Cancelar
           </button>
           <button
-            onClick={() => {
-              onCreate(listName.trim() || 'Nova lista');
-              setListName('');
-            }}
-            className="bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg"
+            onClick={handleCreate}
+            className="px-4 py-2 rounded-md bg-yellow-500 text-black font-semibold hover:bg-yellow-400"
           >
             Criar
           </button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
