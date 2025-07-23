@@ -1,3 +1,4 @@
+// src/pages/Dashboard.tsx
 import React, { useContext, useState } from 'react';
 import { DataContext } from '../context/DataContext';
 import { ArrowUpRightIcon } from '@heroicons/react/24/solid';
@@ -6,17 +7,15 @@ import NewListModal from '../components/ui/NewListModal';
 import BottomNav from '../components/BottomNav';
 
 const Dashboard: React.FC = () => {
-  const { lists, savings, createList } = useContext(DataContext);
+  const { lists, createNewList } = useContext(DataContext);
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
 
   const handleCreateList = async (name: string) => {
     setShowModal(false);
-    const newListId = await createList(name);
+    const newListId = await createNewList(name);
     if (newListId) navigate(`/lists/${newListId}`);
   };
-
-  const totalSavings = savings.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -25,15 +24,14 @@ const Dashboard: React.FC = () => {
         <h1 className="text-2xl font-bold mb-1">Olá!</h1>
         <p className="text-gray-500 mb-6">Bem-vindo ao Comparify</p>
 
-        {/* Bloco de economia estilizado corretamente */}
-        <div className="bg-white rounded-2xl p-4 shadow flex items-center border border-gray-200">
+        <div className="bg-white rounded-2xl p-4 shadow flex items-center">
           <div className="bg-yellow-100 rounded-full p-3 mr-4">
             <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Economia total</p>
-            <p className="text-3xl font-bold text-black">
-              R$ {totalSavings.toFixed(2)}
+            <p className="text-gray-500 text-sm">Economia total</p>
+            <p className="text-2xl font-bold text-gray-900">
+              R$ 0,00 {/* valor estático por enquanto, já que savings não existe */}
             </p>
           </div>
         </div>
@@ -45,7 +43,7 @@ const Dashboard: React.FC = () => {
           + Nova lista
         </button>
 
-        {lists.length > 0 && (
+        {lists.length > 0 ? (
           <div className="mt-6 space-y-4">
             {lists.map((list) => (
               <div
@@ -54,12 +52,12 @@ const Dashboard: React.FC = () => {
                 onClick={() => navigate(`/lists/${list.id}`)}
               >
                 <p className="font-semibold text-lg">{list.name}</p>
-                <p className="text-sm text-gray-500">
-                  {list.items.length} itens
-                </p>
+                <p className="text-sm text-gray-500">{list.items.length} itens</p>
               </div>
             ))}
           </div>
+        ) : (
+          <p className="text-center text-gray-400 mt-6">Nenhuma lista ainda. Crie sua primeira!</p>
         )}
       </div>
 

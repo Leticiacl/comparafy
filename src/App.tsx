@@ -21,7 +21,17 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
+      if (user) {
+        sessionStorage.setItem('user', JSON.stringify(user));
+        setIsAuthenticated(true);
+      } else {
+        const stored = sessionStorage.getItem('user');
+        if (stored) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      }
       setLoading(false);
     });
 
@@ -40,7 +50,6 @@ function App() {
     <BrowserRouter>
       <DataProvider>
         <Toaster />
-
         <Routes>
           {!isAuthenticated ? (
             <>

@@ -1,5 +1,4 @@
 // src/context/DataContext.tsx
-
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import {
   createList,
@@ -16,7 +15,7 @@ export interface ListType {
 
 interface DataContextType {
   lists: ListType[]
-  createNewList: (name: string) => Promise<void>
+  createNewList: (name: string) => Promise<string | null>
   updateListNameInContext: (id: string, newName: string) => Promise<void>
 }
 
@@ -33,16 +32,23 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   useEffect(() => {
-    loadLists()
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadLists()
+      }
+    })
+    return () => unsubscribe()
   }, [])
 
   const createNewList = async (name: string) => {
     const userId = auth.currentUser?.uid
-    if (!userId) return
+    if (!userId) return null
     const newList = await createList(userId, name)
     if (newList) {
       setLists((prev) => [...prev, newList])
+      return newList.id
     }
+    return null
   }
 
   const updateListNameInContext = async (id: string, newName: string) => {
