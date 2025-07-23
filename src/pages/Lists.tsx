@@ -2,7 +2,7 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
-import NewListModal from '../components/ui/NewListModal';
+import { NewListModal } from '../components/ui/NewListModal';
 import BottomNav from '../components/BottomNav';
 
 const Lists: React.FC = () => {

@@ -3,7 +3,7 @@ import React, { useContext, useState } from 'react';
 import { DataContext } from '../context/DataContext';
 import { ArrowUpRightIcon } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
-import NewListModal from '../components/ui/NewListModal';
+import { NewListModal } from '../components/ui/NewListModal';
 import BottomNav from '../components/BottomNav';
 
 const Dashboard: React.FC = () => {
