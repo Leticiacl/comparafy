@@ -37,7 +37,7 @@ const Onboarding: React.FC = () => {
       <div className="flex justify-center">
         <img
           src="/COMPARAFY.png"
-          alt="Logo Comparafy"
+          alt="Logo Comparify"
           className="w-32 h-auto"
         />
       </div>

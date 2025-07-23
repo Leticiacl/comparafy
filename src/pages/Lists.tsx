@@ -1,18 +1,19 @@
+// src/pages/Lists.tsx
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataContext } from '../context/DataContext';
-import BottomNav from '../components/BottomNav';
 import NewListModal from '../components/ui/NewListModal';
+import BottomNav from '../components/BottomNav';
 
 const Lists: React.FC = () => {
   const { lists, createList } = useContext(DataContext);
-  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
   const handleCreateList = async (name: string) => {
     setShowModal(false);
     const newListId = await createList(name);
-    if (newListId) navigate(`/list/${newListId}`);
+    if (newListId) navigate(`/lists/${newListId}`);
   };
 
   return (
@@ -34,15 +35,17 @@ const Lists: React.FC = () => {
               <div
                 key={list.id}
                 className="p-4 bg-white rounded-xl shadow border cursor-pointer"
-                onClick={() => navigate(`/list/${list.id}`)}
+                onClick={() => navigate(`/lists/${list.id}`)}
               >
                 <p className="font-semibold text-lg">{list.name}</p>
-                <p className="text-sm text-gray-500">{list.items.length} itens</p>
+                <p className="text-sm text-gray-500">
+                  {list.items.length} itens
+                </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-center">Nenhuma lista encontrada.</p>
+          <p className="text-gray-500">Nenhuma lista encontrada.</p>
         )}
       </div>
 

@@ -13,7 +13,7 @@ const Dashboard: React.FC = () => {
   const handleCreateList = async (name: string) => {
     setShowModal(false);
     const newListId = await createList(name);
-    if (newListId) navigate(`/list/${newListId}`);
+    if (newListId) navigate(`/lists/${newListId}`);
   };
 
   const totalSavings = savings.reduce((acc, curr) => acc + curr.amount, 0);
@@ -25,13 +25,14 @@ const Dashboard: React.FC = () => {
         <h1 className="text-2xl font-bold mb-1">Olá!</h1>
         <p className="text-gray-500 mb-6">Bem-vindo ao Comparify</p>
 
-        <div className="bg-white rounded-2xl p-4 shadow flex items-center">
+        {/* Bloco de economia estilizado corretamente */}
+        <div className="bg-white rounded-2xl p-4 shadow flex items-center border border-gray-200">
           <div className="bg-yellow-100 rounded-full p-3 mr-4">
             <ArrowUpRightIcon className="h-6 w-6 text-yellow-500" />
           </div>
           <div>
-            <p className="text-gray-500 text-sm">Economia total</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-gray-500">Economia total</p>
+            <p className="text-3xl font-bold text-black">
               R$ {totalSavings.toFixed(2)}
             </p>
           </div>
@@ -50,10 +51,12 @@ const Dashboard: React.FC = () => {
               <div
                 key={list.id}
                 className="p-4 bg-white rounded-xl shadow border cursor-pointer"
-                onClick={() => navigate(`/list/${list.id}`)}
+                onClick={() => navigate(`/lists/${list.id}`)}
               >
                 <p className="font-semibold text-lg">{list.name}</p>
-                <p className="text-sm text-gray-500">{list.items.length} itens</p>
+                <p className="text-sm text-gray-500">
+                  {list.items.length} itens
+                </p>
               </div>
             ))}
           </div>
