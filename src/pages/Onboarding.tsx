@@ -1,80 +1,64 @@
 // src/pages/Onboarding.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const slides = [
   {
     image: "/slide1.png",
-    title: "Organize suas compras",
-    description: "Crie listas personalizadas e mantenha tudo sob controle ao fazer compras.",
+    title: "Compare preços",
+    description: "Economize comparando preços entre mercados.",
   },
   {
     image: "/slide2.png",
-    title: "Compare preços facilmente",
-    description: "Adicione produtos e compare os preços em diferentes mercados.",
+    title: "Crie listas inteligentes",
+    description: "Organize suas compras com listas personalizadas.",
   },
   {
     image: "/slide3.png",
-    title: "Economize de verdade",
-    description: "Veja quanto está economizando em tempo real e maximize seu orçamento.",
+    title: "Veja seu progresso",
+    description: "Acompanhe seus gastos e itens comprados.",
   },
 ];
 
-const Onboarding: React.FC = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
+export default function Onboarding() {
+  const [index, setIndex] = useState(0);
   const navigate = useNavigate();
 
-  const handleNext = () => {
-    if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
+  const nextSlide = () => {
+    if (index < slides.length - 1) {
+      setIndex(index + 1);
     } else {
-      navigate("/login");
+      navigate("/"); // Vai para tela de login
     }
   };
 
   return (
-    <div className="flex flex-col h-screen justify-between px-6 py-10 bg-white">
-      <div className="flex justify-center">
-        <img
-          src="/COMPARAFY.png"
-          alt="Logo Comparify"
-          className="w-32 h-auto"
-        />
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
+      <img
+        src={slides[index].image}
+        alt="Slide"
+        className="w-48 h-48 object-contain mb-8"
+      />
+      <h1 className="text-2xl font-bold mb-2">{slides[index].title}</h1>
+      <p className="text-gray-600 mb-8">{slides[index].description}</p>
+
+      <div className="flex space-x-2 mb-8">
+        {slides.map((_, i) => (
+          <span
+            key={i}
+            className={`w-3 h-3 rounded-full ${
+              i === index ? "bg-yellow-500" : "bg-gray-300"
+            }`}
+          />
+        ))}
       </div>
 
-      <div className="flex flex-col items-center justify-center flex-grow text-center">
-        <img
-          src={slides[currentSlide].image}
-          alt={slides[currentSlide].title}
-          className="max-w-[200px] max-h-[200px] mb-6 object-contain"
-          style={{ imageRendering: "auto" }}
-        />
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          {slides[currentSlide].title}
-        </h2>
-        <p className="text-gray-500 px-4">{slides[currentSlide].description}</p>
-      </div>
-
-      <div className="flex flex-col items-center gap-6">
-        <div className="flex gap-2">
-          {slides.map((_, index) => (
-            <span
-              key={index}
-              className={`w-3 h-3 rounded-full ${
-                index === currentSlide ? "bg-yellow-500" : "bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
-        <button
-          onClick={handleNext}
-          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow text-base"
-        >
-          {currentSlide === slides.length - 1 ? "Começar" : "Próximo"}
-        </button>
-      </div>
+      <button
+        onClick={nextSlide}
+        className="bg-yellow-500 text-black font-semibold py-3 px-6 rounded-xl shadow"
+      >
+        {index === slides.length - 1 ? "Começar" : "Próximo"}
+      </button>
     </div>
   );
-};
-
-export default Onboarding;
+}

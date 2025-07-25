@@ -1,81 +1,57 @@
-import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
-import { toast } from "sonner";
-import { Mail, Lock } from "lucide-react";
 
-const Register = () => {
+export default function Register() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleRegister = async () => {
-    if (!email || !senha) {
-      toast.error("Preencha todos os campos.");
-      return;
-    }
-
+  const register = async () => {
     try {
-      await createUserWithEmailAndPassword(auth, email, senha);
-      await signOut(auth); // ⛔ Desloga o usuário imediatamente
-      toast.success("Conta criada com sucesso. Faça login.");
-      navigate("/login"); // 🔄 Redireciona para tela de login
-    } catch (error: any) {
-      if (error.code === "auth/weak-password") {
-        toast.error("A senha precisa ter no mínimo 6 caracteres.");
-      } else if (error.code === "auth/email-already-in-use") {
-        toast.error("Este e-mail já está em uso.");
-      } else if (error.code === "auth/invalid-email") {
-        toast.error("E-mail inválido.");
-      } else {
-        toast.error(`Erro: ${error.message}`);
-      }
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      sessionStorage.setItem("user", JSON.stringify(result.user));
+      alert("Conta criada com sucesso!");
+      navigate("/login");
+    } catch (error) {
+      alert("Erro ao criar conta. Verifique os dados.");
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-white">
-      <img src="/COMPARAFY.png" alt="Logo" className="h-12 object-contain mb-8" />
+    <div className="min-h-screen flex flex-col justify-center items-center bg-white px-4">
+      <img src="/COMPARAFY.png" alt="Logo" className="w-40 mb-8" />
 
-      <h1 className="text-xl font-bold mb-6 text-gray-900">Criar conta</h1>
+      <input
+        type="email"
+        placeholder="Email"
+        className="w-full max-w-md border rounded p-3 mb-4"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-      <div className="w-full max-w-sm space-y-4">
-        <div className="flex items-center border rounded-lg px-3 py-2">
-          <Mail className="w-5 h-5 text-gray-400 mr-2" />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 outline-none text-sm bg-transparent"
-          />
-        </div>
+      <input
+        type="password"
+        placeholder="Senha"
+        className="w-full max-w-md border rounded p-3 mb-4"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-        <div className="flex items-center border rounded-lg px-3 py-2">
-          <Lock className="w-5 h-5 text-gray-400 mr-2" />
-          <input
-            type="password"
-            placeholder="Senha (mínimo 6 caracteres)"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="flex-1 outline-none text-sm bg-transparent"
-          />
-        </div>
+      <button
+        onClick={register}
+        className="w-full max-w-md bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4"
+      >
+        Criar conta
+      </button>
 
-        <button
-          onClick={handleRegister}
-          className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow"
-        >
-          Criar conta
-        </button>
-
-        <p className="text-sm text-center mt-4 text-blue-600">
-          <a href="/login">Já tem conta? Faça login</a>
-        </p>
-      </div>
+      <p className="text-sm">
+        Já tem uma conta?{" "}
+        <a href="/login" className="text-yellow-600 underline hover:text-yellow-700">
+          Entrar
+        </a>
+      </p>
     </div>
   );
-};
-
-export default Register;
+}

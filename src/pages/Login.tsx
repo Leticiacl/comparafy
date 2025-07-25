@@ -1,123 +1,103 @@
-// src/pages/Login.tsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   signInWithEmailAndPassword,
   signInAnonymously,
   GoogleAuthProvider,
-  signInWithPopup
-} from 'firebase/auth';
-import { auth } from '../services/firebase';
-import { Mail, Lock } from 'lucide-react';
-import { FcGoogle } from 'react-icons/fc'; // ✅ ícone Google corrigido
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../services/firebase";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const loginComEmailSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const login = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, senha);
-      sessionStorage.setItem('userLogged', 'true');
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError('Erro ao fazer login. Verifique seu email e senha.');
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      sessionStorage.setItem("user", JSON.stringify(result.user));
+      alert("Login realizado com sucesso!");
+      navigate("/dashboard");
+    } catch (error) {
+      alert("Erro ao entrar. Verifique seus dados.");
     }
   };
 
-  const loginComGoogle = async () => {
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      sessionStorage.setItem('userLogged', 'true');
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(`Erro no login com Google: ${err.message}`);
+      const result = await signInWithPopup(auth, provider);
+      sessionStorage.setItem("user", JSON.stringify(result.user));
+      alert("Login com Google realizado!");
+      navigate("/dashboard");
+    } catch (error) {
+      alert("Erro no login com Google. Verifique o domínio autorizado.");
     }
   };
 
-  const loginComoVisitante = async () => {
+  const loginAsGuest = async () => {
     try {
-      await signInAnonymously(auth);
-      sessionStorage.setItem('userLogged', 'true');
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError('Erro ao entrar como visitante.');
+      const result = await signInAnonymously(auth);
+      sessionStorage.setItem("user", JSON.stringify(result.user));
+      alert("Entrou como visitante!");
+      navigate("/dashboard");
+    } catch (error) {
+      alert("Erro ao entrar como visitante.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-      <img src="/COMPARAFY.png" alt="Logo Comparify" className="w-40 mb-8" />
+    <div className="min-h-screen flex flex-col justify-center items-center bg-white px-4">
+      <img src="/COMPARAFY.png" alt="Logo" className="w-40 mb-8" />
 
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Entrar no Comparify</h2>
+      <input
+        type="email"
+        placeholder="Email"
+        className="w-full max-w-md border rounded p-3 mb-4"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-      {error && (
-        <div className="bg-red-100 text-red-800 px-4 py-2 rounded mb-4 text-sm w-full max-w-sm text-center">
-          {error}
-        </div>
-      )}
+      <input
+        type="password"
+        placeholder="Senha"
+        className="w-full max-w-md border rounded p-3 mb-4"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-      <form onSubmit={loginComEmailSenha} className="w-full max-w-sm space-y-4">
-        <div className="flex items-center border rounded-lg px-3 py-2">
-          <Mail className="text-gray-400 mr-2 w-5 h-5" />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="flex-1 outline-none text-sm"
-          />
-        </div>
+      <button
+        onClick={login}
+        className="w-full max-w-md bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4"
+      >
+        Entrar
+      </button>
 
-        <div className="flex items-center border rounded-lg px-3 py-2">
-          <Lock className="text-gray-400 mr-2 w-5 h-5" />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-            className="flex-1 outline-none text-sm"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-xl transition"
-        >
-          Entrar
-        </button>
-      </form>
-
-      <div className="flex items-center w-full max-w-sm my-4">
-        <hr className="flex-grow border-t border-gray-300" />
-        <span className="mx-3 text-gray-400 text-sm">ou</span>
-        <hr className="flex-grow border-t border-gray-300" />
+      <div className="flex items-center w-full max-w-md mb-4">
+        <hr className="flex-grow border-gray-300" />
+        <span className="mx-4 text-gray-400">ou</span>
+        <hr className="flex-grow border-gray-300" />
       </div>
 
       <button
-        onClick={loginComGoogle}
-        className="w-full max-w-sm flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-medium py-2 rounded-lg hover:bg-gray-50 transition"
+        onClick={loginWithGoogle}
+        className="w-full max-w-md bg-white border border-gray-300 py-3 rounded-xl shadow flex items-center justify-center gap-2 mb-4"
       >
-        <FcGoogle className="w-5 h-5" /> {/* ✅ corrigido */}
+        <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
         Entrar com Google
       </button>
 
       <button
-        onClick={loginComoVisitante}
-        className="w-full max-w-sm mt-3 bg-gray-100 text-gray-700 font-medium py-2 rounded-lg hover:bg-gray-200 transition"
+        onClick={loginAsGuest}
+        className="w-full max-w-md bg-gray-200 text-black font-semibold py-3 rounded-xl shadow mb-4"
       >
         Continuar como visitante
       </button>
 
-      <p className="mt-6 text-sm text-gray-500">
-        Ainda não tem uma conta?{' '}
-        <a href="/register" className="text-blue-600 hover:underline">
+      <p className="text-sm">
+        Não tem uma conta?{" "}
+        <a href="/register" className="text-yellow-600 underline hover:text-yellow-700">
           Cadastre-se
         </a>
       </p>

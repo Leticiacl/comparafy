@@ -1,106 +1,66 @@
-import React, { useState } from 'react'
-import { ArrowUpRightIcon } from '@heroicons/react/24/solid'
-import { useNavigate } from 'react-router-dom'
-import { useData } from '../context/DataContext'
-import { NewListModal } from '../components/ui/NewListModal'
-import BottomNav from '../components/BottomNav'
+import React, { useState } from 'react';
+import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
+import { useData } from '../context/DataContext';
+import NewListModal from '../components/ui/NewListModal';
+import { ArrowUpRightIcon } from '@heroicons/react/24/solid';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { lists } = useData()
-  const [showModal, setShowModal] = useState(false)
-  const navigate = useNavigate()
+  const { userLists } = useData();
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const totalSavings = lists.reduce((acc, list) => {
-    const listTotal = list.items.reduce((sum: number, item: any) => {
-      return item.checked ? sum + item.price : sum
-    }, 0)
-    return acc + listTotal
-  }, 0)
+  const totalEconomy = userLists.reduce((acc, list) => acc + (list.savings || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white pb-24 px-4 pt-6">
-      <div className="flex justify-between items-center mb-4">
+    <div className="min-h-screen pb-20 px-4 pt-4 bg-white">
+      <Header />
+
+      <h1 className="text-2xl font-bold mb-2">Olá!</h1>
+      <p className="text-gray-600 mb-4">Bem-vindo ao Comparify</p>
+
+      <div className="bg-white rounded-xl shadow p-4 mb-6 flex items-center gap-4">
+        <ArrowUpRightIcon className="h-10 w-10 text-yellow-500" />
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Olá!</h1>
-          <p className="text-gray-500">Bem-vindo ao Comparify</p>
-        </div>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-10 h-10" />
-      </div>
-
-      <div className="bg-white p-4 rounded-xl shadow mb-6 border">
-        <div className="flex items-center gap-3">
-          <div className="bg-yellow-100 p-2 rounded-full">
-            <ArrowUpRightIcon className="w-5 h-5 text-yellow-500" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Economia total</p>
-            <p className="text-lg font-bold text-gray-900">
-              R$ {totalSavings.toFixed(2)}
-            </p>
-          </div>
+          <p className="text-gray-600 text-sm">Economia total</p>
+          <p className="text-xl font-semibold text-black">R$ {totalEconomy.toFixed(2)}</p>
         </div>
       </div>
-
-      {lists.length > 0 && (
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-md font-semibold text-gray-800">Listas recentes</h2>
-            <button
-              className="text-sm text-yellow-500 font-medium"
-              onClick={() => navigate('/listas')}
-            >
-              Ver todas
-            </button>
-          </div>
-          <div className="space-y-3">
-            {lists.map((list) => {
-              const totalItems = list.items.length
-              const checkedItems = list.items.filter((item) => item.checked).length
-              const totalValue = list.items.reduce((sum, item) => sum + item.price, 0)
-              const progress = totalItems > 0 ? (checkedItems / totalItems) * 100 : 0
-
-              return (
-                <div
-                  key={list.id}
-                  className="bg-white border rounded-xl p-4 shadow"
-                  onClick={() => navigate(`/listas/${list.id}`)}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-gray-900 text-sm">{list.name}</h3>
-                    <p className="text-xs text-gray-500">
-                      {checkedItems}/{totalItems} itens
-                    </p>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div
-                      className="bg-yellow-400 h-2.5 rounded-full"
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-500">Total: R$ {totalValue.toFixed(2)}</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       <button
-        onClick={() => setShowModal(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mt-6"
+        onClick={() => setModalOpen(true)}
+        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-6 flex items-center justify-center gap-2 text-base"
       >
-        + Nova lista
+        + Nova Lista
       </button>
 
-      {lists.length === 0 && (
-        <p className="text-center text-gray-400 mt-4">Nenhuma lista ainda. Crie sua primeira!</p>
+      {userLists.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold mb-2">Listas recentes</h2>
+          <div className="space-y-4">
+            {userLists.map((list) => (
+              <Link to={`/list/${list.id}`} key={list.id} className="block">
+                <div className="bg-white rounded-xl p-4 shadow hover:bg-yellow-50 transition">
+                  <p className="font-semibold text-lg">{list.name}</p>
+                  <div className="h-2 bg-gray-200 rounded-full my-2">
+                    <div
+                      className="h-2 bg-yellow-400 rounded-full"
+                      style={{ width: `0%` }} // Pode ser substituído por progresso real
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600">0 de 0 itens comprados</p>
+                  <p className="text-sm text-gray-600">Total: R$ 0,00</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
 
-      <NewListModal isOpen={showModal} onClose={() => setShowModal(false)} />
-
+      <NewListModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
       <BottomNav activeTab="home" />
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

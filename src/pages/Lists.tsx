@@ -1,68 +1,55 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useData } from '../context/DataContext'
-import { NewListModal } from '../components/ui/NewListModal'
-import BottomNav from '../components/BottomNav'
+import React, { useState } from 'react';
+import Header from '../components/Header';
+import BottomNav from '../components/BottomNav';
+import { useData } from '../context/DataContext';
+import NewListModal from '../components/ui/NewListModal';
+import { Link } from 'react-router-dom';
 
 const Lists = () => {
-  const { lists } = useData()
-  const [showModal, setShowModal] = useState(false)
-  const navigate = useNavigate()
+  const { userLists } = useData();
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white pb-24 px-4 pt-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-gray-900">Minhas Listas</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-10 h-10" />
-      </div>
+    <div className="min-h-screen pb-20 px-4 pt-4 bg-white">
+      <Header />
 
-      <div className="space-y-4 mb-6">
-        {lists.length === 0 ? (
-          <p className="text-center text-gray-400">Nenhuma lista criada ainda.</p>
-        ) : (
-          lists.map((list) => {
-            const totalItems = list.items.length
-            const checkedItems = list.items.filter((item) => item.checked).length
-            const totalValue = list.items.reduce((sum, item) => sum + item.price, 0)
-            const progress = totalItems > 0 ? (checkedItems / totalItems) * 100 : 0
-
-            return (
-              <div
-                key={list.id}
-                className="bg-white border rounded-xl p-4 shadow"
-                onClick={() => navigate(`/listas/${list.id}`)}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-gray-900 text-sm">{list.name}</h3>
-                  <p className="text-xs text-gray-500">
-                    {checkedItems}/{totalItems} itens
-                  </p>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                  <div
-                    className="bg-yellow-400 h-2.5 rounded-full"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500">Total: R$ {totalValue.toFixed(2)}</p>
-              </div>
-            )
-          })
-        )}
-      </div>
+      <h1 className="text-2xl font-bold mb-4">Minhas Listas</h1>
 
       <button
-        onClick={() => setShowModal(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mt-6"
+        onClick={() => setModalOpen(true)}
+        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-6"
       >
-        + Nova lista
+        + Nova Lista
       </button>
 
-      <NewListModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      {userLists.length === 0 ? (
+        <p className="text-center text-gray-500 mt-10">Nenhuma lista encontrada.</p>
+      ) : (
+        userLists.map((list) => (
+          <Link
+            to={`/list/${list.id}`}
+            key={list.id}
+            className="block mb-4"
+          >
+            <div className="bg-white rounded-xl p-4 shadow hover:bg-yellow-50 transition">
+              <p className="font-semibold text-lg">{list.name}</p>
+              <div className="h-2 bg-gray-200 rounded-full my-2">
+                <div
+                  className="h-2 bg-yellow-400 rounded-full"
+                  style={{ width: `0%` }} // Ajuste real virá com os dados de progresso
+                />
+              </div>
+              <p className="text-sm text-gray-600">0 de 0 itens comprados</p>
+              <p className="text-sm text-gray-600">Total: R$ 0,00</p>
+            </div>
+          </Link>
+        ))
+      )}
 
+      <NewListModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
       <BottomNav activeTab="lists" />
     </div>
-  )
-}
+  );
+};
 
-export default Lists
+export default Lists;

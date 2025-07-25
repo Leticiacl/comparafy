@@ -1,56 +1,63 @@
 // src/services/firestoreService.ts
-
+import { db } from "./firebase";
 import {
   collection,
   addDoc,
   getDocs,
-  query,
-  where,
-  updateDoc,
   doc,
+  updateDoc,
+  deleteDoc
 } from "firebase/firestore";
-import { db } from "./firebase";
 
-// Cria uma nova lista para o usuário
-export const createList = async (userId: string, listName: string = "Nova lista") => {
-  try {
-    const docRef = await addDoc(collection(db, "lists"), {
-      name: listName,
-      userId,
-      items: [],
-      createdAt: new Date().toISOString(),
-    });
-    return { id: docRef.id, name: listName, items: [] };
-  } catch (error) {
-    console.error("Erro ao criar lista:", error);
-    return null;
-  }
+// LISTS
+export const createNewList = async (userId: string, name: string) => {
+  const newListRef = await addDoc(collection(db, "users", userId, "lists"), {
+    name,
+    createdAt: new Date(),
+  });
+  return { id: newListRef.id, name };
 };
 
-// Busca listas do Firestore para o usuário autenticado
-export const fetchLists = async (userId: string) => {
-  try {
-    const q = query(collection(db, "lists"), where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
-    const lists = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    return lists;
-  } catch (error) {
-    console.error("Erro ao buscar listas:", error);
-    return [];
-  }
+export const fetchUserLists = async (userId: string) => {
+  const listsRef = collection(db, "users", userId, "lists");
+  const querySnapshot = await getDocs(listsRef);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
 };
 
-// Atualiza o nome da lista
 export const updateListName = async (userId: string, listId: string, newName: string) => {
-  try {
-    const listRef = doc(db, "lists", listId);
-    await updateDoc(listRef, {
-      name: newName,
-    });
-  } catch (error) {
-    console.error("Erro ao atualizar nome da lista:", error);
-  }
+  const listRef = doc(db, "users", userId, "lists", listId);
+  await updateDoc(listRef, { name: newName });
+};
+
+// ITEMS
+export const createNewItem = async (userId: string, listId: string, itemData: any) => {
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+  const newItem = await addDoc(itemsRef, {
+    ...itemData,
+    createdAt: new Date(),
+    purchased: false,
+  });
+  return newItem;
+};
+
+export const fetchItemsFromList = async (userId: string, listId: string) => {
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+  const snapshot = await getDocs(itemsRef);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+};
+
+export const toggleItemPurchased = async (userId: string, listId: string, itemId: string, purchased: boolean) => {
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+  await updateDoc(itemRef, { purchased });
+};
+
+export const deleteItem = async (userId: string, listId: string, itemId: string) => {
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+  await deleteDoc(itemRef);
 };
