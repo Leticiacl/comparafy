@@ -1,63 +1,164 @@
 // src/services/firestoreService.ts
-import { db } from "./firebase";
 import {
   collection,
-  addDoc,
-  getDocs,
   doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  addDoc,
   updateDoc,
-  deleteDoc
-} from "firebase/firestore";
+  deleteDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+import { db } from './firebase';
 
-// LISTS
+// CRIAÇÃO DE NOVA LISTA
 export const createNewList = async (userId: string, name: string) => {
-  const newListRef = await addDoc(collection(db, "users", userId, "lists"), {
+  const listRef = collection(db, 'users', userId, 'lists');
+  const newList = {
     name,
     createdAt: new Date(),
-  });
-  return { id: newListRef.id, name };
+    items: [],
+  };
+  const docRef = await addDoc(listRef, newList);
+  return { id: docRef.id, ...newList };
 };
 
-export const fetchUserLists = async (userId: string) => {
-  const listsRef = collection(db, "users", userId, "lists");
-  const querySnapshot = await getDocs(listsRef);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+// BUSCAR LISTAS DO FIRESTORE
+export const fetchListsFromFirestore = async (userId: string) => {
+  try {
+    const listsRef = collection(db, 'users', userId, 'lists');
+    const q = query(listsRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Erro ao buscar listas:', error);
+    return [];
+  }
 };
 
-export const updateListName = async (userId: string, listId: string, newName: string) => {
-  const listRef = doc(db, "users", userId, "lists", listId);
+// BUSCAR ITENS DE UMA LISTA
+export const fetchItemsFromList = async (userId: string, listId: string) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  const listSnap = await getDoc(listRef);
+  if (listSnap.exists()) {
+    return listSnap.data().items || [];
+  }
+  return [];
+};
+
+// ADICIONAR ITEM A UMA LISTA
+export const addItemToList = async (
+  userId: string,
+  listId: string,
+  newItem: any
+) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  const listSnap = await getDoc(listRef);
+  if (listSnap.exists()) {
+    const data = listSnap.data();
+    const updatedItems = [...(data.items || []), newItem];
+    await updateDoc(listRef, { items: updatedItems });
+    return updatedItems;
+  }
+  return [];
+};
+
+// ATUALIZAR NOME DE LISTA
+export const updateListName = async (
+  userId: string,
+  listId: string,
+  newName: string
+) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
   await updateDoc(listRef, { name: newName });
 };
 
-// ITEMS
-export const createNewItem = async (userId: string, listId: string, itemData: any) => {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const newItem = await addDoc(itemsRef, {
-    ...itemData,
-    createdAt: new Date(),
-    purchased: false,
-  });
-  return newItem;
+// ATUALIZAR UM ITEM DENTRO DA LISTA
+export const updateItemInList = async (
+  userId: string,
+  listId: string,
+  itemIndex: number,
+  updatedItem: any
+) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  const listSnap = await getDoc(listRef);
+  if (listSnap.exists()) {
+    const data = listSnap.data();
+    const updatedItems = [...(data.items || [])];
+    updatedItems[itemIndex] = updatedItem;
+    await updateDoc(listRef, { items: updatedItems });
+    return updatedItems;
+  }
+  return [];
 };
 
-export const fetchItemsFromList = async (userId: string, listId: string) => {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const snapshot = await getDocs(itemsRef);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+// MARCAR ITEM COMO COMPRADO (TOGGLE)
+export const toggleItemPurchased = async (
+  userId: string,
+  listId: string,
+  itemIndex: number
+) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  const listSnap = await getDoc(listRef);
+  if (listSnap.exists()) {
+    const data = listSnap.data();
+    const updatedItems = [...(data.items || [])];
+    updatedItems[itemIndex].purchased = !updatedItems[itemIndex].purchased;
+    await updateDoc(listRef, { items: updatedItems });
+    return updatedItems;
+  }
+  return [];
 };
 
-export const toggleItemPurchased = async (userId: string, listId: string, itemId: string, purchased: boolean) => {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
-  await updateDoc(itemRef, { purchased });
+// DELETAR UM ITEM DA LISTA
+export const deleteItem = async (
+  userId: string,
+  listId: string,
+  itemIndex: number
+) => {
+  const listRef = doc(db, 'users', userId, 'lists', listId);
+  const listSnap = await getDoc(listRef);
+  if (listSnap.exists()) {
+    const data = listSnap.data();
+    const updatedItems = [...(data.items || [])];
+    updatedItems.splice(itemIndex, 1);
+    await updateDoc(listRef, { items: updatedItems });
+    return updatedItems;
+  }
+  return [];
 };
 
-export const deleteItem = async (userId: string, listId: string, itemId: string) => {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
-  await deleteDoc(itemRef);
+// SUGESTÕES (Produtos / Mercados)
+
+export const saveSuggestion = async (
+  userId: string,
+  type: 'products' | 'markets',
+  value: string
+) => {
+  const suggestionRef = doc(db, 'users', userId, 'suggestions', type);
+  const suggestionSnap = await getDoc(suggestionRef);
+
+  let values = [];
+  if (suggestionSnap.exists()) {
+    values = suggestionSnap.data().values || [];
+  }
+
+  if (!values.includes(value)) {
+    values.push(value);
+    await setDoc(suggestionRef, { values });
+  }
+};
+
+export const getSuggestions = async (
+  userId: string,
+  type: 'products' | 'markets'
+) => {
+  const suggestionRef = doc(db, 'users', userId, 'suggestions', type);
+  const suggestionSnap = await getDoc(suggestionRef);
+  if (suggestionSnap.exists()) {
+    return suggestionSnap.data().values || [];
+  }
+  return [];
 };

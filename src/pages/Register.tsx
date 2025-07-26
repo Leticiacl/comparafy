@@ -1,57 +1,47 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { auth } from '../services/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { toast } from 'react-hot-toast';
 
 export default function Register() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
 
-  const register = async () => {
+  const handleRegister = async () => {
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      sessionStorage.setItem("user", JSON.stringify(result.user));
-      alert("Conta criada com sucesso!");
-      navigate("/login");
-    } catch (error) {
-      alert("Erro ao criar conta. Verifique os dados.");
+      await createUserWithEmailAndPassword(auth, email, senha);
+      toast.success('Conta criada com sucesso!');
+      navigate('/login');
+    } catch (err) {
+      toast.error('Erro ao criar conta. Verifique os dados.');
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-white px-4">
-      <img src="/COMPARAFY.png" alt="Logo" className="w-40 mb-8" />
-
+    <div className="flex flex-col items-center justify-center h-screen bg-white px-6">
+      <h1 className="text-2xl font-bold text-gray-800 mb-8">Criar Conta</h1>
       <input
         type="email"
-        placeholder="Email"
-        className="w-full max-w-md border rounded p-3 mb-4"
+        placeholder="E-mail"
+        className="border w-full max-w-md p-3 rounded mb-4"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-
       <input
         type="password"
         placeholder="Senha"
-        className="w-full max-w-md border rounded p-3 mb-4"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        className="border w-full max-w-md p-3 rounded mb-6"
+        value={senha}
+        onChange={(e) => setSenha(e.target.value)}
       />
-
       <button
-        onClick={register}
-        className="w-full max-w-md bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4"
+        onClick={handleRegister}
+        className="w-full max-w-md bg-yellow-500 text-black font-semibold py-3 rounded"
       >
-        Criar conta
+        Criar Conta
       </button>
-
-      <p className="text-sm">
-        Já tem uma conta?{" "}
-        <a href="/login" className="text-yellow-600 underline hover:text-yellow-700">
-          Entrar
-        </a>
-      </p>
     </div>
   );
 }

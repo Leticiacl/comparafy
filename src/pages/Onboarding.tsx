@@ -1,63 +1,60 @@
-// src/pages/Onboarding.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const slide1 = "/slide1.png";
+const slide2 = "/slide2.png";
+const slide3 = "/slide3.png";
+
 const slides = [
   {
-    image: "/slide1.png",
-    title: "Compare preços",
-    description: "Economize comparando preços entre mercados.",
+    image: slide1,
+    title: "Compare preços facilmente",
+    description: "Crie listas de compras e veja qual mercado é mais barato.",
   },
   {
-    image: "/slide2.png",
-    title: "Crie listas inteligentes",
-    description: "Organize suas compras com listas personalizadas.",
+    image: slide2,
+    title: "Organize suas compras",
+    description: "Visualize, edite e marque os itens conforme compra.",
   },
   {
-    image: "/slide3.png",
-    title: "Veja seu progresso",
-    description: "Acompanhe seus gastos e itens comprados.",
+    image: slide3,
+    title: "Economize de verdade",
+    description: "Acompanhe sua economia real ao comparar preços.",
   },
 ];
 
 export default function Onboarding() {
-  const [index, setIndex] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
 
   const nextSlide = () => {
-    if (index < slides.length - 1) {
-      setIndex(index + 1);
+    if (currentSlide < slides.length - 1) {
+      setCurrentSlide((prev) => prev + 1);
     } else {
-      navigate("/"); // Vai para tela de login
+      navigate("/login");
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
-      <img
-        src={slides[index].image}
-        alt="Slide"
-        className="w-48 h-48 object-contain mb-8"
-      />
-      <h1 className="text-2xl font-bold mb-2">{slides[index].title}</h1>
-      <p className="text-gray-600 mb-8">{slides[index].description}</p>
-
-      <div className="flex space-x-2 mb-8">
-        {slides.map((_, i) => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white p-6 text-center">
+      <img src={slides[currentSlide].image} alt="Slide" className="w-64 h-64 object-contain mb-8" />
+      <h2 className="text-2xl font-bold mb-4">{slides[currentSlide].title}</h2>
+      <p className="text-gray-600 mb-8">{slides[currentSlide].description}</p>
+      <div className="flex gap-2 mb-6">
+        {slides.map((_, index) => (
           <span
-            key={i}
+            key={index}
             className={`w-3 h-3 rounded-full ${
-              i === index ? "bg-yellow-500" : "bg-gray-300"
+              index === currentSlide ? "bg-yellow-400" : "bg-gray-300"
             }`}
-          />
+          ></span>
         ))}
       </div>
-
       <button
         onClick={nextSlide}
-        className="bg-yellow-500 text-black font-semibold py-3 px-6 rounded-xl shadow"
+        className="bg-yellow-400 text-black font-semibold px-6 py-3 rounded-full shadow"
       >
-        {index === slides.length - 1 ? "Começar" : "Próximo"}
+        {currentSlide === slides.length - 1 ? "Começar" : "Avançar"}
       </button>
     </div>
   );
