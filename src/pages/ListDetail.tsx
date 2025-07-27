@@ -4,13 +4,9 @@ import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { useData } from '../context/DataContext';
 import AddItemModal from '../components/ui/AddItemModal';
-import {
-  fetchItemsFromList,
-  toggleItemPurchased,
-  deleteItem,
-  deleteList,
-} from '../services/firestoreService';
+import { fetchItemsFromList, toggleItemPurchased, deleteItem, deleteList } from '../services/firestoreService';
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+import { formatCurrency } from "../utils/formatCurrency";
 
 const ListDetail = () => {
   const { listId } = useParams();
@@ -78,16 +74,10 @@ const ListDetail = () => {
           </button>
           {menuOpen && (
             <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-md z-10 w-36">
-              <button
-                onClick={handleEditTitle}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
+              <button onClick={handleEditTitle} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                 Editar nome
               </button>
-              <button
-                onClick={handleDeleteList}
-                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-              >
+              <button onClick={handleDeleteList} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
                 Excluir lista
               </button>
             </div>
@@ -97,71 +87,37 @@ const ListDetail = () => {
 
       <div className="mb-4">
         <div className="h-3 bg-gray-200 rounded-full">
-          <div
-            className="h-3 bg-yellow-400 rounded-full"
-            style={{ width: `${progress}%` }}
-          ></div>
+          <div className="h-3 bg-yellow-400 rounded-full" style={{ width: `${progress}%` }}></div>
         </div>
         <div className="flex justify-between text-sm text-gray-600 mt-1">
           <span>{purchasedItems}/{totalItems} itens comprados</span>
-          <span>R$ {totalPrice.toFixed(2)}</span>
+          <span>{formatCurrency(totalPrice)}</span>
         </div>
       </div>
 
-      <button
-        onClick={() => setShowModal(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4"
-      >
+      <button onClick={() => setShowModal(true)} className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4">
         + Adicionar item
       </button>
 
       {items.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">
-          Nenhum item na lista ainda.
-        </p>
+        <p className="text-center text-gray-500 mt-10">Nenhum item na lista ainda.</p>
       ) : (
         <ul className="space-y-2">
           {items.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-center justify-between p-4 bg-gray-100 rounded-xl shadow"
-            >
+            <li key={item.id} className="flex items-center justify-between p-4 bg-gray-100 rounded-xl shadow">
               <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={item.purchased}
-                  onChange={() =>
-                    handleTogglePurchased(item.id, item.purchased)
-                  }
-                  className="w-5 h-5 mt-1"
-                />
+                <input type="checkbox" checked={item.purchased} onChange={() => handleTogglePurchased(item.id, item.purchased)} className="w-5 h-5 mt-1" />
                 <div>
                   <p className="font-semibold">{item.name}</p>
-                  <p className="text-sm text-gray-600">
-                    {item.quantity} {item.unit} • {item.market}
-                  </p>
+                  <p className="text-sm text-gray-600">{item.quantity} {item.unit} • {item.market}</p>
                 </div>
               </div>
               <div className="text-right text-sm text-gray-700">
-                <p className="font-semibold">R$ {item.price?.toFixed(2)}</p>
-                <p className="text-gray-500 text-xs">
-                  R$ {(item.price / item.quantity).toFixed(2)} / {item.unit}
-                </p>
+                <p className="font-semibold">{formatCurrency(item.price)}</p>
+                <p className="text-gray-500 text-xs">{formatCurrency(item.price / item.quantity)} / {item.unit}</p>
                 <div className="flex gap-2 justify-end mt-2">
-                  <button
-                    className="text-xs text-blue-600"
-                    onClick={() => {
-                      // placeholder para editar
-                    }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="text-xs text-red-500"
-                  >
-                    Excluir
-                  </button>
+                  <button className="text-xs text-blue-600">Editar</button>
+                  <button onClick={() => handleDeleteItem(item.id)} className="text-xs text-red-500">Excluir</button>
                 </div>
               </div>
             </li>
@@ -169,13 +125,7 @@ const ListDetail = () => {
         </ul>
       )}
 
-      <AddItemModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        listId={listId!}
-        onItemAdded={fetchItems}
-      />
-
+      <AddItemModal isOpen={showModal} onClose={() => setShowModal(false)} listId={listId!} onItemAdded={fetchItems} />
       <BottomNav activeTab="lists" />
     </div>
   );
