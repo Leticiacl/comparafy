@@ -1,3 +1,4 @@
+// src/context/DataContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   createNewList,
@@ -53,21 +54,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const addItem = async (listId: string, item: any) => {
-    if (!userId) return;
+    if (!userId) throw new Error('Usuário não identificado');
     await addItemToList(userId, listId, item);
-    fetchUserData();
+    await fetchUserData(); // para atualizar economia total
   };
 
   const toggleItem = async (listId: string, itemId: string) => {
     if (!userId) return;
     await toggleItemPurchased(userId, listId, itemId);
-    fetchUserData();
+    await fetchUserData();
   };
 
   const deleteItemFromList = async (listId: string, itemId: string) => {
     if (!userId) return;
     await deleteItem(userId, listId, itemId);
-    fetchUserData();
+    await fetchUserData();
   };
 
   const saveSuggestions = async (product: string, market: string) => {
