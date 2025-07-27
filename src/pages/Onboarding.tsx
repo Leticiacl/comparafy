@@ -1,61 +1,91 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-const slide1 = "/slide1.png";
-const slide2 = "/slide2.png";
-const slide3 = "/slide3.png";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const slides = [
   {
-    image: slide1,
-    title: "Compare preços facilmente",
-    description: "Crie listas de compras e veja qual mercado é mais barato.",
+    title: 'Bem-vindo ao Comparify',
+    description: 'Organize suas compras e economize dinheiro comparando preços entre supermercados.',
   },
   {
-    image: slide2,
-    title: "Organize suas compras",
-    description: "Visualize, edite e marque os itens conforme compra.",
+    title: 'Crie suas listas',
+    description: 'Monte listas de compras personalizadas para cada ocasião.',
   },
   {
-    image: slide3,
-    title: "Economize de verdade",
-    description: "Acompanhe sua economia real ao comparar preços.",
+    title: 'Compare preços',
+    description: 'Compare preços entre mercados e faça a melhor escolha.',
+  },
+  {
+    title: 'Economize de verdade',
+    description: 'Acompanhe quanto está economizando e tome melhores decisões.',
   },
 ];
 
-export default function Onboarding() {
-  const [currentSlide, setCurrentSlide] = useState(0);
+const Onboarding = () => {
+  const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
 
-  const nextSlide = () => {
-    if (currentSlide < slides.length - 1) {
-      setCurrentSlide((prev) => prev + 1);
+  const handleNext = () => {
+    if (current < slides.length - 1) {
+      setCurrent((prev) => prev + 1);
     } else {
-      navigate("/login");
+      navigate('/login');
     }
   };
 
+  const handleSkip = () => {
+    navigate('/login');
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white p-6 text-center">
-      <img src={slides[currentSlide].image} alt="Slide" className="w-64 h-64 object-contain mb-8" />
-      <h2 className="text-2xl font-bold mb-4">{slides[currentSlide].title}</h2>
-      <p className="text-gray-600 mb-8">{slides[currentSlide].description}</p>
-      <div className="flex gap-2 mb-6">
-        {slides.map((_, index) => (
-          <span
-            key={index}
-            className={`w-3 h-3 rounded-full ${
-              index === currentSlide ? "bg-yellow-400" : "bg-gray-300"
-            }`}
-          ></span>
-        ))}
+    <div className="min-h-screen bg-white flex flex-col items-center justify-between px-6 py-10">
+      {/* Parte superior: logo */}
+      <div className="mt-10">
+        <img
+          src="/COMPARAFY.png"
+          alt="Comparify"
+          className="w-36 h-auto object-contain"
+        />
       </div>
-      <button
-        onClick={nextSlide}
-        className="bg-yellow-400 text-black font-semibold px-6 py-3 rounded-full shadow"
-      >
-        {currentSlide === slides.length - 1 ? "Começar" : "Avançar"}
-      </button>
+
+      {/* Texto centralizado no meio da tela */}
+      <div className="flex-1 flex flex-col justify-center items-center text-center px-6">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+          {slides[current].title}
+        </h2>
+        <p className="text-gray-600 text-base">{slides[current].description}</p>
+
+        {/* Indicadores */}
+        <div className="flex gap-2 mt-6">
+          {slides.map((_, index) => (
+            <span
+              key={index}
+              className={`h-2 w-2 rounded-full ${
+                index === current ? 'bg-yellow-400' : 'bg-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Botões inferiores */}
+      <div className="w-full px-4 mb-6">
+        <button
+          onClick={handleNext}
+          className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-xl"
+        >
+          {current < slides.length - 1 ? 'Próximo' : 'Começar'}
+        </button>
+        <div className="mt-3 text-center">
+          <button
+            onClick={handleSkip}
+            className="text-sm text-gray-500 underline"
+          >
+            Pular
+          </button>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default Onboarding;

@@ -1,164 +1,87 @@
-// src/services/firestoreService.ts
 import {
   collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
   addDoc,
+  getDocs,
+  doc,
+  getDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   query,
-  orderBy,
-} from 'firebase/firestore';
-import { db } from './firebase';
+  where,
+} from "firebase/firestore";
+import { db, auth } from "./firebase";
 
-// CRIAÇÃO DE NOVA LISTA
-export const createNewList = async (userId: string, name: string) => {
-  const listRef = collection(db, 'users', userId, 'lists');
-  const newList = {
+export async function fetchUserLists(userId: string) {
+  const listsRef = collection(db, "users", userId, "lists");
+  const snapshot = await getDocs(listsRef);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function createNewList(userId: string, name: string) {
+  const listsRef = collection(db, "users", userId, "lists");
+  const newList = await addDoc(listsRef, {
     name,
     createdAt: new Date(),
-    items: [],
-  };
-  const docRef = await addDoc(listRef, newList);
-  return { id: docRef.id, ...newList };
-};
+  });
+  return newList.id;
+}
 
-// BUSCAR LISTAS DO FIRESTORE
-export const fetchListsFromFirestore = async (userId: string) => {
-  try {
-    const listsRef = collection(db, 'users', userId, 'lists');
-    const q = query(listsRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error('Erro ao buscar listas:', error);
-    return [];
-  }
-};
-
-// BUSCAR ITENS DE UMA LISTA
-export const fetchItemsFromList = async (userId: string, listId: string) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  const listSnap = await getDoc(listRef);
-  if (listSnap.exists()) {
-    return listSnap.data().items || [];
-  }
-  return [];
-};
-
-// ADICIONAR ITEM A UMA LISTA
-export const addItemToList = async (
-  userId: string,
-  listId: string,
-  newItem: any
-) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  const listSnap = await getDoc(listRef);
-  if (listSnap.exists()) {
-    const data = listSnap.data();
-    const updatedItems = [...(data.items || []), newItem];
-    await updateDoc(listRef, { items: updatedItems });
-    return updatedItems;
-  }
-  return [];
-};
-
-// ATUALIZAR NOME DE LISTA
-export const updateListName = async (
-  userId: string,
-  listId: string,
-  newName: string
-) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
+export async function updateListName(userId: string, listId: string, newName: string) {
+  const listRef = doc(db, "users", userId, "lists", listId);
   await updateDoc(listRef, { name: newName });
-};
+}
 
-// ATUALIZAR UM ITEM DENTRO DA LISTA
-export const updateItemInList = async (
-  userId: string,
-  listId: string,
-  itemIndex: number,
-  updatedItem: any
-) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  const listSnap = await getDoc(listRef);
-  if (listSnap.exists()) {
-    const data = listSnap.data();
-    const updatedItems = [...(data.items || [])];
-    updatedItems[itemIndex] = updatedItem;
-    await updateDoc(listRef, { items: updatedItems });
-    return updatedItems;
+export async function fetchItemsFromList(userId: string, listId: string) {
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+  const snapshot = await getDocs(itemsRef);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function toggleItemPurchased(userId: string, listId: string, itemId: string, purchased: boolean) {
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+  await updateDoc(itemRef, { purchased });
+}
+
+export async function deleteItem(userId: string, listId: string, itemId: string) {
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+  await deleteDoc(itemRef);
+}
+
+export async function addItemToList(userId: string, listId: string, item: any) {
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+  await addDoc(itemsRef, { ...item, purchased: false });
+}
+
+export async function saveProductSuggestion(userId: string, productName: string) {
+  const ref = doc(db, "users", userId, "suggestions", "products");
+  const snapshot = await getDoc(ref);
+  const existing = snapshot.exists() ? snapshot.data().list || [] : [];
+  if (!existing.includes(productName)) {
+    await setDoc(ref, { list: [...existing, productName] });
   }
-  return [];
-};
+}
 
-// MARCAR ITEM COMO COMPRADO (TOGGLE)
-export const toggleItemPurchased = async (
-  userId: string,
-  listId: string,
-  itemIndex: number
-) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  const listSnap = await getDoc(listRef);
-  if (listSnap.exists()) {
-    const data = listSnap.data();
-    const updatedItems = [...(data.items || [])];
-    updatedItems[itemIndex].purchased = !updatedItems[itemIndex].purchased;
-    await updateDoc(listRef, { items: updatedItems });
-    return updatedItems;
+export async function saveMarketSuggestion(userId: string, marketName: string) {
+  const ref = doc(db, "users", userId, "suggestions", "markets");
+  const snapshot = await getDoc(ref);
+  const existing = snapshot.exists() ? snapshot.data().list || [] : [];
+  if (!existing.includes(marketName)) {
+    await setDoc(ref, { list: [...existing, marketName] });
   }
-  return [];
-};
+}
 
-// DELETAR UM ITEM DA LISTA
-export const deleteItem = async (
-  userId: string,
-  listId: string,
-  itemIndex: number
-) => {
-  const listRef = doc(db, 'users', userId, 'lists', listId);
-  const listSnap = await getDoc(listRef);
-  if (listSnap.exists()) {
-    const data = listSnap.data();
-    const updatedItems = [...(data.items || [])];
-    updatedItems.splice(itemIndex, 1);
-    await updateDoc(listRef, { items: updatedItems });
-    return updatedItems;
-  }
-  return [];
-};
+export async function fetchSuggestions(userId: string) {
+  const productsRef = doc(db, "users", userId, "suggestions", "products");
+  const marketsRef = doc(db, "users", userId, "suggestions", "markets");
 
-// SUGESTÕES (Produtos / Mercados)
+  const [productsSnap, marketsSnap] = await Promise.all([
+    getDoc(productsRef),
+    getDoc(marketsRef),
+  ]);
 
-export const saveSuggestion = async (
-  userId: string,
-  type: 'products' | 'markets',
-  value: string
-) => {
-  const suggestionRef = doc(db, 'users', userId, 'suggestions', type);
-  const suggestionSnap = await getDoc(suggestionRef);
-
-  let values = [];
-  if (suggestionSnap.exists()) {
-    values = suggestionSnap.data().values || [];
-  }
-
-  if (!values.includes(value)) {
-    values.push(value);
-    await setDoc(suggestionRef, { values });
-  }
-};
-
-export const getSuggestions = async (
-  userId: string,
-  type: 'products' | 'markets'
-) => {
-  const suggestionRef = doc(db, 'users', userId, 'suggestions', type);
-  const suggestionSnap = await getDoc(suggestionRef);
-  if (suggestionSnap.exists()) {
-    return suggestionSnap.data().values || [];
-  }
-  return [];
-};
+  return {
+    products: productsSnap.exists() ? productsSnap.data().list || [] : [],
+    markets: marketsSnap.exists() ? marketsSnap.data().list || [] : [],
+  };
+}

@@ -1,14 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithPopup } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+// Sua config do Firebase (certifique-se de usar as credenciais corretas)
 const firebaseConfig = {
-  apiKey: 'SUA_API_KEY',
-  authDomain: 'SEU_AUTH_DOMAIN',
-  projectId: 'SEU_PROJECT_ID',
-  storageBucket: 'SEU_BUCKET',
-  messagingSenderId: 'SEU_MESSAGING_ID',
-  appId: 'SEU_APP_ID',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
@@ -16,4 +17,4 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
-export { auth, provider, db, signInAnonymously };
+export { auth, provider, db, signInAnonymously, signInWithPopup };

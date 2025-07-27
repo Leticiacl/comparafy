@@ -1,78 +1,103 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  fetchUserLists,
   createNewList,
-  addItemToList,
+  fetchUserLists,
+  updateListName,
   fetchItemsFromList,
+  addItemToList,
   toggleItemPurchased,
   deleteItem,
-  saveSuggestion,
-  updateListName,
+  saveProductSuggestion,
+  saveMarketSuggestion,
+  fetchSuggestions,
 } from '../services/firestoreService';
 
-const DataContext = createContext();
+export const DataContext = createContext<any>(null);
 
-export const DataProvider = ({ children }) => {
-  const [lists, setLists] = useState([]);
-  const [items, setItems] = useState([]);
-  const [suggestions, setSuggestions] = useState({ products: [], markets: [] });
+export const DataProvider = ({ children }: { children: React.ReactNode }) => {
+  const [lists, setLists] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const userId = JSON.parse(sessionStorage.getItem('user'))?.uid;
+  const fetchUserData = async () => {
+    const stored = sessionStorage.getItem('user');
+    const user = stored ? JSON.parse(stored) : null;
+    if (user?.uid) {
+      setUserId(user.uid);
+      const userLists = await fetchUserLists(user.uid);
+      setLists(userLists);
+    }
+  };
 
   useEffect(() => {
-    if (userId) {
-      fetchUserLists(userId).then(setLists);
-    }
-  }, [userId]);
+    fetchUserData();
+  }, []);
 
-  const addList = async (name) => {
+  const createList = async (name: string) => {
+    if (!userId) return;
     const newList = await createNewList(userId, name);
     setLists((prev) => [...prev, newList]);
     return newList;
   };
 
-  const updateListNameInContext = async (listId, newName) => {
+  const updateListNameInContext = async (listId: string, newName: string) => {
+    if (!userId) return;
     await updateListName(userId, listId, newName);
     setLists((prev) =>
       prev.map((list) => (list.id === listId ? { ...list, name: newName } : list))
     );
   };
 
-  const addItem = async (listId, item) => {
+  const fetchItems = async (listId: string) => {
+    if (!userId) return [];
+    return await fetchItemsFromList(userId, listId);
+  };
+
+  const addItem = async (listId: string, item: any) => {
+    if (!userId) return;
     await addItemToList(userId, listId, item);
-    setItems((prev) => [...prev, item]);
-    saveSuggestion(userId, item.name, item.market);
+    fetchUserData();
   };
 
-  const loadItems = async (listId) => {
-    const items = await fetchItemsFromList(userId, listId);
-    setItems(items);
+  const toggleItem = async (listId: string, itemId: string) => {
+    if (!userId) return;
+    await toggleItemPurchased(userId, listId, itemId);
+    fetchUserData();
   };
 
-  const toggleItem = async (listId, itemId, current) => {
-    await toggleItemPurchased(userId, listId, itemId, current);
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, purchased: !item.purchased } : item
-      )
-    );
-  };
-
-  const removeItem = async (listId, itemId) => {
+  const deleteItemFromList = async (listId: string, itemId: string) => {
+    if (!userId) return;
     await deleteItem(userId, listId, itemId);
-    setItems((prev) => prev.filter((item) => item.id !== itemId));
+    fetchUserData();
+  };
+
+  const saveSuggestions = async (product: string, market: string) => {
+    if (!userId) return;
+    await saveProductSuggestion(userId, product);
+    await saveMarketSuggestion(userId, market);
+  };
+
+  const getSuggestions = async () => {
+    if (!userId) return { products: [], markets: [] };
+    return await fetchSuggestions(userId);
   };
 
   const value = {
     lists,
-    items,
-    suggestions,
-    addList,
-    updateListNameInContext,
+    userLists: lists,
+    fetchUserData,
+    createList,
+    fetchItems,
     addItem,
-    loadItems,
     toggleItem,
-    removeItem,
+    deleteItem: deleteItemFromList,
+    updateListNameInContext,
+    saveSuggestions,
+    getSuggestions,
+    savings: lists.map((list) =>
+      list.items?.reduce((acc: number, item: any) => {
+        return item.purchased ? acc + Number(item.price || 0) : acc;
+      }, 0) || 0
+    ),
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

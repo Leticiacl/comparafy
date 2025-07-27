@@ -1,140 +1,136 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import Header from '../components/Header';
 import BottomNav from '../components/BottomNav';
 import { useData } from '../context/DataContext';
 import AddItemModal from '../components/ui/AddItemModal';
 
-import {
-  fetchItemsFromList,
-  toggleItemPurchased,
-  deleteItem,
-} from '../services/firestoreService';
-
-const ListDetail = () => {
+const ListDetail: React.FC = () => {
   const { listId } = useParams();
-  const { lists, user, updateListNameInContext } = useData();
-  const [items, setItems] = useState<any[]>([]);
+  const { userLists, updateListNameInContext, toggleItem, deleteItem } = useData();
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
   const [showModal, setShowModal] = useState(false);
 
-  const list = lists.find((l) => l.id === listId);
-  const totalItems = items.length;
-  const purchasedItems = items.filter((item) => item.purchased).length;
-  const progress = totalItems ? (purchasedItems / totalItems) * 100 : 0;
-
-  const fetchItems = async () => {
-    if (user?.uid && listId) {
-      const fetchedItems = await fetchItemsFromList(user.uid, listId);
-      setItems(fetchedItems);
-    }
-  };
+  const list = userLists.find((l) => l.id === listId);
 
   useEffect(() => {
-    fetchItems();
-  }, [listId, user?.uid]);
-
-  const handleTogglePurchased = async (itemId: string, current: boolean) => {
-    if (user?.uid && listId) {
-      await toggleItemPurchased(user.uid, listId, itemId, !current);
-      fetchItems();
+    if (list) {
+      setNewName(list.name);
     }
+  }, [list]);
+
+  const handleNameUpdate = async () => {
+    await updateListNameInContext(listId!, newName);
+    setEditingName(false);
   };
 
-  const handleDeleteItem = async (itemId: string) => {
-    if (user?.uid && listId) {
-      await deleteItem(user.uid, listId, itemId);
-      fetchItems();
-    }
-  };
+  if (!list) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Lista não encontrada.
+      </div>
+    );
+  }
 
-  const handleEditTitle = async () => {
-    const newName = prompt('Novo nome da lista:', list?.name);
-    if (newName && listId) {
-      await updateListNameInContext(listId, newName);
-    }
-  };
+  const totalItems = list.items?.length || 0;
+  const purchased = list.items?.filter((item) => item.purchased).length || 0;
 
   return (
-    <div className="min-h-screen pb-20 px-4 pt-4 bg-white">
-      <Header />
-
-      <div className="flex justify-between items-center mt-4 mb-2">
-        <h1 className="text-xl font-bold">{list?.name}</h1>
-        <button
-          onClick={handleEditTitle}
-          className="text-sm text-blue-500 underline"
-        >
-          Editar nome
-        </button>
+    <div className="min-h-screen bg-white pb-24 px-4">
+      {/* Header com logo */}
+      <div className="flex justify-between items-center pt-6 mb-4">
+        {editingName ? (
+          <div className="flex-1 mr-4">
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={() => setEditingName(false)}
+                className="text-sm text-gray-500"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleNameUpdate}
+                className="text-sm text-yellow-500 font-medium"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold text-gray-800">{list.name}</h1>
+            <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-10" />
+          </>
+        )}
       </div>
 
-      <div className="mb-4">
-        <div className="h-3 bg-gray-200 rounded-full">
-          <div
-            className="h-3 bg-yellow-400 rounded-full"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-        <p className="text-sm text-gray-600 mt-1">
-          {purchasedItems} de {totalItems} itens comprados
-        </p>
-      </div>
+      {/* Info progresso */}
+      <p className="text-sm text-gray-500 mb-2">{purchased} de {totalItems} itens comprados</p>
 
+      {/* Botão adicionar item */}
       <button
         onClick={() => setShowModal(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-4"
+        className="w-full bg-yellow-400 text-black font-semibold py-3 rounded-xl shadow mb-6"
       >
         + Adicionar item
       </button>
 
-      {items.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">
-          Nenhum item na lista ainda.
-        </p>
+      {/* Lista de itens */}
+      {list.items?.length === 0 ? (
+        <p className="text-center text-gray-400">Sua lista está vazia.</p>
       ) : (
-        <ul className="space-y-2">
-          {items.map((item) => (
-            <li
+        <div className="space-y-3">
+          {list.items.map((item) => (
+            <div
               key={item.id}
-              className={`flex items-center justify-between p-3 rounded-lg shadow ${
-                item.purchased ? 'bg-green-100' : 'bg-gray-100'
-              }`}
+              className="border border-gray-200 rounded-lg p-4 shadow flex flex-col"
             >
-              <div>
-                <p className="font-semibold">{item.name}</p>
-                <p className="text-sm text-gray-600">
-                  {item.quantity} {item.unit} • {item.market} • R${' '}
-                  {item.price}
-                </p>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={item.purchased}
+                    onChange={() => toggleItem(list.id, item.id)}
+                  />
+                  <p className={`font-medium ${item.purchased ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                    {item.name}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button className="text-sm text-blue-500">Editar</button>
+                  <button
+                    className="text-sm text-red-500"
+                    onClick={() => deleteItem(list.id, item.id)}
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={item.purchased}
-                  onChange={() =>
-                    handleTogglePurchased(item.id, item.purchased)
-                  }
-                  className="w-5 h-5"
-                />
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  className="text-red-500 text-sm"
-                >
-                  Excluir
-                </button>
+              <div className="text-sm text-gray-600 mt-2">
+                {item.quantity} {item.unit} • {item.market} • R$ {Number(item.price).toFixed(2)}
               </div>
-            </li>
+              {item.notes && (
+                <p className="text-xs text-gray-400 italic mt-1">Obs: {item.notes}</p>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
       )}
 
+      {/* Modal de item */}
       <AddItemModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        listId={listId!}
-        onItemAdded={fetchItems}
+        listId={list.id}
       />
 
+      {/* Navegação */}
       <BottomNav activeTab="lists" />
     </div>
   );
