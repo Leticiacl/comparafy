@@ -1,66 +1,75 @@
-import React, { useState } from 'react';
-import Header from '../components/Header';
-import BottomNav from '../components/BottomNav';
+import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
+import BottomNav from '../components/BottomNav';
 import NewListModal from '../components/ui/NewListModal';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-const Lists = () => {
-  const { userLists } = useData();
-  const [modalOpen, setModalOpen] = useState(false);
+const Lists: React.FC = () => {
+  const { lists, fetchUserData } = useData();
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
-  const getProgress = (items: any[]) => {
-    const total = items.length;
-    const done = items.filter((i) => i.purchased).length;
-    return total ? (done / total) * 100 : 0;
-  };
-
-  const getTotal = (items: any[]) =>
-    items.reduce((acc, item) => acc + (item.price || 0), 0);
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
   return (
-    <div className="min-h-screen pb-20 px-4 pt-4 bg-white">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-white pb-24">
+      {/* Header com logo */}
+      <div className="flex justify-between items-center px-4 pt-6 mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800">Minhas Listas</h1>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-10 h-10" />
+      </div>
 
-      <h1 className="text-2xl font-bold mb-4">Minhas Listas</h1>
+      {/* Botão Nova Lista */}
+      <div className="px-4 mb-6">
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full bg-yellow-400 text-black font-semibold py-3 rounded-xl shadow"
+        >
+          + Nova lista
+        </button>
+      </div>
 
-      <button
-        onClick={() => setModalOpen(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-6"
-      >
-        + Nova Lista
-      </button>
-
-      {userLists.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">Nenhuma lista encontrada.</p>
-      ) : (
-        userLists.map((list) => {
-          const progress = getProgress(list.items || []);
-          const total = getTotal(list.items || []);
-          const done = (list.items || []).filter((i) => i.purchased).length;
-          const count = (list.items || []).length;
+      {/* Listas */}
+      <div className="px-4 space-y-4">
+        {lists.length === 0 && (
+          <p className="text-center text-gray-500">Nenhuma lista encontrada.</p>
+        )}
+        {lists.map((list) => {
+          const totalItems = list.items?.length || 0;
+          const purchased = list.items?.filter((item) => item.purchased).length || 0;
+          const total = list.items?.reduce((acc, item) => acc + Number(item.price || 0), 0);
 
           return (
-            <Link to={`/list/${list.id}`} key={list.id} className="block mb-4">
-              <div className="bg-white rounded-xl p-4 shadow hover:bg-yellow-50 transition">
-                <p className="font-semibold text-lg">{list.name}</p>
-                <div className="h-2 bg-gray-200 rounded-full my-2">
-                  <div
-                    className="h-2 bg-yellow-400 rounded-full"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-600">
-                  {done}/{count} itens comprados
+            <div
+              key={list.id}
+              className="border border-gray-200 rounded-lg p-4 shadow cursor-pointer"
+              onClick={() => navigate(`/list/${list.id}`)}
+            >
+              <div className="flex justify-between mb-1">
+                <p className="font-medium text-gray-800">{list.name}</p>
+                <p className="text-sm text-gray-500">
+                  {purchased}/{totalItems} itens
                 </p>
-                <p className="text-sm text-gray-600">Total: R$ {total.toFixed(2)}</p>
               </div>
-            </Link>
+              {/* Barra de progresso */}
+              <div className="w-full h-2 bg-gray-100 rounded-full mb-1">
+                <div
+                  className="h-2 bg-yellow-400 rounded-full"
+                  style={{ width: `${(purchased / totalItems) * 100 || 0}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-600">Total: R$ {total.toFixed(2)}</p>
+            </div>
           );
-        })
-      )}
+        })}
+      </div>
 
-      <NewListModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      {/* Modal de Nova Lista */}
+      <NewListModal isOpen={showModal} onClose={() => setShowModal(false)} />
+
+      {/* Navegação inferior */}
       <BottomNav activeTab="lists" />
     </div>
   );
