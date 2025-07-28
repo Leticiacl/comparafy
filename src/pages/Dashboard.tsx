@@ -1,75 +1,82 @@
-import { useState } from "react";
-import { useData } from "../context/DataContext";
-import { Link } from "react-router-dom";
-import NewListModal from "../components/ui/NewListModal";
-import { formatCurrency } from "../utils/formatCurrency";
-import BottomNav from "../components/BottomNav";
+import React, { useState, useEffect } from 'react';
+import { useData } from '../context/DataContext';
+import NewListModal from '../components/ui/NewListModal';
+import ListaCard from '../components/ListaCard';
+import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
+import BottomNav from '../components/BottomNav';
 
-const Dashboard = () => {
-  const { lists, savings } = useData();
-  const [showModal, setShowModal] = useState(false);
-  const totalSavings = savings.reduce((sum, val) => sum + val, 0);
+const Dashboard: React.FC = () => {
+  const { lists, savings, fetchUserData } = useData();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchUserData(); // garante que dados sejam carregados
+  }, []);
+
+  if (!lists || !savings) {
+    return <div className="p-6 text-center text-gray-500">Carregando...</div>;
+  }
+
+  const totalEconomizado = savings.reduce((acc: number, cur: any) => acc + Number(cur.valor || 0), 0);
+
+  const listasRecentes = [...lists]
+    .filter((l) => l && l.createdAt)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-white p-4">
-      <div className="flex justify-end mb-4">
-        <img src="/LOGO_REDUZIDA.png" alt="Logo Comparify" className="h-10" />
+    <div className="p-4 pb-32 max-w-xl mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Olá!</h1>
+          <p className="text-gray-500 text-base">Bem-vindo ao Comparify</p>
+        </div>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-10" />
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Olá!</h1>
-      <p className="text-lg text-gray-700 mb-4">Bem-vindo ao Comparify</p>
-
-      <div className="bg-white p-4 rounded-xl shadow mb-4 flex items-center gap-4 border border-yellow-400">
-        <div className="bg-yellow-400 p-2 rounded-full">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
-          </svg>
+      <div className="bg-white rounded-2xl shadow p-4 flex items-center gap-4 mb-6">
+        <div className="bg-yellow-300 rounded-full p-2">
+          <ArrowUpRightIcon className="h-6 w-6 text-white" />
         </div>
         <div>
-          <p className="text-sm text-gray-500">Economia Total</p>
-          <p className="text-xl font-bold text-gray-900">
-            {formatCurrency(totalSavings)}
-          </p>
+          <p className="text-gray-500 text-sm">Economia total</p>
+          <p className="text-lg font-semibold text-gray-900">R$ {totalEconomizado.toFixed(2)}</p>
         </div>
       </div>
 
       <button
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mb-4"
-        onClick={() => setShowModal(true)}
+        onClick={() => setIsModalOpen(true)}
+        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-base mb-6"
       >
-        + Nova Lista
+        + Nova lista
       </button>
 
-      {showModal && <NewListModal onClose={() => setShowModal(false)} />}
+      {listasRecentes.length > 0 && (
+        <>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Listas recentes</h2>
+          {listasRecentes.map((lista) => {
+            const nome = lista.nome || 'Sem nome';
+            const comprados = lista.itens?.filter((item) => item.comprado).length || 0;
+            const total = lista.itens?.reduce((acc, item) => acc + (item.preco || 0), 0) || 0;
 
-      {lists.length > 0 && (
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Minhas Listas</h2>
-          <div className="space-y-2">
-            {lists.map((list) => {
-              const totalItems = list.items?.length || 0;
-              const purchasedItems = list.items?.filter(item => item.purchased).length || 0;
-              const totalValue = list.items?.reduce((sum, item) => sum + (item.price || 0), 0);
-
-              return (
-                <Link to={`/list/${list.id}`} key={list.id} className="block bg-white rounded-xl shadow p-4 border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{list.name}</h3>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                    <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(purchasedItems / totalItems) * 100 || 0}%` }}></div>
-                  </div>
-                  <p className="text-sm text-gray-600">{purchasedItems}/{totalItems} itens comprados</p>
-                  <p className="text-sm text-gray-800 font-semibold">Total: {formatCurrency(totalValue)}</p>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+            return (
+              <ListaCard
+                key={lista.id}
+                id={lista.id}
+                nome={nome}
+                total={total}
+                itens={lista.itens?.length || 0}
+                comprados={comprados}
+              />
+            );
+          })}
+        </>
       )}
 
-      <div className="mt-16">
-        <BottomNav activeTab="home" />
-      </div>
+      <NewListModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+      {/* ✅ BARRA DE NAVEGAÇÃO INFERIOR */}
+      <BottomNav activeTab="home" />
     </div>
   );
 };

@@ -3,12 +3,11 @@ import { useData } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 import NewListModal from '../components/ui/NewListModal';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from "../utils/formatCurrency";
+import ListaCard from '../components/ListaCard';
 
 const Lists: React.FC = () => {
   const { lists, fetchUserData } = useData();
   const [showModal, setShowModal] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchUserData();
@@ -22,7 +21,10 @@ const Lists: React.FC = () => {
       </div>
 
       <div className="px-4 mb-6">
-        <button onClick={() => setShowModal(true)} className="w-full bg-yellow-400 text-black font-semibold py-3 rounded-xl shadow">
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full bg-yellow-400 text-black font-semibold py-3 rounded-xl shadow"
+        >
           + Nova lista
         </button>
       </div>
@@ -35,16 +37,14 @@ const Lists: React.FC = () => {
           const total = list.items?.reduce((acc, item) => acc + Number(item.price || 0), 0);
 
           return (
-            <div key={list.id} className="border border-gray-200 rounded-lg p-4 shadow cursor-pointer" onClick={() => navigate(`/list/${list.id}`)}>
-              <div className="flex justify-between mb-1">
-                <p className="font-medium text-gray-800">{list.name}</p>
-                <p className="text-sm text-gray-500">{purchased}/{totalItems} itens</p>
-              </div>
-              <div className="w-full h-2 bg-gray-100 rounded-full mb-1">
-                <div className="h-2 bg-yellow-400 rounded-full" style={{ width: `${(purchased / totalItems) * 100 || 0}%` }} />
-              </div>
-              <p className="text-sm text-gray-600">Total: {formatCurrency(total)}</p>
-            </div>
+            <ListaCard
+              key={list.id}
+              id={list.id}
+              nome={list.name}
+              total={total}
+              itens={totalItems}
+              comprados={purchased}
+            />
           );
         })}
       </div>
