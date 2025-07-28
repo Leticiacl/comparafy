@@ -1,4 +1,3 @@
-// src/context/DataContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   createNewList,
@@ -56,7 +55,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const addItem = async (listId: string, item: any) => {
     if (!userId) throw new Error('Usuário não identificado');
     await addItemToList(userId, listId, item);
-    await fetchUserData(); // para atualizar economia total
+    await fetchUserData();
   };
 
   const toggleItem = async (listId: string, itemId: string) => {

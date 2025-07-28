@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from '../utils/formatCurrency';
 
 interface ListaCardProps {
   id: string;
@@ -12,21 +11,25 @@ interface ListaCardProps {
 
 const ListaCard: React.FC<ListaCardProps> = ({ id, nome, total, itens, comprados }) => {
   const navigate = useNavigate();
-  const progresso = itens === 0 ? 0 : (comprados / itens) * 100;
 
   return (
     <div
-      className="border border-gray-200 rounded-lg p-4 shadow cursor-pointer"
-      onClick={() => navigate(`/list/${id}`)}
+      onClick={() => navigate(`/lists/${id}`)}
+      className="bg-white p-4 rounded-xl shadow cursor-pointer mb-4"
     >
-      <div className="flex justify-between mb-1">
-        <p className="font-medium text-gray-800">{nome}</p>
-        <p className="text-sm text-gray-500">{comprados}/{itens} itens</p>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-semibold text-gray-900">{nome || 'Sem nome'}</h2>
+        <p className="text-sm text-gray-500">
+          {comprados}/{itens} itens
+        </p>
       </div>
-      <div className="w-full h-2 bg-gray-100 rounded-full mb-1">
-        <div className="h-2 bg-yellow-400 rounded-full" style={{ width: `${progresso}%` }} />
+      <div className="w-full h-2 bg-gray-200 rounded">
+        <div
+          className="h-2 bg-yellow-400 rounded"
+          style={{ width: `${(comprados / (itens || 1)) * 100}%` }}
+        />
       </div>
-      <p className="text-sm text-gray-600">Total: {formatCurrency(total)}</p>
+      <p className="text-sm text-gray-600 mt-2">Total: R$ {total.toFixed(2)}</p>
     </div>
   );
 };

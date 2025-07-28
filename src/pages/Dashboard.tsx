@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import NewListModal from '../components/ui/NewListModal';
 import ListaCard from '../components/ListaCard';
@@ -6,21 +6,15 @@ import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
 import BottomNav from '../components/BottomNav';
 
 const Dashboard: React.FC = () => {
-  const { lists, savings, fetchUserData } = useData();
+  const { lists, savings } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchUserData(); // garante que dados sejam carregados
-  }, []);
-
-  if (!lists || !savings) {
-    return <div className="p-6 text-center text-gray-500">Carregando...</div>;
-  }
-
-  const totalEconomizado = savings.reduce((acc: number, cur: any) => acc + Number(cur.valor || 0), 0);
+  const totalEconomizado = Array.isArray(savings)
+    ? savings.reduce((acc, cur) => acc + (typeof cur === 'number' ? cur : 0), 0)
+    : 0;
 
   const listasRecentes = [...lists]
-    .filter((l) => l && l.createdAt)
+    .filter((lista) => lista && lista.createdAt)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 2);
 
@@ -55,17 +49,16 @@ const Dashboard: React.FC = () => {
         <>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Listas recentes</h2>
           {listasRecentes.map((lista) => {
-            const nome = lista.nome || 'Sem nome';
-            const comprados = lista.itens?.filter((item) => item.comprado).length || 0;
-            const total = lista.itens?.reduce((acc, item) => acc + (item.preco || 0), 0) || 0;
+            const comprados = lista.items?.filter((item) => item.purchased).length || 0;
+            const total = lista.items?.reduce((acc, item) => acc + (item.price || 0), 0) || 0;
 
             return (
               <ListaCard
                 key={lista.id}
                 id={lista.id}
-                nome={nome}
+                nome={lista.name || 'Sem nome'}
                 total={total}
-                itens={lista.itens?.length || 0}
+                itens={lista.items?.length || 0}
                 comprados={comprados}
               />
             );
@@ -74,8 +67,6 @@ const Dashboard: React.FC = () => {
       )}
 
       <NewListModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
-      {/* ✅ BARRA DE NAVEGAÇÃO INFERIOR */}
       <BottomNav activeTab="home" />
     </div>
   );

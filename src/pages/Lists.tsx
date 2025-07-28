@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 import NewListModal from '../components/ui/NewListModal';
-import { useNavigate } from 'react-router-dom';
 import ListaCard from '../components/ListaCard';
 
 const Lists: React.FC = () => {
@@ -33,7 +32,7 @@ const Lists: React.FC = () => {
         {lists.length === 0 && <p className="text-center text-gray-500">Nenhuma lista encontrada.</p>}
         {lists.map((list) => {
           const totalItems = list.items?.length || 0;
-          const purchased = list.items?.filter(item => item.purchased).length || 0;
+          const purchased = list.items?.filter((item) => item.purchased).length || 0;
           const total = list.items?.reduce((acc, item) => acc + Number(item.price || 0), 0);
 
           return (
