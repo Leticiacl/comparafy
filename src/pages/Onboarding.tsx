@@ -1,89 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-
-const slides = [
-  {
-    title: 'Bem-vindo ao Comparify',
-    description: 'Organize suas compras e economize dinheiro comparando preços entre supermercados.',
-  },
-  {
-    title: 'Crie suas listas',
-    description: 'Monte listas de compras personalizadas para cada ocasião.',
-  },
-  {
-    title: 'Compare preços',
-    description: 'Compare preços entre mercados e faça a melhor escolha.',
-  },
-  {
-    title: 'Economize de verdade',
-    description: 'Acompanhe quanto está economizando e tome melhores decisões.',
-  },
-];
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Onboarding = () => {
-  const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
+  const [step, setStep] = useState(0);
+
+  const slides = [
+    {
+      title: "Crie listas de compras",
+      description:
+        "Adicione produtos, quantidades e acompanhe quanto vai gastar antes mesmo de ir ao mercado.",
+      image: "/slide1.png",
+    },
+    {
+      title: "Compare preços",
+      description:
+        "Veja qual supermercado está mais barato e economize na sua compra.",
+      image: "/slide2.png",
+    },
+    {
+      title: "Acompanhe suas economias",
+      description:
+        "Veja quanto está economizando em cada lista e acompanhe sua evolução.",
+      image: "/slide3.png",
+    },
+  ];
 
   const handleNext = () => {
-    if (current < slides.length - 1) {
-      setCurrent((prev) => prev + 1);
+    if (step < slides.length - 1) {
+      setStep((prev) => prev + 1);
     } else {
-      navigate('/login');
+      navigate("/login");
     }
   };
 
   const handleSkip = () => {
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-between px-6 py-10">
-      {/* Parte superior: logo */}
-      <div className="mt-10">
-        <img
-          src="/COMPARAFY.png"
-          alt="Comparify"
-          className="w-36 h-auto object-contain"
-        />
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-between px-6 py-10 bg-white">
+      {/* Logo */}
+      <img src="/COMPARAFY.png" alt="Logo" className="w-32 mb-6 mt-4" />
 
-      {/* Texto centralizado no meio da tela */}
-      <div className="flex-1 flex flex-col justify-center items-center text-center px-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-          {slides[current].title}
+      {/* Conteúdo do slide */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <img
+          src={slides[step].image}
+          alt="Ilustração"
+          className="w-28 h-28 object-contain mb-6"
+        />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          {slides[step].title}
         </h2>
-        <p className="text-gray-600 text-base">{slides[current].description}</p>
+        <p className="text-gray-500 text-base">{slides[step].description}</p>
 
         {/* Indicadores */}
-        <div className="flex gap-2 mt-6">
+        <div className="flex justify-center mt-6 space-x-2">
           {slides.map((_, index) => (
             <span
               key={index}
               className={`h-2 w-2 rounded-full ${
-                index === current ? 'bg-yellow-400' : 'bg-gray-300'
+                index === step ? "bg-yellow-400" : "bg-gray-300"
               }`}
             />
           ))}
         </div>
       </div>
 
-      {/* Botões inferiores */}
-      <div className="w-full px-4 mb-6">
-        <button
-          onClick={handleNext}
-          className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-xl"
-        >
-          {current < slides.length - 1 ? 'Próximo' : 'Começar'}
-        </button>
-        <div className="mt-3 text-center">
-          <button
-            onClick={handleSkip}
-            className="text-sm text-gray-500 underline"
-          >
-            Pular
-          </button>
-        </div>
-      </div>
+      {/* Botão de próximo */}
+      <button
+        onClick={handleNext}
+        className="bg-yellow-400 text-black font-medium w-full py-4 rounded-xl mb-4 shadow"
+      >
+        {step === slides.length - 1 ? "Começar" : "Próximo"}
+      </button>
+
+      {/* Pular */}
+      <button
+        onClick={handleSkip}
+        className="text-gray-500 text-sm underline mb-2"
+      >
+        Pular
+      </button>
     </div>
   );
 };
