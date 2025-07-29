@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Onboarding from './pages/Onboarding';
@@ -10,12 +11,13 @@ import Scanner from './pages/Scanner';
 import Compare from './pages/Compare';
 import Profile from './pages/Profile';
 import { Toaster } from './components/ui/Toaster';
+import { DataProvider } from './context/DataContext';
 
 const App: React.FC = () => {
   const user = sessionStorage.getItem('user');
 
   return (
-    <>
+    <DataProvider>
       <Toaster />
       <Routes>
         <Route path="/" element={<Onboarding />} />
@@ -35,7 +37,7 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/login" />} />
         )}
       </Routes>
-    </>
+    </DataProvider>
   );
 };
 

@@ -36,7 +36,7 @@ interface DataContextType {
   lists: Lista[];
   userLists: Lista[];
   fetchUserData: () => void;
-  createList: (name: string) => Promise<void>;
+  createList: (name: string) => Promise<Lista | null>;
   fetchItems: (listId: string) => Promise<void>;
   addItem: (listId: string, item: Item) => Promise<void>;
   toggleItem: (listId: string, itemId: string) => Promise<void>;
@@ -66,10 +66,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUserData();
   }, []);
 
-  const createList = async (name: string) => {
-    if (!userId) return;
+  const createList = async (name: string): Promise<Lista | null> => {
+    if (!userId) return null;
     const newList = await createNewList(userId, name);
     setLists((prev) => [...prev, newList]);
+    return newList;
   };
 
   const fetchItems = async (listId: string) => {
