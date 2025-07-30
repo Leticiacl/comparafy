@@ -1,3 +1,4 @@
+// src/pages/ListDetail.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData, Item } from '../context/DataContext';
@@ -29,12 +30,14 @@ const ListDetail: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // Carrega itens apenas ao montar ou quando o ID da lista muda
+  // Recarrega itens sempre que a lista muda
   useEffect(() => {
-    if (id) fetchItems(id);
-  }, [id]);
+    if (id) {
+      fetchItems(id);
+    }
+  }, [id, fetchItems]);
 
-  const lista = lists.find(l => l.id === id);
+  const lista = lists.find((l) => l.id === id);
   if (!lista) {
     return (
       <div className="p-4 text-center">
@@ -45,8 +48,11 @@ const ListDetail: React.FC = () => {
   }
 
   const itens = lista.itens;
-  const comprados = itens.filter(i => i.comprado).length;
-  const total = itens.reduce((sum, i) => sum + i.preco, 0);
+  const comprados = itens.filter((i) => i.comprado).length;
+  const totalGeral = itens.reduce((sum, i) => sum + i.preco, 0);
+  const totalComprado = itens
+    .filter((i) => i.comprado)
+    .reduce((sum, i) => sum + i.preco, 0);
 
   const handleRename = () => {
     const trimmed = newName.trim();
@@ -68,13 +74,12 @@ const ListDetail: React.FC = () => {
           >
             <ArrowLeftIcon className="w-6 h-6 text-gray-600" />
           </button>
-
           {editing ? (
             <div className="flex gap-2 w-full">
               <input
                 autoFocus
                 value={newName}
-                onChange={e => setNewName(e.target.value)}
+                onChange={(e) => setNewName(e.target.value)}
                 className="border rounded-lg px-3 py-1 w-full"
               />
               <button
@@ -88,7 +93,6 @@ const ListDetail: React.FC = () => {
             <h1 className="text-2xl font-bold">{lista.nome}</h1>
           )}
         </div>
-
         <Menu as="div" className="relative ml-2">
           <Menu.Button>
             <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
@@ -126,8 +130,7 @@ const ListDetail: React.FC = () => {
             </Menu.Item>
           </Menu.Items>
         </Menu>
-
-        {/* Logo estático vindo de public/ */}
+        {/* Logo direto de public/ */}
         <img
           src="/LOGO_REDUZIDA.png"
           alt="Logo reduzida"
@@ -135,23 +138,27 @@ const ListDetail: React.FC = () => {
         />
       </div>
 
-      {/* Cartão de progresso */}
+      {/* Progresso e valores */}
       <div className="bg-white rounded-xl shadow p-4 mb-6">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
-          <p>
-            {comprados}/{itens.length} itens comprados
-          </p>
-          <p>R$ {total.toFixed(2)}</p>
+          <span>
+            {comprados}/{itens.length} itens
+          </span>
+          <span>
+            R$ {totalComprado.toFixed(2)} / R$ {totalGeral.toFixed(2)}
+          </span>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded">
           <div
             className="h-2 bg-yellow-400 rounded transition-all duration-300"
-            style={{ width: `${(comprados / (itens.length || 1)) * 100}%` }}
+            style={{
+              width: `${(comprados / (itens.length || 1)) * 100}%`,
+            }}
           />
         </div>
       </div>
 
-      {/* Botão + Adicionar item */}
+      {/* Botão Adicionar item */}
       <button
         onClick={() => {
           setItemToEdit(null);
@@ -164,7 +171,7 @@ const ListDetail: React.FC = () => {
 
       {/* Lista de itens */}
       <ul className="space-y-4">
-        {itens.map(item => (
+        {itens.map((item) => (
           <li
             key={item.id}
             className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
@@ -182,7 +189,6 @@ const ListDetail: React.FC = () => {
                   <CheckIcon className="h-4 w-4 text-black" />
                 )}
               </button>
-
               <div>
                 <h2
                   className={`text-lg font-semibold ${
@@ -198,7 +204,6 @@ const ListDetail: React.FC = () => {
                 </p>
               </div>
             </div>
-
             <div className="flex flex-col items-end gap-1">
               <p className="text-sm font-semibold text-gray-800">
                 R$ {item.preco.toFixed(2)}
@@ -235,10 +240,10 @@ const ListDetail: React.FC = () => {
         itemToEdit={itemToEdit}
       />
 
-      {/* Barra de navegação inferior */}
+      {/* Barra inferior */}
       <BottomNav activeTab="lists" />
     </div>
   );
-}; // ← não esqueça este fechamento
+};
 
 export default ListDetail;
