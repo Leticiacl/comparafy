@@ -1,3 +1,4 @@
+// src/context/DataContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   addItemToList,
@@ -22,13 +23,13 @@ interface Item {
   preco: number;
   mercado: string;
   observacoes?: string;
-  comprado: boolean;
+  purchased: boolean;
 }
 
 interface Lista {
   id: string;
-  nome: string;
-  itens: Item[];
+  name: string;
+  items: Item[];
   createdAt?: any;
 }
 
@@ -78,7 +79,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const items = await fetchItemsFromList(userId, listId);
     setLists((prevLists) =>
       prevLists.map((list) =>
-        list.id === listId ? { ...list, itens: items } : list
+        list.id === listId ? { ...list, items } : list
       )
     );
   };
@@ -89,7 +90,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLists((prevLists) =>
       prevLists.map((list) =>
         list.id === listId
-          ? { ...list, itens: [...(list.itens || []), newItem] }
+          ? { ...list, items: [...(list.items || []), newItem] }
           : list
       )
     );
@@ -103,8 +104,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         list.id === listId
           ? {
               ...list,
-              itens: list.itens.map((item) =>
-                item.id === itemId ? { ...item, comprado: updatedItem.comprado } : item
+              items: list.items.map((item) =>
+                item.id === itemId ? { ...item, purchased: updatedItem.purchased } : item
               ),
             }
           : list
@@ -120,7 +121,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         list.id === listId
           ? {
               ...list,
-              itens: list.itens.filter((item) => item.id !== itemId),
+              items: list.items.filter((item) => item.id !== itemId),
             }
           : list
       )
@@ -132,10 +133,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateListName(userId, listId, newName);
     setLists((prevLists) =>
       prevLists.map((list) =>
-        list.id === listId ? { ...list, nome: newName } : list
+        list.id === listId ? { ...list, name: newName } : list
       )
     );
-  };  
+  };
 
   const deleteList = async (listId: string) => {
     if (!userId) return;
@@ -183,8 +184,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveSuggestions,
     getSuggestions,
     savings: lists.map((list) =>
-      list.itens?.reduce((acc: number, item: any) => {
-        return item.comprado ? acc + Number(item.preco || 0) : acc;
+      list.items?.reduce((acc: number, item: any) => {
+        return item.purchased ? acc + Number(item.preco || 0) : acc;
       }, 0) || 0
     ),
   };

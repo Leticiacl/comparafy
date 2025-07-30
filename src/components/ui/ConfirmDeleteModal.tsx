@@ -1,3 +1,4 @@
+// src/components/ui/ConfirmDeleteModal.tsx
 import React from "react";
 
 interface ConfirmDeleteModalProps {
@@ -20,20 +21,24 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
     >
       <div
         className="bg-white rounded-xl p-6 w-11/12 max-w-sm shadow-xl"
-        onClick={(e) => e.stopPropagation()} // impede clique no fundo de propagar
+        onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold mb-4">Deseja excluir esta lista?</h2>
+        <h2 className="text-lg font-semibold mb-4 text-gray-900">
+          Deseja excluir esta lista?
+        </h2>
         <div className="flex justify-end gap-4">
-          <button onClick={onClose} className="text-gray-600">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 rounded-lg text-gray-700 hover:bg-gray-300"
+          >
             Cancelar
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               onConfirm();
               onClose();
             }}
-            className="text-red-600 font-semibold"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold"
           >
             Excluir
           </button>
