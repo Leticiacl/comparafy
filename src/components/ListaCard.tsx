@@ -1,3 +1,4 @@
+// src/components/ListaCard.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -43,7 +44,7 @@ const ListaCard: React.FC<ListaCardProps> = ({ id, nome, total, itens, comprados
   return (
     <div
       className="relative bg-white p-4 rounded-xl shadow cursor-pointer mb-4"
-      onClick={() => navigate(`/lista/${id}`)}
+      onClick={() => navigate(`/lists/${id}`)}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="w-full">

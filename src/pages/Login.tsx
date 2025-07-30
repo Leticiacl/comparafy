@@ -18,6 +18,7 @@ const Login: React.FC = () => {
       const result = await signInWithEmailAndPassword(auth, email, senha);
       const user = result.user;
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
+      sessionStorage.setItem("userId", user.uid); // ✅ necessário para criar lista
       toast.success("Login realizado com sucesso!");
       navigate("/dashboard");
     } catch (error) {
@@ -31,6 +32,7 @@ const Login: React.FC = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
+      sessionStorage.setItem("userId", user.uid);
       toast.success("Login com Google realizado!");
       navigate("/dashboard");
     } catch (error) {
@@ -44,6 +46,7 @@ const Login: React.FC = () => {
       const result = await signInAnonymously(auth);
       const user = result.user;
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
+      sessionStorage.setItem("userId", user.uid);
       toast.success("Login como visitante realizado!");
       navigate("/dashboard");
     } catch (error) {

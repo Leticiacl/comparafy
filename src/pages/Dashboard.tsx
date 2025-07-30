@@ -1,3 +1,4 @@
+// src/pages/Dashboard.tsx
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import NewListModal from '../components/ui/NewListModal';
@@ -49,16 +50,16 @@ const Dashboard: React.FC = () => {
         <>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Listas recentes</h2>
           {listasRecentes.map((lista) => {
-            const comprados = lista.items?.filter((item) => item.purchased).length || 0;
-            const total = lista.items?.reduce((acc, item) => acc + (item.price || 0), 0) || 0;
+            const comprados = lista.itens?.filter((item) => item.comprado).length || 0;
+            const total = lista.itens?.reduce((acc, item) => acc + (item.preco || 0), 0) || 0;
 
             return (
               <ListaCard
                 key={lista.id}
                 id={lista.id}
-                nome={lista.name || 'Sem nome'}
+                nome={lista.nome || 'Sem nome'}
                 total={total}
-                itens={lista.items?.length || 0}
+                itens={lista.itens?.length || 0}
                 comprados={comprados}
               />
             );

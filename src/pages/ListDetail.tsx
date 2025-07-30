@@ -1,5 +1,6 @@
+// src/pages/ListDetail.tsx
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 import AddItemModal from '../components/ui/AddItemModal';
@@ -12,7 +13,6 @@ import {
 
 const ListDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const {
     lists,
     updateListNameInContext,
@@ -55,7 +55,7 @@ const ListDetail: React.FC = () => {
   const handleDeleteList = async () => {
     if (confirm('Tem certeza que deseja excluir esta lista?')) {
       await deleteList(lista.id);
-      navigate('/lists');
+      // não redireciona — apenas remove da lista
     }
   };
 

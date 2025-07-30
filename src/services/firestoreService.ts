@@ -1,3 +1,4 @@
+// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -19,9 +20,9 @@ export async function fetchUserLists(userId: string) {
       const items = await fetchItemsFromList(userId, docSnap.id);
       return {
         id: docSnap.id,
-        nome: docSnap.data().name || "Sem nome",
+        name: docSnap.data().name || "Sem nome",
         createdAt: docSnap.data().createdAt || null,
-        itens: items,
+        items,
       };
     })
   );
@@ -37,9 +38,9 @@ export async function createNewList(userId: string, name: string) {
   });
   return {
     id: newDoc.id,
-    nome: name,
+    name,
     createdAt: new Date(),
-    itens: [],
+    items: [],
   };
 }
 
@@ -58,7 +59,7 @@ export async function fetchItemsFromList(userId: string, listId: string) {
     return {
       id: doc.id,
       ...data,
-      comprado: data.purchased ?? false,
+      purchased: data.purchased ?? false,
     };
   });
 }
@@ -69,7 +70,7 @@ export async function toggleItemPurchased(userId: string, listId: string, itemId
   const itemSnap = await getDoc(itemRef);
   const current = itemSnap.exists() ? itemSnap.data().purchased : false;
   await updateDoc(itemRef, { purchased: !current });
-  return { comprado: !current };
+  return { purchased: !current };
 }
 
 // Deletar item
@@ -89,7 +90,7 @@ export async function addItemToList(userId: string, listId: string, item: any) {
   return {
     id: docRef.id,
     ...item,
-    comprado: false,
+    purchased: false,
   };
 }
 
