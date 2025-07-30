@@ -1,7 +1,6 @@
-// src/pages/ListDetail.tsx
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useData } from '../context/DataContext';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useData, Item } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 import AddItemModal from '../components/ui/AddItemModal';
 import { Menu } from '@headlessui/react';
@@ -9,29 +8,33 @@ import {
   EllipsisVerticalIcon,
   PencilSquareIcon,
   TrashIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/24/solid';
 
 const ListDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const {
     lists,
-    updateListNameInContext,
     fetchItems,
     toggleItem,
     deleteItem,
+    updateListNameInContext,
     deleteList,
   } = useData();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<Item | null>(null);
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  const lista = lists.find((l) => l.id === id);
-
+  // Carrega itens apenas ao montar ou quando o ID da lista muda
   useEffect(() => {
     if (id) fetchItems(id);
   }, [id]);
 
+  const lista = lists.find(l => l.id === id);
   if (!lista) {
     return (
       <div className="p-4 text-center">
@@ -41,179 +44,201 @@ const ListDetail: React.FC = () => {
     );
   }
 
-  const itens = Array.isArray(lista.itens) ? lista.itens : [];
-  const comprados = itens.filter((item) => item.comprado).length;
-  const total = itens.reduce((acc, item) => acc + (item.preco || 0), 0);
+  const itens = lista.itens;
+  const comprados = itens.filter(i => i.comprado).length;
+  const total = itens.reduce((sum, i) => sum + i.preco, 0);
 
   const handleRename = () => {
-    if (newName.trim()) {
-      updateListNameInContext(lista.id, newName.trim());
+    const trimmed = newName.trim();
+    if (trimmed) {
+      updateListNameInContext(lista.id, trimmed);
       setEditing(false);
-    }
-  };
-
-  const handleDeleteList = async () => {
-    if (confirm('Tem certeza que deseja excluir esta lista?')) {
-      await deleteList(lista.id);
-      // não redireciona — apenas remove da lista
     }
   };
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white">
-      {/* Cabeçalho com nome ou edição */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex flex-col flex-1">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center flex-1">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1 mr-2"
+            aria-label="Voltar"
+          >
+            <ArrowLeftIcon className="w-6 h-6 text-gray-600" />
+          </button>
+
           {editing ? (
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 w-full">
               <input
-                type="text"
-                className="border rounded-lg px-3 py-1 w-full"
-                placeholder="Novo nome"
+                autoFocus
                 value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                onChange={e => setNewName(e.target.value)}
+                className="border rounded-lg px-3 py-1 w-full"
               />
               <button
                 onClick={handleRename}
-                className="bg-yellow-500 px-3 py-1 rounded-lg font-semibold text-black"
+                className="bg-yellow-500 px-3 rounded-lg text-black"
               >
                 Salvar
               </button>
             </div>
           ) : (
-            <h1 className="text-2xl font-bold text-gray-900">{lista.nome || 'Sem nome'}</h1>
+            <h1 className="text-2xl font-bold">{lista.nome}</h1>
           )}
         </div>
 
-        {/* Menu de ações */}
         <Menu as="div" className="relative ml-2">
           <Menu.Button>
             <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
           </Menu.Button>
-          <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-10">
-            <div className="py-1">
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => {
-                      setNewName(lista.nome);
-                      setEditing(true);
-                    }}
-                    className={`${
-                      active ? 'bg-gray-100' : ''
-                    } w-full text-left px-4 py-2 text-sm text-gray-700`}
-                  >
-                    ✏️ Renomear
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={handleDeleteList}
-                    className={`${
-                      active ? 'bg-gray-100' : ''
-                    } w-full text-left px-4 py-2 text-sm text-red-600`}
-                  >
-                    🗑️ Excluir
-                  </button>
-                )}
-              </Menu.Item>
-            </div>
+          <Menu.Items className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-10">
+            <Menu.Item>
+              {({ active }) => (
+                <button
+                  onClick={() => {
+                    setNewName(lista.nome);
+                    setEditing(true);
+                  }}
+                  className={`${
+                    active ? 'bg-gray-100' : ''
+                  } w-full text-left px-4 py-2`}
+                >
+                  ✏️ Renomear
+                </button>
+              )}
+            </Menu.Item>
+            <Menu.Item>
+              {({ active }) => (
+                <button
+                  onClick={async () => {
+                    await deleteList(lista.id);
+                    navigate(-1);
+                  }}
+                  className={`${
+                    active ? 'bg-gray-100' : ''
+                  } w-full text-left px-4 py-2 text-red-600`}
+                >
+                  🗑️ Excluir
+                </button>
+              )}
+            </Menu.Item>
           </Menu.Items>
         </Menu>
 
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 ml-2" />
+        {/* Logo estático vindo de public/ */}
+        <img
+          src="/LOGO_REDUZIDA.png"
+          alt="Logo reduzida"
+          className="h-8 ml-2"
+        />
       </div>
 
-      {/* Barra de progresso */}
-      <div className="bg-white rounded-xl shadow p-4 mb-4">
+      {/* Cartão de progresso */}
+      <div className="bg-white rounded-xl shadow p-4 mb-6">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
-          <p>{comprados}/{itens.length} itens comprados</p>
+          <p>
+            {comprados}/{itens.length} itens comprados
+          </p>
           <p>R$ {total.toFixed(2)}</p>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded">
           <div
-            className="h-2 bg-yellow-400 rounded"
-            style={{
-              width: `${(comprados / (itens.length || 1)) * 100}%`,
-            }}
+            className="h-2 bg-yellow-400 rounded transition-all duration-300"
+            style={{ width: `${(comprados / (itens.length || 1)) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Botão adicionar */}
+      {/* Botão + Adicionar item */}
       <button
-        onClick={() => setIsModalOpen(true)}
-        className="w-full bg-yellow-500 text-black font-semibold py-3 rounded-xl shadow mb-6"
+        onClick={() => {
+          setItemToEdit(null);
+          setIsModalOpen(true);
+        }}
+        className="w-full flex items-center justify-center bg-yellow-500 text-black py-3 rounded-xl shadow mb-6 gap-2"
       >
-        + Adicionar item
+        <span className="text-2xl leading-none">+</span> Adicionar item
       </button>
 
-      {/* Itens */}
-      {itens.length === 0 ? (
-        <p className="text-center text-gray-500">Sua lista está vazia.</p>
-      ) : (
-        <ul className="space-y-4">
-          {itens.map((item) => (
-            <li key={item.id} className="bg-white p-4 rounded-xl shadow">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-3">
-                  <input
-                    type="checkbox"
-                    checked={item.comprado}
-                    onChange={() => toggleItem(lista.id, item.id)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <h2
-                      className={`text-lg font-semibold ${
-                        item.comprado ? 'line-through text-gray-400' : 'text-gray-900'
-                      }`}
-                    >
-                      {item.nome}
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {item.quantidade} {item.unidade} • {item.mercado}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-800">
-                    R$ {Number(item.preco || 0).toFixed(2)}
-                  </p>
-                  {item.quantidade > 0 && item.preco > 0 && (
-                    <p className="text-xs text-gray-400">
-                      R$ {(item.preco / item.quantidade).toFixed(2)}/un
-                    </p>
-                  )}
-                </div>
+      {/* Lista de itens */}
+      <ul className="space-y-4">
+        {itens.map(item => (
+          <li
+            key={item.id}
+            className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
+          >
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => toggleItem(lista.id, item.id)}
+                className={`h-6 w-6 flex items-center justify-center rounded-full border-2 transition-colors ${
+                  item.comprado
+                    ? 'bg-yellow-500 border-yellow-500'
+                    : 'border-gray-300'
+                }`}
+              >
+                {item.comprado && (
+                  <CheckIcon className="h-4 w-4 text-black" />
+                )}
+              </button>
+
+              <div>
+                <h2
+                  className={`text-lg font-semibold ${
+                    item.comprado
+                      ? 'line-through text-gray-400'
+                      : 'text-gray-900'
+                  }`}
+                >
+                  {item.nome}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {item.quantidade} {item.unidade} • {item.mercado}
+                </p>
               </div>
-              {item.observacoes && (
-                <p className="text-xs text-gray-500 italic mt-2">{item.observacoes}</p>
-              )}
-              <div className="flex gap-4 mt-3 text-sm">
-                <button className="flex items-center gap-1 text-gray-600">
-                  <PencilSquareIcon className="h-4 w-4" />
+            </div>
+
+            <div className="flex flex-col items-end gap-1">
+              <p className="text-sm font-semibold text-gray-800">
+                R$ {item.preco.toFixed(2)}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setItemToEdit(item);
+                    setIsModalOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-gray-700"
+                >
+                  <PencilSquareIcon className="w-4 h-4" />
                   Editar
                 </button>
                 <button
                   onClick={() => deleteItem(lista.id, item.id)}
-                  className="flex items-center gap-1 text-red-500"
+                  className="flex items-center gap-1 text-red-600"
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <TrashIcon className="w-4 h-4" />
                   Excluir
                 </button>
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          </li>
+        ))}
+      </ul>
 
-      <AddItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} listId={lista.id} />
+      {/* Modal de adicionar/editar */}
+      <AddItemModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        listId={lista.id}
+        itemToEdit={itemToEdit}
+      />
+
+      {/* Barra de navegação inferior */}
       <BottomNav activeTab="lists" />
     </div>
   );
-};
+}; // ← não esqueça este fechamento
 
 export default ListDetail;

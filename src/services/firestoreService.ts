@@ -45,28 +45,56 @@ export async function createNewList(userId: string, name: string) {
 }
 
 // Atualizar nome da lista
-export async function updateListName(userId: string, listId: string, newName: string) {
+export async function updateListName(
+  userId: string,
+  listId: string,
+  newName: string
+) {
   const listRef = doc(db, "users", userId, "lists", listId);
   await updateDoc(listRef, { name: newName.trim() });
 }
 
 // Buscar itens da lista
 export async function fetchItemsFromList(userId: string, listId: string) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+  const itemsRef = collection(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items"
+  );
   const snapshot = await getDocs(itemsRef);
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
+  return snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
     return {
-      id: doc.id,
-      ...data,
+      id: docSnap.id,
+      nome: data.nome,
+      quantidade: data.quantidade,
+      unidade: data.unidade,
+      preco: data.preco,
+      mercado: data.mercado,
+      observacoes: data.observacoes,
       comprado: data.purchased ?? false,
     };
   });
 }
 
 // Alternar item como comprado
-export async function toggleItemPurchased(userId: string, listId: string, itemId: string) {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+export async function toggleItemPurchased(
+  userId: string,
+  listId: string,
+  itemId: string
+) {
+  const itemRef = doc(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items",
+    itemId
+  );
   const itemSnap = await getDoc(itemRef);
   const current = itemSnap.exists() ? itemSnap.data().purchased : false;
   await updateDoc(itemRef, { purchased: !current });
@@ -74,19 +102,41 @@ export async function toggleItemPurchased(userId: string, listId: string, itemId
 }
 
 // Deletar item
-export async function deleteItem(userId: string, listId: string, itemId: string) {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+export async function deleteItem(
+  userId: string,
+  listId: string,
+  itemId: string
+) {
+  const itemRef = doc(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items",
+    itemId
+  );
   await deleteDoc(itemRef);
 }
 
 // Adicionar item
-export async function addItemToList(userId: string, listId: string, item: any) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+export async function addItemToList(
+  userId: string,
+  listId: string,
+  item: any
+) {
+  const itemsRef = collection(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items"
+  );
   const docRef = await addDoc(itemsRef, {
     ...item,
     purchased: false,
   });
-
   return {
     id: docRef.id,
     ...item,
@@ -94,63 +144,137 @@ export async function addItemToList(userId: string, listId: string, item: any) {
   };
 }
 
+// Atualizar item existente
+export async function updateItem(
+  userId: string,
+  listId: string,
+  itemId: string,
+  item: {
+    nome?: string;
+    quantidade?: number;
+    unidade?: string;
+    preco?: number;
+    mercado?: string;
+    observacoes?: string;
+  }
+) {
+  const itemRef = doc(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items",
+    itemId
+  );
+  const dataToUpdate: any = {};
+  if (item.nome !== undefined) dataToUpdate.nome = item.nome;
+  if (item.quantidade !== undefined)
+    dataToUpdate.quantidade = item.quantidade;
+  if (item.unidade !== undefined) dataToUpdate.unidade = item.unidade;
+  if (item.preco !== undefined) dataToUpdate.preco = item.preco;
+  if (item.mercado !== undefined) dataToUpdate.mercado = item.mercado;
+  if (item.observacoes !== undefined)
+    dataToUpdate.observacoes = item.observacoes;
+  await updateDoc(itemRef, dataToUpdate);
+}
+
 // Sugestões – salvar
-export async function saveSuggestion(userId: string, field: string, value: string) {
+export async function saveSuggestion(
+  userId: string,
+  field: string,
+  value: string
+) {
   const ref = doc(db, "users", userId, "suggestions", field);
   const snap = await getDoc(ref);
-  const existing = snap.exists() ? snap.data().list || [] : [];
-
+  const existing = snap.exists() ? (snap.data() as any).list || [] : [];
   if (!existing.includes(value)) {
     await setDoc(ref, { list: [...existing, value] });
   }
 }
 
 // Sugestões – buscar
-export async function getSuggestionsForField(userId: string, field: string) {
+export async function getSuggestionsForField(
+  userId: string,
+  field: string
+) {
   const ref = doc(db, "users", userId, "suggestions", field);
   const snap = await getDoc(ref);
-  return snap.exists() ? snap.data().list || [] : [];
+  return snap.exists() ? (snap.data() as any).list || [] : [];
 }
 
 // Excluir lista e seus itens
-export async function deleteListFromFirestore(userId: string, listId: string) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+export async function deleteListFromFirestore(
+  userId: string,
+  listId: string
+) {
+  const itemsRef = collection(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items"
+  );
   const snapshot = await getDocs(itemsRef);
-  const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
-
+  await Promise.all(snapshot.docs.map(d => deleteDoc(d.ref)));
   const listRef = doc(db, "users", userId, "lists", listId);
   await deleteDoc(listRef);
 }
 
 // Duplicar lista
-export async function duplicateList(userId: string, originalListId: string) {
-  const originalRef = doc(db, "users", userId, "lists", originalListId);
+export async function duplicateList(
+  userId: string,
+  originalListId: string
+) {
+  const originalRef = doc(
+    db,
+    "users",
+    userId,
+    "lists",
+    originalListId
+  );
   const originalSnap = await getDoc(originalRef);
   if (!originalSnap.exists()) return;
-
   const originalData = originalSnap.data();
-  const newRef = await addDoc(collection(db, "users", userId, "lists"), {
-    name: originalData.name + " (cópia)",
-    createdAt: new Date(),
-  });
-
+  const newRef = await addDoc(
+    collection(db, "users", userId, "lists"),
+    {
+      name: originalData.name + " (cópia)",
+      createdAt: new Date(),
+    }
+  );
   const items = await fetchItemsFromList(userId, originalListId);
-  const itemsRef = collection(db, "users", userId, "lists", newRef.id, "items");
-
+  const itemsRef = collection(
+    db,
+    "users",
+    userId,
+    "lists",
+    newRef.id,
+    "items"
+  );
   for (const item of items) {
     const { id, ...rest } = item;
     await addDoc(itemsRef, rest);
   }
-
   return newRef.id;
 }
 
-// Marcar todos como comprados
-export async function markAllItemsPurchased(userId: string, listId: string) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
+// Marcar todos itens como comprados
+export async function markAllItemsPurchased(
+  userId: string,
+  listId: string
+) {
+  const itemsRef = collection(
+    db,
+    "users",
+    userId,
+    "lists",
+    listId,
+    "items"
+  );
   const snapshot = await getDocs(itemsRef);
-  for (const docSnap of snapshot.docs) {
-    await updateDoc(docSnap.ref, { purchased: true });
-  }
+  await Promise.all(
+    snapshot.docs.map(docSnap => updateDoc(docSnap.ref, { purchased: true }))
+  );
 }
