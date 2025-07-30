@@ -1,4 +1,3 @@
-// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -20,9 +19,9 @@ export async function fetchUserLists(userId: string) {
       const items = await fetchItemsFromList(userId, docSnap.id);
       return {
         id: docSnap.id,
-        name: docSnap.data().name || "Sem nome",
+        nome: docSnap.data().name || "Sem nome",
         createdAt: docSnap.data().createdAt || null,
-        items,
+        itens: items,
       };
     })
   );
@@ -31,23 +30,24 @@ export async function fetchUserLists(userId: string) {
 
 // Criar nova lista
 export async function createNewList(userId: string, name: string) {
+  const trimmed = name.trim();
   const listsRef = collection(db, "users", userId, "lists");
   const newDoc = await addDoc(listsRef, {
-    name,
+    name: trimmed,
     createdAt: new Date(),
   });
   return {
     id: newDoc.id,
-    name,
+    nome: trimmed,
     createdAt: new Date(),
-    items: [],
+    itens: [],
   };
 }
 
 // Atualizar nome da lista
 export async function updateListName(userId: string, listId: string, newName: string) {
   const listRef = doc(db, "users", userId, "lists", listId);
-  await updateDoc(listRef, { name: newName });
+  await updateDoc(listRef, { name: newName.trim() });
 }
 
 // Buscar itens da lista
@@ -59,7 +59,7 @@ export async function fetchItemsFromList(userId: string, listId: string) {
     return {
       id: doc.id,
       ...data,
-      purchased: data.purchased ?? false,
+      comprado: data.purchased ?? false,
     };
   });
 }
@@ -70,7 +70,7 @@ export async function toggleItemPurchased(userId: string, listId: string, itemId
   const itemSnap = await getDoc(itemRef);
   const current = itemSnap.exists() ? itemSnap.data().purchased : false;
   await updateDoc(itemRef, { purchased: !current });
-  return { purchased: !current };
+  return { comprado: !current };
 }
 
 // Deletar item
@@ -90,7 +90,7 @@ export async function addItemToList(userId: string, listId: string, item: any) {
   return {
     id: docRef.id,
     ...item,
-    purchased: false,
+    comprado: false,
   };
 }
 

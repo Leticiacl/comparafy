@@ -135,7 +135,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         list.id === listId ? { ...list, nome: newName } : list
       )
     );
-  };
+  };  
 
   const deleteList = async (listId: string) => {
     if (!userId) return;

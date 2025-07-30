@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import NewListModal from '../components/ui/NewListModal';
@@ -10,12 +9,10 @@ const Dashboard: React.FC = () => {
   const { lists, savings } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const totalEconomizado = Array.isArray(savings)
-    ? savings.reduce((acc, cur) => acc + (typeof cur === 'number' ? cur : 0), 0)
-    : 0;
+  const totalEconomizado = savings.reduce((acc, cur) => acc + (typeof cur === 'number' ? cur : 0), 0);
 
   const listasRecentes = [...lists]
-    .filter((lista) => lista && lista.createdAt)
+    .filter((l) => l.createdAt)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 2);
 
@@ -57,9 +54,9 @@ const Dashboard: React.FC = () => {
               <ListaCard
                 key={lista.id}
                 id={lista.id}
-                nome={lista.nome || 'Sem nome'}
+                nome={lista.nome}
                 total={total}
-                itens={lista.itens?.length || 0}
+                itens={lista.itens.length}
                 comprados={comprados}
               />
             );

@@ -31,15 +31,15 @@ const Lists: React.FC = () => {
       <div className="px-4 space-y-4">
         {lists.length === 0 && <p className="text-center text-gray-500">Nenhuma lista encontrada.</p>}
         {lists.map((list) => {
-          const totalItems = list.itens?.length || 0;
-          const purchased = list.itens?.filter((item) => item.comprado).length || 0;
-          const total = list.itens?.reduce((acc, item) => acc + Number(item.preco || 0), 0) || 0;
+          const totalItems = list.itens.length;
+          const purchased = list.itens.filter((item) => item.comprado).length;
+          const total = list.itens.reduce((acc, item) => acc + Number(item.preco || 0), 0);
 
           return (
             <ListaCard
               key={list.id}
               id={list.id}
-              nome={list.nome || 'Sem nome'}
+              nome={list.nome}
               total={total}
               itens={totalItems}
               comprados={purchased}

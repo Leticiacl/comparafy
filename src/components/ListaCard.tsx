@@ -1,11 +1,9 @@
-// src/components/ListaCard.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   EllipsisVerticalIcon,
   PencilSquareIcon,
   DocumentDuplicateIcon,
-  CheckCircleIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useData } from '../context/DataContext';
@@ -25,7 +23,6 @@ const ListaCard: React.FC<ListaCardProps> = ({ id, nome, total, itens, comprados
     deleteList,
     updateListNameInContext,
     duplicateListInContext,
-    markAllInList,
   } = useData();
 
   const [showOptions, setShowOptions] = useState(false);
@@ -103,9 +100,6 @@ const ListaCard: React.FC<ListaCardProps> = ({ id, nome, total, itens, comprados
           </button>
           <button onClick={() => { duplicateListInContext(id); setShowOptions(false); }} className="flex items-center gap-2 text-sm text-gray-700">
             <DocumentDuplicateIcon className="w-4 h-4" /> Duplicar
-          </button>
-          <button onClick={() => { markAllInList(id); setShowOptions(false); }} className="flex items-center gap-2 text-sm text-gray-700">
-            <CheckCircleIcon className="w-4 h-4" /> Marcar todos
           </button>
           <button onClick={() => { setShowConfirm(true); setShowOptions(false); }} className="flex items-center gap-2 text-sm text-red-600">
             <TrashIcon className="w-4 h-4" /> Excluir
