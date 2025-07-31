@@ -30,11 +30,9 @@ const ListDetail: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // Recarrega itens sempre que a lista muda
+  // Sempre que a rota mudar, recarrega os itens
   useEffect(() => {
-    if (id) {
-      fetchItems(id);
-    }
+    if (id) fetchItems(id);
   }, [id, fetchItems]);
 
   const lista = lists.find((l) => l.id === id);
@@ -60,6 +58,12 @@ const ListDetail: React.FC = () => {
       updateListNameInContext(lista.id, trimmed);
       setEditing(false);
     }
+  };
+
+  // Fecha e reseta o item que estava sendo editado
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setItemToEdit(null);
   };
 
   return (
@@ -138,7 +142,7 @@ const ListDetail: React.FC = () => {
         />
       </div>
 
-      {/* Progresso e valores */}
+      {/* Progresso + valores */}
       <div className="bg-white rounded-xl shadow p-4 mb-6">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
           <span>
@@ -158,7 +162,7 @@ const ListDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Botão Adicionar item */}
+      {/* Adicionar item */}
       <button
         onClick={() => {
           setItemToEdit(null);
@@ -235,12 +239,11 @@ const ListDetail: React.FC = () => {
       {/* Modal de adicionar/editar */}
       <AddItemModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeModal}
         listId={lista.id}
         itemToEdit={itemToEdit}
       />
 
-      {/* Barra inferior */}
       <BottomNav activeTab="lists" />
     </div>
   );

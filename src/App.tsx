@@ -1,19 +1,20 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Onboarding from './pages/Onboarding';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Lists from './pages/Lists';
-import ListDetail from './pages/ListDetail';
-import Scanner from './pages/Scanner';
-import Compare from './pages/Compare';
-import Profile from './pages/Profile';
-import { Toaster } from './components/ui/Toaster';
-import { DataProvider } from './context/DataContext';
+// src/App.tsx
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import Onboarding from './pages/Onboarding'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
+import Lists from './pages/Lists'
+import ListDetail from './pages/ListDetail'
+import Scanner from './pages/Scanner'
+import Compare from './pages/Compare'
+import Profile from './pages/Profile'
+import { Toaster } from './components/ui/Toaster'
+import { DataProvider } from './context/DataContext'
 
 const App: React.FC = () => {
-  const user = sessionStorage.getItem('user');
+  const user = sessionStorage.getItem('user')
 
   return (
     <DataProvider>
@@ -22,6 +23,7 @@ const App: React.FC = () => {
         <Route path="/" element={<Onboarding />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
         {user ? (
           <>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -30,14 +32,14 @@ const App: React.FC = () => {
             <Route path="/scanner" element={<Scanner />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="*" element={<Navigate to="/dashboard" />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </>
         ) : (
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         )}
       </Routes>
     </DataProvider>
-  );
-};
+  )
+}
 
-export default App;
+export default App

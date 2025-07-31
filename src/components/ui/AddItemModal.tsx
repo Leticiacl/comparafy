@@ -1,67 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import { useData, Item } from '../../context/DataContext';
+// src/components/ui/AddItemModal.tsx
+import React, { useState, useEffect } from 'react'
+import { useData, Item } from '../../context/DataContext'
 
 interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  listId: string;
-  itemToEdit?: Item | null;
+  isOpen: boolean
+  onClose: () => void
+  listId: string
+  itemToEdit: Item | null
 }
 
 const AddItemModal: React.FC<Props> = ({
   isOpen,
   onClose,
   listId,
-  itemToEdit = null,
+  itemToEdit,
 }) => {
-  const { addItem, updateItem, getSuggestions, saveSuggestions } = useData();
+  const { addItem, updateItem, getSuggestions, saveSuggestions } = useData()
 
-  const [nome, setNome] = useState('');
-  const [quantidade, setQuantidade] = useState(1);
-  const [unidade, setUnidade] = useState('un');
-  const [preco, setPreco] = useState('');
-  const [mercado, setMercado] = useState('');
-  const [observacoes, setObservacoes] = useState('');
-  const [prodSuggs, setProdSuggs] = useState<string[]>([]);
-  const [mktSuggs, setMktSuggs] = useState<string[]>([]);
+  const [nome, setNome] = useState('')
+  const [quantidade, setQuantidade] = useState(1)
+  const [unidade, setUnidade] = useState('un')
+  const [preco, setPreco] = useState('')
+  const [mercado, setMercado] = useState('')
+  const [observacoes, setObservacoes] = useState('')
+  const [prodSuggs, setProdSuggs] = useState<string[]>([])
+  const [mktSuggs, setMktSuggs] = useState<string[]>([])
 
+  // Carrega sugestões sempre que abrir
   useEffect(() => {
-    if (!isOpen) return;
-    getSuggestions('products').then(r => setProdSuggs(r));
-    getSuggestions('markets').then(r => setMktSuggs(r));
+    if (!isOpen) return
+    getSuggestions('products').then(r => setProdSuggs(r))
+    getSuggestions('markets').then(r => setMktSuggs(r))
+  }, [isOpen]) // <-- só depende de isOpen
+
+  // Inicializa valores do form ao abrir OU ao mudar o itemToEdit
+  useEffect(() => {
+    if (!isOpen) return
 
     if (itemToEdit) {
-      setNome(itemToEdit.nome);
-      setQuantidade(itemToEdit.quantidade);
-      setUnidade(itemToEdit.unidade);
-      setPreco(itemToEdit.preco.toString());
-      setMercado(itemToEdit.mercado);
-      setObservacoes(itemToEdit.observacoes ?? '');
+      setNome(itemToEdit.nome)
+      setQuantidade(itemToEdit.quantidade)
+      setUnidade(itemToEdit.unidade)
+      setPreco(itemToEdit.preco.toString())
+      setMercado(itemToEdit.mercado)
+      setObservacoes(itemToEdit.observacoes || '')
     } else {
-      setNome('');
-      setQuantidade(1);
-      setUnidade('un');
-      setPreco('');
-      setMercado('');
-      setObservacoes('');
+      setNome('')
+      setQuantidade(1)
+      setUnidade('un')
+      setPreco('')
+      setMercado('')
+      setObservacoes('')
     }
-  }, [isOpen, itemToEdit]);
+  }, [isOpen, itemToEdit]) // <-- só depende de isOpen e itemToEdit
 
   const handleSave = async () => {
-    console.log('🔔 handleSave disparou', {
-      itemToEdit,
-      nome,
-      quantidade,
-      unidade,
-      preco,
-      mercado,
-      observacoes,
-    });
-
-    if (!itemToEdit && (!nome.trim() || !mercado.trim())) {
-      console.warn('⚠️ Criação bloqueada: faltou nome ou mercado');
-      return;
-    }
+    if (!nome.trim() || !mercado.trim()) return
 
     const data = {
       nome: nome.trim(),
@@ -70,20 +64,20 @@ const AddItemModal: React.FC<Props> = ({
       preco: parseFloat(preco || '0'),
       mercado: mercado.trim(),
       observacoes: observacoes.trim(),
-    };
-
-    if (itemToEdit) {
-      await updateItem(listId, itemToEdit.id, data);
-    } else {
-      await addItem(listId, data);
-      await saveSuggestions('products', data.nome);
-      await saveSuggestions('markets', data.mercado);
     }
 
-    onClose();
-  };
+    if (itemToEdit) {
+      await updateItem(listId, itemToEdit.id, data)
+    } else {
+      await addItem(listId, data)
+      await saveSuggestions('products', data.nome)
+      await saveSuggestions('markets', data.mercado)
+    }
 
-  if (!isOpen) return null;
+    onClose()
+  }
+
+  if (!isOpen) return null
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
@@ -91,7 +85,7 @@ const AddItemModal: React.FC<Props> = ({
           {itemToEdit ? 'Editar Item' : 'Adicionar Item'}
         </h2>
 
-        {/* campos... */}
+        {/* Nome */}
         <input
           type="text"
           list="prod-list"
@@ -106,13 +100,14 @@ const AddItemModal: React.FC<Props> = ({
           ))}
         </datalist>
 
+        {/* Quantidade + Unidade */}
         <div className="flex gap-2 mb-3">
           <input
             type="number"
             min={1}
             className="w-1/2 border rounded-lg px-3 py-2"
             value={quantidade}
-            onChange={e => setQuantidade(+e.target.value)}
+            onChange={e => setQuantidade(parseInt(e.target.value, 10))}
           />
           <select
             className="w-1/2 border rounded-lg px-3 py-2"
@@ -126,6 +121,7 @@ const AddItemModal: React.FC<Props> = ({
           </select>
         </div>
 
+        {/* Preço */}
         <input
           type="number"
           placeholder="Preço"
@@ -134,6 +130,7 @@ const AddItemModal: React.FC<Props> = ({
           onChange={e => setPreco(e.target.value)}
         />
 
+        {/* Mercado */}
         <input
           type="text"
           list="mkt-list"
@@ -148,6 +145,7 @@ const AddItemModal: React.FC<Props> = ({
           ))}
         </datalist>
 
+        {/* Observações */}
         <textarea
           placeholder="Observações"
           className="w-full border rounded-lg px-3 py-2 mb-4"
@@ -155,6 +153,7 @@ const AddItemModal: React.FC<Props> = ({
           onChange={e => setObservacoes(e.target.value)}
         />
 
+        {/* Botões */}
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
@@ -171,7 +170,7 @@ const AddItemModal: React.FC<Props> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AddItemModal;
+export default AddItemModal

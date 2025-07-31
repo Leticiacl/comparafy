@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+// src/context/DataContext.tsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import {
   fetchUserLists,
   createNewList,
@@ -13,7 +19,7 @@ import {
   markAllItemsPurchased,
   saveSuggestion,
   getSuggestionsForField,
-} from '../services/firestoreService';
+} from "../services/firestoreService";
 
 export interface Item {
   id: string;
@@ -38,11 +44,14 @@ interface DataContextType {
   fetchUserData: () => Promise<void>;
   createList: (nome: string) => Promise<Lista | null>;
   fetchItems: (listId: string) => Promise<void>;
-  addItem: (listId: string, item: Omit<Item, 'id' | 'comprado'>) => Promise<void>;
+  addItem: (
+    listId: string,
+    item: Omit<Item, "id" | "comprado">
+  ) => Promise<void>;
   updateItem: (
     listId: string,
     itemId: string,
-    data: Omit<Item, 'id' | 'comprado'>
+    data: Omit<Item, "id" | "comprado">
   ) => Promise<void>;
   toggleItem: (listId: string, itemId: string) => Promise<void>;
   deleteItem: (listId: string, itemId: string) => Promise<void>;
@@ -55,13 +64,17 @@ interface DataContextType {
   savings: number;
 }
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+const DataContext = createContext<DataContextType | undefined>(
+  undefined
+);
 
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [lists, setLists] = useState<Lista[]>([]);
-  const userId = sessionStorage.getItem('userId');
+  const userId = sessionStorage.getItem("userId");
 
-  // carrega listas iniciais
+  // Load all lists on mount
   const fetchUserData = async () => {
     if (!userId) return;
     const data = await fetchUserLists(userId);
@@ -72,166 +85,156 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUserData();
   }, []);
 
-  // cria lista nova
+  // Create a new list
   const createList = async (nome: string) => {
     if (!userId) return null;
     const newList = await createNewList(userId, nome);
-    setLists(prev => [...prev, newList]);
+    setLists((prev) => [...prev, newList]);
     return newList;
   };
 
-  // busca itens de uma lista
+  // Load items of a specific list
   const fetchItems = async (listId: string) => {
     if (!userId) return;
     const itens = await fetchItemsFromList(userId, listId);
-    setLists(prev =>
-      prev.map(l => (l.id === listId ? { ...l, itens } : l))
+    setLists((prev) =>
+      prev.map((l) => (l.id === listId ? { ...l, itens } : l))
     );
   };
 
-  // --- ações OTIMISTAS para não depender de round-trip ---
-  const addItem = async (listId: string, item: Omit<Item, 'id' | 'comprado'>) => {
+  // Add item
+  const addItem = async (
+    listId: string,
+    item: Omit<Item, "id" | "comprado">
+  ) => {
     if (!userId) return;
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: Item = { id: tempId, comprado: false, ...item };
-    setLists(prev =>
-      prev.map(l =>
-        l.id === listId ? { ...l, itens: [...l.itens, optimistic] } : l
+    const newItem = await addItemToList(userId, listId, item);
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId
+          ? { ...l, itens: [...l.itens, newItem] }
+          : l
       )
     );
-    try {
-      const saved = await addItemToList(userId, listId, item);
-      setLists(prev =>
-        prev.map(l =>
-          l.id === listId
-            ? {
-                ...l,
-                itens: l.itens.map(i =>
-                  i.id === tempId ? saved : i
-                ),
-              }
-            : l
-        )
-      );
-    } catch (e) {
-      console.warn('❌ addItem falhou no Firestore', e);
-    }
   };
 
+  // Update item
   const updateItem = async (
     listId: string,
     itemId: string,
-    data: Omit<Item, 'id' | 'comprado'>
+    data: Omit<Item, "id" | "comprado">
   ) => {
-    // atualiza imediatamente
-    setLists(prev =>
-      prev.map(l =>
+    if (!userId) return;
+    await updateItemInFirestore(userId, listId, itemId, data);
+    setLists((prev) =>
+      prev.map((l) =>
         l.id === listId
           ? {
               ...l,
-              itens: l.itens.map(i =>
+              itens: l.itens.map((i) =>
                 i.id === itemId ? { ...i, ...data } : i
               ),
             }
           : l
       )
     );
-    if (!userId) return;
-    try {
-      await updateItemInFirestore(userId, listId, itemId, data);
-    } catch (e) {
-      console.warn('❌ updateItem falhou no Firestore', e);
-    }
   };
 
+  // Toggle purchased state
   const toggleItem = async (listId: string, itemId: string) => {
-    console.log('🔔 toggleItem disparou', { listId, itemId });
-    setLists(prev =>
-      prev.map(l =>
+    if (!userId) return;
+    const updated = await toggleItemPurchased(
+      userId,
+      listId,
+      itemId
+    );
+    setLists((prev) =>
+      prev.map((l) =>
         l.id === listId
           ? {
               ...l,
-              itens: l.itens.map(i =>
-                i.id === itemId ? { ...i, comprado: !i.comprado } : i
+              itens: l.itens.map((i) =>
+                i.id === itemId
+                  ? { ...i, comprado: updated.comprado }
+                  : i
               ),
             }
           : l
       )
     );
-    if (!userId) return;
-    try {
-      await toggleItemPurchased(userId, listId, itemId);
-    } catch (e) {
-      console.warn('❌ toggleItem falhou no Firestore', e);
-    }
   };
 
+  // Delete item
   const deleteItem = async (listId: string, itemId: string) => {
-    setLists(prev =>
-      prev.map(l =>
+    if (!userId) return;
+    await deleteItemFromFirestore(userId, listId, itemId);
+    setLists((prev) =>
+      prev.map((l) =>
         l.id === listId
-          ? { ...l, itens: l.itens.filter(i => i.id !== itemId) }
+          ? { ...l, itens: l.itens.filter((i) => i.id !== itemId) }
           : l
       )
     );
-    if (!userId) return;
-    try {
-      await deleteItemFromFirestore(userId, listId, itemId);
-    } catch (e) {
-      console.warn('❌ deleteItem falhou no Firestore', e);
-    }
   };
 
-  // renomeia lista
-  const updateListNameInContext = (listId: string, novoNome: string) => {
+  // Rename list
+  const updateListNameInContext = (
+    listId: string,
+    novoNome: string
+  ) => {
     if (!userId) return;
     updateListName(userId, listId, novoNome);
-    setLists(prev =>
-      prev.map(l => (l.id === listId ? { ...l, nome: novoNome } : l))
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId ? { ...l, nome: novoNome } : l
+      )
     );
   };
 
-  // deleta lista
+  // Delete list
   const deleteList = async (listId: string) => {
-    setLists(prev => prev.filter(l => l.id !== listId));
     if (!userId) return;
-    try {
-      await deleteListFromFirestore(userId, listId);
-    } catch (e) {
-      console.warn('❌ deleteList falhou no Firestore', e);
-    }
+    await deleteListFromFirestore(userId, listId);
+    setLists((prev) => prev.filter((l) => l.id !== listId));
   };
 
-  // duplicar lista
+  // Duplicate list
   const duplicateListInContext = async (listId: string) => {
     if (!userId) return;
     await duplicateList(userId, listId);
     await fetchUserData();
   };
 
-  // marcar todos itens
+  // Mark all as purchased
   const markAllInList = async (listId: string) => {
     if (!userId) return;
     await markAllItemsPurchased(userId, listId);
     const itens = await fetchItemsFromList(userId, listId);
-    setLists(prev =>
-      prev.map(l => (l.id === listId ? { ...l, itens } : l))
+    setLists((prev) =>
+      prev.map((l) => (l.id === listId ? { ...l, itens } : l))
     );
   };
 
-  // sugestões
+  // Suggestions
   const saveSuggestions = async (field: string, value: string) => {
     if (!userId) return;
     await saveSuggestion(userId, field, value);
   };
   const getSuggestions = async (field: string) => {
     if (!userId) return [];
-    return getSuggestionsForField(userId, field);
+    return await getSuggestionsForField(userId, field);
   };
 
-  const savings = lists.reduce((sum, l) =>
-    sum + l.itens.reduce((acc, i) => (i.comprado ? acc + i.preco : acc), 0)
-  , 0);
+  // Total savings (sum of purchased item prices)
+  const savings = lists.reduce((sum, l) => {
+    return (
+      sum +
+      l.itens.reduce(
+        (acc, i) => (i.comprado ? acc + i.preco : acc),
+        0
+      )
+    );
+  }, 0);
 
   return (
     <DataContext.Provider
@@ -260,6 +263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useData = () => {
   const ctx = useContext(DataContext);
-  if (!ctx) throw new Error('useData deve ser usado dentro do DataProvider');
+  if (!ctx)
+    throw new Error("useData must be used within DataProvider");
   return ctx;
 };

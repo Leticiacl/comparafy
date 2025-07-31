@@ -1,3 +1,4 @@
+// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -69,12 +70,7 @@ export async function fetchItemsFromList(userId: string, listId: string) {
     const data = docSnap.data();
     return {
       id: docSnap.id,
-      nome: data.nome,
-      quantidade: data.quantidade,
-      unidade: data.unidade,
-      preco: data.preco,
-      mercado: data.mercado,
-      observacoes: data.observacoes,
+      ...data,
       comprado: data.purchased ?? false,
     };
   });
@@ -144,12 +140,12 @@ export async function addItemToList(
   };
 }
 
-// Atualizar item existente
+// **Atualizar todos os campos de um item existente**
 export async function updateItem(
   userId: string,
   listId: string,
   itemId: string,
-  item: {
+  data: {
     nome?: string;
     quantidade?: number;
     unidade?: string;
@@ -167,16 +163,14 @@ export async function updateItem(
     "items",
     itemId
   );
-  const dataToUpdate: any = {};
-  if (item.nome !== undefined) dataToUpdate.nome = item.nome;
-  if (item.quantidade !== undefined)
-    dataToUpdate.quantidade = item.quantidade;
-  if (item.unidade !== undefined) dataToUpdate.unidade = item.unidade;
-  if (item.preco !== undefined) dataToUpdate.preco = item.preco;
-  if (item.mercado !== undefined) dataToUpdate.mercado = item.mercado;
-  if (item.observacoes !== undefined)
-    dataToUpdate.observacoes = item.observacoes;
-  await updateDoc(itemRef, dataToUpdate);
+  const toUpdate: any = {};
+  if (data.nome !== undefined) toUpdate.nome = data.nome;
+  if (data.quantidade !== undefined) toUpdate.quantidade = data.quantidade;
+  if (data.unidade !== undefined) toUpdate.unidade = data.unidade;
+  if (data.preco !== undefined) toUpdate.preco = data.preco;
+  if (data.mercado !== undefined) toUpdate.mercado = data.mercado;
+  if (data.observacoes !== undefined) toUpdate.observacoes = data.observacoes;
+  await updateDoc(itemRef, toUpdate);
 }
 
 // Sugestões – salvar
@@ -217,7 +211,7 @@ export async function deleteListFromFirestore(
     "items"
   );
   const snapshot = await getDocs(itemsRef);
-  await Promise.all(snapshot.docs.map(d => deleteDoc(d.ref)));
+  await Promise.all(snapshot.docs.map((d) => deleteDoc(d.ref)));
   const listRef = doc(db, "users", userId, "lists", listId);
   await deleteDoc(listRef);
 }
@@ -260,7 +254,7 @@ export async function duplicateList(
   return newRef.id;
 }
 
-// Marcar todos itens como comprados
+// Marcar todos como comprados
 export async function markAllItemsPurchased(
   userId: string,
   listId: string
@@ -274,7 +268,7 @@ export async function markAllItemsPurchased(
     "items"
   );
   const snapshot = await getDocs(itemsRef);
-  await Promise.all(
-    snapshot.docs.map(docSnap => updateDoc(docSnap.ref, { purchased: true }))
-  );
+  for (const docSnap of snapshot.docs) {
+    await updateDoc(docSnap.ref, { purchased: true });
+  }
 }
