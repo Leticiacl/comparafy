@@ -1,196 +1,229 @@
 // src/pages/Compare.tsx
-import React, { useState, useEffect } from 'react'
-import { useData } from '../context/DataContext'
-import BottomNav from '../components/BottomNav'
-import { CheckIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import React, { useState, useMemo } from 'react';
+import { useData } from '../context/DataContext';
+import BottomNav from '../components/BottomNav';
+import { CheckIcon } from '@heroicons/react/24/solid';
 
-interface ComparisonRow {
-  nome: string
-  aPrice: number
-  aMarket: string
-  bPrice?: number
-  bMarket?: string
-  diffText?: string
-  diffColor?: 'green' | 'red' | 'gray'
+interface CompareRow {
+  name: string;
+  a?: { preco: number; mercado: string };
+  b?: { preco: number; mercado: string };
 }
 
 const Compare: React.FC = () => {
-  const { lists, fetchUserData } = useData()
-  const [selected, setSelected] = useState<string[]>([])
-  const [rows, setRows] = useState<ComparisonRow[]>([])
-  const [totalSaving, setTotalSaving] = useState(0)
+  const { lists } = useData();
 
-  useEffect(() => {
-    fetchUserData()
-  }, [fetchUserData])
+  // === STATE FOR TABS & SEARCH ===
+  const [activeTab, setActiveTab] = useState<'prices'|'lists'|'stats'>('prices');
 
-  useEffect(() => {
-    if (selected.length !== 2) {
-      setRows([])
-      setTotalSaving(0)
-      return
-    }
+  // for Preços tab
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<
+    { mercado: string; preco: number }[]
+  >([]);
 
-    const [aId, bId] = selected
-    const aList = lists.find(l => l.id === aId)!
-    const bList = lists.find(l => l.id === bId)!
-    const mapB = new Map(bList.itens.map(i => [i.nome, i]))
+  // === HANDLERS ===
+  const handleSearch = () => {
+    // TODO: replace with real fetch in your service
+    // For now we'll just mock two entries:
+    setSearchResults([
+      { mercado: 'Carrefour', preco: 7.79 },
+      { mercado: 'Extra', preco: 10.16 },
+      // ...etc
+    ]);
+  };
 
-    const temp = aList.itens.map(i => {
-      const bItem = mapB.get(i.nome)
-      if (!bItem) {
-        // só A
-        return {
-          nome: i.nome,
-          aPrice: i.preco,
-          aMarket: i.mercado,
-        }
-      }
+  // for Listas tab
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const toggleList = (id: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length < 2) return [...prev, id];
+      return [prev[1], id];
+    });
+  };
+  const listA = lists.find(l => l.id === selectedIds[0]);
+  const listB = lists.find(l => l.id === selectedIds[1]);
 
-      const bP = bItem.preco
-      let diffText = 'Mesmo preço'
-      let diffColor: ComparisonRow['diffColor'] = 'gray'
-      if (i.preco !== bP) {
-        const cheaper = i.preco < bP
-        diffColor = cheaper ? 'green' : 'red'
-        const d = Math.abs(i.preco - bP).toFixed(2)
-        diffText = cheaper ? `Economia R$ ${d}` : `+ R$ ${d} em A`
-      }
-
+  // build compare rows union
+  const rows: CompareRow[] = useMemo(() => {
+    const names = new Set<string>();
+    listA?.itens.forEach(i => names.add(i.nome));
+    listB?.itens.forEach(i => names.add(i.nome));
+    return Array.from(names).map(name => {
+      const a = listA?.itens.find(i => i.nome === name);
+      const b = listB?.itens.find(i => i.nome === name);
       return {
-        nome: i.nome,
-        aPrice: i.preco,
-        aMarket: i.mercado,
-        bPrice: bP,
-        bMarket: bItem.mercado,
-        diffText,
-        diffColor,
-      }
-    })
+        name,
+        a: a && { preco: a.preco, mercado: a.mercado },
+        b: b && { preco: b.preco, mercado: b.mercado },
+      };
+    });
+  }, [listA, listB]);
 
-    setRows(temp)
-
-    const tot = temp
-      .filter(r => r.diffColor === 'green')
-      .reduce((sum, r) => {
-        // r.bPrice está definida porque diffColor verde só acontece se bItem existiu
-        return sum + ((r.bPrice! - r.aPrice))
-      }, 0)
-
-    setTotalSaving(tot)
-  }, [selected, lists])
-
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      if (prev.includes(id)) return prev.filter(x => x !== id)
-      if (prev.length < 2) return [...prev, id]
-      return [prev[0], id]
-    })
-  }
-
-  const aName = lists.find(l => l.id === selected[0])?.nome
-  const bName = lists.find(l => l.id === selected[1])?.nome
+  const totalDiff = useMemo(() => {
+    return rows.reduce((sum, { a, b }) => {
+      if (a && b) return sum + Math.max(0, a.preco - b.preco);
+      return sum;
+    }, 0);
+  }, [rows]);
 
   return (
-    <div className="pb-32">
-      <div className="p-4 max-w-xl mx-auto space-y-6">
+    <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
+      {/* Header with logo */}
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Comparar</h1>
-
-        {/* Seleção de listas */}
-        <p className="text-gray-600">Selecione duas listas para comparar</p>
-        <div className="space-y-3">
-          {lists.map(l => {
-            const isSel = selected.includes(l.id)
-            return (
-              <button
-                key={l.id}
-                onClick={() => toggleSelect(l.id)}
-                className={`
-                  w-full flex items-center justify-between
-                  p-4 rounded-xl border-2
-                  ${isSel ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200'}
-                `}
-              >
-                <span className="font-medium text-gray-800">{l.nome}</span>
-                {isSel && (
-                  <span className="bg-yellow-500 rounded-full p-1">
-                    <CheckIcon className="h-5 w-5 text-white" />
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Resultado da comparação */}
-        <div className="bg-white rounded-xl shadow divide-y divide-gray-200">
-          {selected.length < 2 ? (
-            <div className="p-8 text-center text-gray-500">
-              Selecione duas listas acima para comparar.
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-2 p-4">
-                <span className="font-medium">{aName}</span>
-                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                <span className="font-medium">{bName}</span>
-              </div>
-              {rows.map((r, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col md:flex-row items-start md:items-center p-4 gap-4"
-                >
-                  {/* Nome */}
-                  <div className="flex-1 font-medium text-gray-800">
-                    {r.nome}
-                  </div>
-
-                  {/* Coluna A */}
-                  <div className="w-28 text-center">
-                    <div className="text-gray-700">R$ {r.aPrice.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">{r.aMarket}</div>
-                  </div>
-
-                  {/* Coluna B e diff — só se existir */}
-                  {r.bMarket && (
-                    <>
-                      <div className="w-28 text-center">
-                        <div className="text-gray-700">R$ {r.bPrice!.toFixed(2)}</div>
-                        <div className="text-xs text-gray-500">{r.bMarket}</div>
-                      </div>
-                      <div className="w-36 text-center">
-                        <span
-                          className={`
-                            inline-block px-3 py-1 text-sm font-medium rounded-full
-                            ${r.diffColor === 'green' ? 'bg-green-100 text-green-800' : ''}
-                            ${r.diffColor === 'red'   ? 'bg-red-100 text-red-800'     : ''}
-                            ${r.diffColor === 'gray'  ? 'text-gray-600'                 : ''}
-                          `}
-                        >
-                          {r.diffText}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-
-              {/* Total */}
-              <div className="p-4 text-right">
-                <span className="text-gray-600 mr-2">Economia total:</span>
-                <span className="font-semibold">
-                  R$ {totalSaving.toFixed(2)}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
       </div>
 
-      {/* Bottom Nav */}
+      {/* Tabs */}
+      <div className="flex space-x-6 border-b">
+        {['prices','lists','stats'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab as any)}
+            className={`pb-2 ${
+              activeTab===tab
+                ? 'text-yellow-500 border-b-2 border-yellow-500'
+                : 'text-gray-500'
+            }`}
+          >
+            {tab === 'prices' ? 'Preços' : tab === 'lists' ? 'Listas' : 'Estatísticas'}
+          </button>
+        ))}
+      </div>
+
+      {/* Preços Tab */}
+      {activeTab === 'prices' && (
+        <div>
+          {/* Search bar */}
+          <div className="mt-4 flex gap-2">
+            <input
+              type="text"
+              placeholder="Buscar produto"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring focus:border-yellow-400"
+            />
+            <button
+              onClick={handleSearch}
+              className="bg-yellow-500 px-4 py-2 rounded-xl text-black font-medium"
+            >
+              Buscar
+            </button>
+          </div>
+
+          {/* Results or placeholder */}
+          {searchResults.length === 0 ? (
+            <p className="mt-10 text-center text-gray-500">
+              Pesquise um produto acima.
+            </p>
+          ) : (
+            <ul className="mt-6 space-y-4">
+              {searchResults.map((r, i) => (
+                <li
+                  key={i}
+                  className="border border-gray-200 rounded-xl p-4 flex justify-between items-center"
+                >
+                  <span className="font-medium">{r.mercado}</span>
+                  <span className="text-lg font-semibold">R$ {r.preco.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Listas Tab */}
+      {activeTab === 'lists' && (
+        <div className="space-y-4">
+          <p className="text-gray-600">Selecione duas listas para comparar</p>
+
+          {/* Selectable lists */}
+          <div className="space-y-2">
+            {lists.map(list => {
+              const sel = selectedIds.includes(list.id);
+              return (
+                <button
+                  key={list.id}
+                  onClick={() => toggleList(list.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                    sel
+                      ? 'border-yellow-500 bg-yellow-100'
+                      : 'border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-gray-800">{list.nome}</span>
+                    {sel && <CheckIcon className="h-5 w-5 text-yellow-500" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Comparison result */}
+          {listA && listB && (
+            <div className="mt-4 border rounded-xl overflow-hidden shadow-sm">
+              <div className="px-4 py-2 bg-gray-50 flex justify-between text-sm text-gray-700 font-medium">
+                <span>{listA.nome}</span>
+                <span>→</span>
+                <span>{listB.nome}</span>
+              </div>
+
+              <div className="divide-y">
+                {rows.map(({ name, a, b }) => (
+                  <div key={name} className="px-4 py-4">
+                    <h2 className="font-semibold text-gray-800">{name}</h2>
+                    <div className="mt-2 space-y-1">
+                      {a && (
+                        <div className="text-gray-700">
+                          R$ {a.preco.toFixed(2)}{' '}
+                          <span className="text-sm text-gray-500">({a.mercado})</span>
+                        </div>
+                      )}
+                      {b && (
+                        <div className="text-gray-700">
+                          R$ {b.preco.toFixed(2)}{' '}
+                          <span className="text-sm text-gray-500">({b.mercado})</span>
+                        </div>
+                      )}
+                      {a && b && a.preco !== b.preco && (
+                        <div
+                          className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
+                            a.preco > b.preco
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {a.preco > b.preco
+                            ? `Economia R$ ${(a.preco - b.preco).toFixed(2)}`
+                            : `+ R$ ${(b.preco - a.preco).toFixed(2)} em A`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 py-3 bg-gray-50 text-right font-semibold text-gray-800">
+                Economia total: R$ {totalDiff.toFixed(2)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estatísticas Tab */}
+      {activeTab === 'stats' && (
+        <div className="text-center text-gray-500 py-10">
+          Em breve: suas estatísticas de economia.
+        </div>
+      )}
+
       <BottomNav activeTab="compare" />
     </div>
-  )
-}
+  );
+};
 
-export default Compare
+export default Compare;
