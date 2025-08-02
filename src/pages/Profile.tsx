@@ -1,46 +1,40 @@
 // src/pages/Profile.tsx
-import React, { useState, useEffect, ChangeEvent, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  ChangeEvent,
+  useRef
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { auth } from "../services/firebase";
 import { updateProfile, signOut } from "firebase/auth";
 import { CameraIcon } from "@heroicons/react/24/outline";
 import BottomNav from "../components/BottomNav";
 
 const Profile: React.FC = () => {
-  const user = auth.currentUser;
+  const navigate = useNavigate();
+  const user = auth.currentUser!;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // estado pro nome
-  const [name, setName] = useState(user?.displayName || "");
+  const [name, setName] = useState(user.displayName || "");
   const [editingName, setEditingName] = useState(false);
-
-  // estado pro avatar (fallback para default)
-  const [photoURL, setPhotoURL] = useState<string>(
-    () => user?.photoURL || "/default-avatar.png"
-  );
   const [uploading, setUploading] = useState(false);
 
-  // Sincroniza sempre que o user mudar
+  // photoURL vazio para visitante
+  const [photoURL, setPhotoURL] = useState<string>(
+    () => user.photoURL || ""
+  );
+
   useEffect(() => {
-    if (user) {
-      setName(user.displayName || "");
-      setPhotoURL(user.photoURL || "/default-avatar.png");
-    }
+    setName(user.displayName || "");
+    setPhotoURL(user.photoURL || "");
   }, [user]);
 
-  // Salva o novo nome
-  const handleNameSave = async () => {
-    if (!user) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    await updateProfile(user, { displayName: trimmed });
-    setEditingName(false);
-  };
-
-  // Lê o arquivo como DataURL e atualiza o photoURL no Auth
+  // somente atualiza profile auth, sem storage externo
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!user || !e.target.files?.[0]) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     setUploading(true);
-    const file = e.target.files[0];
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
@@ -51,24 +45,42 @@ const Profile: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleNameSave = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await updateProfile(user, { displayName: trimmed });
+    setEditingName(false);
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
+    navigate("/login");
   };
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
       <h1 className="text-2xl font-bold">Perfil</h1>
 
+      {/* Card de avatar + nome */}
       <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
+          {/* Avatar */}
           <div className="relative">
             <div className="h-16 w-16 rounded-full bg-gray-200 overflow-hidden">
-              <img
-                src={photoURL}
-                alt="Avatar"
-                className="h-full w-full object-cover"
-              />
+              {photoURL && (
+                <img
+                  src={photoURL}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    // se der erro, esvazia
+                    setPhotoURL("");
+                  }}
+                />
+              )}
             </div>
+            {/* Botão de câmera (sempre visível) */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-0 right-0 bg-yellow-400 rounded-full p-1 shadow"
@@ -86,6 +98,7 @@ const Profile: React.FC = () => {
             />
           </div>
 
+          {/* Nome + editar */}
           <div>
             {editingName ? (
               <div className="flex items-center gap-2">
@@ -105,7 +118,7 @@ const Profile: React.FC = () => {
             ) : (
               <div className="flex items-baseline gap-2">
                 <span className="text-lg font-semibold">
-                  {user?.displayName || "—"}
+                  {user.displayName || "—"}
                 </span>
                 <button
                   onClick={() => setEditingName(true)}
@@ -115,11 +128,23 @@ const Profile: React.FC = () => {
                 </button>
               </div>
             )}
-            <div className="text-sm text-gray-500">{user?.email}</div>
+            <div className="text-sm text-gray-500">{user.email}</div>
           </div>
         </div>
       </div>
 
+      {/* Termos de uso */}
+      <div className="bg-white rounded-xl shadow divide-y">
+        <Link
+          to="/terms"
+          className="w-full text-left px-4 py-3 flex justify-between items-center hover:bg-gray-50"
+        >
+          <span>Termos de uso</span>
+          <span className="text-gray-400">&gt;</span>
+        </Link>
+      </div>
+
+      {/* Logout */}
       <button
         onClick={handleLogout}
         className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 transition"
