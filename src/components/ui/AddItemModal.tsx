@@ -19,40 +19,45 @@ const AddItemModal: React.FC<Props> = ({
 
   const [nome, setNome] = useState('')
   const [quantidade, setQuantidade] = useState(1)
-  const [unidade, setUnidade] = useState('un')
+  const [peso, setPeso] = useState('')            // string para poder aceitar decimais
+  const [unidade, setUnidade] = useState('kg')    // kg primeiro
   const [preco, setPreco] = useState('')
   const [mercado, setMercado] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [prodSuggs, setProdSuggs] = useState<string[]>([])
   const [mktSuggs, setMktSuggs] = useState<string[]>([])
 
-  // Carrega sugestões sempre que abrir
+  // Carrega sugestões quando o modal abre
   useEffect(() => {
     if (!isOpen) return
-    getSuggestions('products').then(r => setProdSuggs(r))
-    getSuggestions('markets').then(r => setMktSuggs(r))
-  }, [isOpen]) // <-- só depende de isOpen
+    getSuggestions('products').then((r) => setProdSuggs(r))
+    getSuggestions('markets').then((r) => setMktSuggs(r))
+  }, [isOpen, getSuggestions])
 
-  // Inicializa valores do form ao abrir OU ao mudar o itemToEdit
+  // Inicializa ou reseta campos ao abrir / trocar item
   useEffect(() => {
     if (!isOpen) return
 
     if (itemToEdit) {
       setNome(itemToEdit.nome)
       setQuantidade(itemToEdit.quantidade)
+      // só chama toString se não for nulo/undefined
+      setPeso(itemToEdit.peso != null ? itemToEdit.peso.toString() : '')
       setUnidade(itemToEdit.unidade)
-      setPreco(itemToEdit.preco.toString())
+      setPreco(itemToEdit.preco != null ? itemToEdit.preco.toString() : '')
       setMercado(itemToEdit.mercado)
       setObservacoes(itemToEdit.observacoes || '')
     } else {
+      // reset
       setNome('')
       setQuantidade(1)
-      setUnidade('un')
+      setPeso('')
+      setUnidade('kg')
       setPreco('')
       setMercado('')
       setObservacoes('')
     }
-  }, [isOpen, itemToEdit]) // <-- só depende de isOpen e itemToEdit
+  }, [isOpen, itemToEdit])
 
   const handleSave = async () => {
     if (!nome.trim() || !mercado.trim()) return
@@ -60,8 +65,9 @@ const AddItemModal: React.FC<Props> = ({
     const data = {
       nome: nome.trim(),
       quantidade,
+      peso: parseFloat(peso) || 0,
       unidade,
-      preco: parseFloat(preco || '0'),
+      preco: parseFloat(preco) || 0,
       mercado: mercado.trim(),
       observacoes: observacoes.trim(),
     }
@@ -85,14 +91,17 @@ const AddItemModal: React.FC<Props> = ({
           {itemToEdit ? 'Editar Item' : 'Adicionar Item'}
         </h2>
 
-        {/* Nome */}
+        {/* Nome do produto */}
+        <label className="block text-sm font-medium mb-1">
+          Nome do produto *
+        </label>
         <input
           type="text"
           list="prod-list"
-          placeholder="Nome do produto *"
+          placeholder="Digite o nome"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={nome}
-          onChange={e => setNome(e.target.value)}
+          onChange={(e) => setNome(e.target.value)}
         />
         <datalist id="prod-list">
           {prodSuggs.map((p, i) => (
@@ -100,44 +109,64 @@ const AddItemModal: React.FC<Props> = ({
           ))}
         </datalist>
 
-        {/* Quantidade + Unidade */}
+        {/* Quantidade de itens */}
+        <label className="block text-sm font-medium mb-1">
+          Quantidade de itens *
+        </label>
+        <input
+          type="number"
+          min={1}
+          placeholder="Ex.: 5"
+          className="w-full border rounded-lg px-3 py-2 mb-3"
+          value={quantidade}
+          onChange={(e) => setQuantidade(Math.max(1, +e.target.value))}
+        />
+
+        {/* Peso e Unidade */}
+        <label className="block text-sm font-medium mb-1">Peso do item</label>
         <div className="flex gap-2 mb-3">
           <input
             type="number"
-            min={1}
-            className="w-1/2 border rounded-lg px-3 py-2"
-            value={quantidade}
-            onChange={e => setQuantidade(parseInt(e.target.value, 10))}
+            min={0}
+            step="any"
+            placeholder="Ex.: 1.5"
+            className="w-2/3 border rounded-lg px-3 py-2"
+            value={peso}
+            onChange={(e) => setPeso(e.target.value)}
           />
           <select
-            className="w-1/2 border rounded-lg px-3 py-2"
+            className="w-1/3 border rounded-lg px-3 py-2"
             value={unidade}
-            onChange={e => setUnidade(e.target.value)}
+            onChange={(e) => setUnidade(e.target.value)}
           >
-            <option value="un">un</option>
             <option value="kg">kg</option>
             <option value="g">g</option>
+            <option value="l">l</option>
+            <option value="ml">ml</option>
             <option value="dúzia">dúzia</option>
+            <option value="un">un</option>
           </select>
         </div>
 
-        {/* Preço */}
+        {/* Preço unitário */}
+        <label className="block text-sm font-medium mb-1">Preço</label>
         <input
           type="number"
-          placeholder="Preço"
+          placeholder="R$ 0,00"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={preco}
-          onChange={e => setPreco(e.target.value)}
+          onChange={(e) => setPreco(e.target.value)}
         />
 
         {/* Mercado */}
+        <label className="block text-sm font-medium mb-1">Mercado *</label>
         <input
           type="text"
           list="mkt-list"
-          placeholder="Mercado *"
+          placeholder="Onde comprou?"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={mercado}
-          onChange={e => setMercado(e.target.value)}
+          onChange={(e) => setMercado(e.target.value)}
         />
         <datalist id="mkt-list">
           {mktSuggs.map((m, i) => (
@@ -146,11 +175,12 @@ const AddItemModal: React.FC<Props> = ({
         </datalist>
 
         {/* Observações */}
+        <label className="block text-sm font-medium mb-1">Observações</label>
         <textarea
-          placeholder="Observações"
+          placeholder="Alguma observação?"
           className="w-full border rounded-lg px-3 py-2 mb-4"
           value={observacoes}
-          onChange={e => setObservacoes(e.target.value)}
+          onChange={(e) => setObservacoes(e.target.value)}
         />
 
         {/* Botões */}

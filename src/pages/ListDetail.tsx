@@ -30,7 +30,7 @@ const ListDetail: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // Sempre que a rota mudar, recarrega os itens
+  // sempre que mudar de lista, recarrega itens
   useEffect(() => {
     if (id) fetchItems(id);
   }, [id, fetchItems]);
@@ -60,7 +60,6 @@ const ListDetail: React.FC = () => {
     }
   };
 
-  // Fecha e reseta o item que estava sendo editado
   const closeModal = () => {
     setIsModalOpen(false);
     setItemToEdit(null);
@@ -68,7 +67,7 @@ const ListDetail: React.FC = () => {
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white">
-      {/* Cabeçalho */}
+      {/* cabeçalho */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center flex-1">
           <button
@@ -109,9 +108,7 @@ const ListDetail: React.FC = () => {
                     setNewName(lista.nome);
                     setEditing(true);
                   }}
-                  className={`${
-                    active ? 'bg-gray-100' : ''
-                  } w-full text-left px-4 py-2`}
+                  className={`${active ? 'bg-gray-100' : ''} w-full px-4 py-2 text-left`}
                 >
                   ✏️ Renomear
                 </button>
@@ -124,9 +121,7 @@ const ListDetail: React.FC = () => {
                     await deleteList(lista.id);
                     navigate(-1);
                   }}
-                  className={`${
-                    active ? 'bg-gray-100' : ''
-                  } w-full text-left px-4 py-2 text-red-600`}
+                  className={`${active ? 'bg-gray-100' : ''} w-full px-4 py-2 text-left text-red-600`}
                 >
                   🗑️ Excluir
                 </button>
@@ -134,35 +129,24 @@ const ListDetail: React.FC = () => {
             </Menu.Item>
           </Menu.Items>
         </Menu>
-        {/* Logo direto de public/ */}
-        <img
-          src="/LOGO_REDUZIDA.png"
-          alt="Logo reduzida"
-          className="h-8 ml-2"
-        />
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 ml-2" />
       </div>
 
-      {/* Progresso + valores */}
+      {/* progresso + totais */}
       <div className="bg-white rounded-xl shadow p-4 mb-6">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
-          <span>
-            {comprados}/{itens.length} itens
-          </span>
-          <span>
-            R$ {totalComprado.toFixed(2)} / R$ {totalGeral.toFixed(2)}
-          </span>
+          <span>{comprados}/{itens.length} itens</span>
+          <span>R$ {totalComprado.toFixed(2)} / R$ {totalGeral.toFixed(2)}</span>
         </div>
         <div className="w-full h-2 bg-gray-200 rounded">
           <div
             className="h-2 bg-yellow-400 rounded transition-all duration-300"
-            style={{
-              width: `${(comprados / (itens.length || 1)) * 100}%`,
-            }}
+            style={{ width: `${(comprados / (itens.length || 1)) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Adicionar item */}
+      {/* botão adicionar */}
       <button
         onClick={() => {
           setItemToEdit(null);
@@ -173,70 +157,70 @@ const ListDetail: React.FC = () => {
         <span className="text-2xl leading-none">+</span> Adicionar item
       </button>
 
-      {/* Lista de itens */}
+      {/* lista de itens */}
       <ul className="space-y-4">
-        {itens.map((item) => (
-          <li
-            key={item.id}
-            className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
-          >
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => toggleItem(lista.id, item.id)}
-                className={`h-6 w-6 flex items-center justify-center rounded-full border-2 transition-colors ${
-                  item.comprado
-                    ? 'bg-yellow-500 border-yellow-500'
-                    : 'border-gray-300'
-                }`}
-              >
-                {item.comprado && (
-                  <CheckIcon className="h-4 w-4 text-black" />
-                )}
-              </button>
-              <div>
-                <h2
-                  className={`text-lg font-semibold ${
+        {itens.map((item) => {
+          const totalItem = item.preco * item.quantidade;
+          return (
+            <li
+              key={item.id}
+              className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggleItem(lista.id, item.id)}
+                  className={`h-6 w-6 flex items-center justify-center rounded-full border-2 transition-colors ${
                     item.comprado
-                      ? 'line-through text-gray-400'
-                      : 'text-gray-900'
+                      ? 'bg-yellow-500 border-yellow-500'
+                      : 'border-gray-300'
                   }`}
                 >
-                  {item.nome}
-                </h2>
-                <p className="text-sm text-gray-600">
-                  {item.quantidade} {item.unidade} • {item.mercado}
+                  {item.comprado && <CheckIcon className="h-4 w-4 text-black" />}
+                </button>
+                <div>
+                  <h2 className={`text-lg font-semibold ${
+                    item.comprado ? 'line-through text-gray-400' : 'text-gray-900'
+                  }`}>
+                    {item.nome}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {item.quantidade}x • {item.peso} {item.unidade} • {item.mercado}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                {/* preço total */}
+                <p className="text-lg font-semibold text-gray-800">
+                  R$ {totalItem.toFixed(2)}
                 </p>
+                {/* preço unitário */}
+                <p className="text-sm text-gray-600">
+                  UN. R$ {item.preco.toFixed(2)}
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      setItemToEdit(item);
+                      setIsModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 text-gray-700"
+                  >
+                    <PencilSquareIcon className="w-4 h-4" /> Editar
+                  </button>
+                  <button
+                    onClick={() => deleteItem(lista.id, item.id)}
+                    className="flex items-center gap-1 text-red-600"
+                  >
+                    <TrashIcon className="w-4 h-4" /> Excluir
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <p className="text-sm font-semibold text-gray-800">
-                R$ {item.preco.toFixed(2)}
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    setItemToEdit(item);
-                    setIsModalOpen(true);
-                  }}
-                  className="flex items-center gap-1 text-gray-700"
-                >
-                  <PencilSquareIcon className="w-4 h-4" />
-                  Editar
-                </button>
-                <button
-                  onClick={() => deleteItem(lista.id, item.id)}
-                  className="flex items-center gap-1 text-red-600"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                  Excluir
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
-      {/* Modal de adicionar/editar */}
+      {/* modal de adicionar/editar */}
       <AddItemModal
         isOpen={isModalOpen}
         onClose={closeModal}
