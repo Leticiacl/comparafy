@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   EllipsisVerticalIcon,
   PencilSquareIcon,
@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useData } from '../context/DataContext';
 import ConfirmDeleteModal from './ui/ConfirmDeleteModal';
+
 
 interface ListaCardProps {
   id: string;

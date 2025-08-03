@@ -1,10 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GoHome } from 'react-icons/go';
 import { IoListOutline } from 'react-icons/io5';
 import { MdCompareArrows } from 'react-icons/md';
 import { LuScanLine } from 'react-icons/lu';
 import { FiUser } from 'react-icons/fi';
+
 
 interface BottomNavProps {
   activeTab: 'home' | 'lists' | 'compare' | 'scanner' | 'profile';
