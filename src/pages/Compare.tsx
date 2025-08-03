@@ -1,10 +1,31 @@
+// src/pages/Compare.tsx
 import React, { useState, useMemo } from 'react'
 import { useData } from '../context/DataContext'
 import BottomNav from '../components/BottomNav'
 import { CheckIcon } from '@heroicons/react/24/solid'
 import { normalizeString } from '../utils/normalizeString'
 
-interface CompareRow {
+type FlatItem = {
+  nome: string
+  preco: number
+  mercado: string
+  listName: string
+  // Se precisar de data, adicione aqui e no DataContext:
+  // listDate: string
+}
+
+type MarketGroup = {
+  key: string          // mercado normalizado
+  label: string        // mercado capitalizado para display
+  itemName: string     // nome do produto
+  entries: Array<{
+    preco: number
+    listName: string
+    // listDate?: string
+  }>
+}
+
+type CompareRow = {
   name: string
   a?: { preco: number; mercado: string }
   b?: { preco: number; mercado: string }
@@ -12,32 +33,56 @@ interface CompareRow {
 
 const Compare: React.FC = () => {
   const { lists } = useData()
-
-  // === STATE FOR TABS & SEARCH ===
   const [activeTab, setActiveTab] = useState<'prices' | 'lists' | 'stats'>('prices')
+  const [query, setQuery] = useState('')
 
-  // Preços tab
-  const [searchTerm, setSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState<{ mercado: string; preco: number }[]>([])
+  // 1) Achata itens incluindo o nome da lista
+  const allItems = useMemo<FlatItem[]>(() =>
+    lists.flatMap(list =>
+      list.itens.map(item => ({
+        nome: item.nome,
+        preco: item.preco,
+        mercado: item.mercado,
+        listName: list.nome,
+        // listDate: list.date
+      }))
+    ),
+    [lists]
+  )
 
-  const handleSearch = () => {
-    // Aqui você pode buscar de verdade nas suas listas:
-    const term = normalizeString(searchTerm.trim())
-    if (!term) {
-      setSearchResults([])
-      return
+  // 2) Filtra pelo nome do produto (normalizado)
+  const filtered = useMemo(() => {
+    const q = normalizeString(query.trim())
+    if (!q) return []
+    return allItems.filter(i => normalizeString(i.nome).includes(q))
+  }, [query, allItems])
+
+  // 3) Agrupa pelos mercados encontrados no filtro
+  const groupedMarkets = useMemo<MarketGroup[]>(() => {
+    const map = new Map<string, MarketGroup>()
+    for (const item of filtered) {
+      const mKey = normalizeString(item.mercado)
+      if (!map.has(mKey)) {
+        // capitaliza a primeira letra do mercado
+        const raw = item.mercado.trim().toLowerCase()
+        const label = raw.charAt(0).toUpperCase() + raw.slice(1)
+        map.set(mKey, {
+          key: mKey,
+          label,
+          itemName: item.nome,
+          entries: []
+        })
+      }
+      map.get(mKey)!.entries.push({
+        preco: item.preco,
+        listName: item.listName,
+        // listDate: item.listDate
+      })
     }
-    // Simula: reúne todos os preços de itens cujo nome contenha o termo
-    const allItems = lists.flatMap(l =>
-      l.itens.map(i => ({ mercado: i.mercado, preco: i.preco, nome: i.nome }))
-    )
-    const found = allItems
-      .filter(i => normalizeString(i.nome).includes(term))
-      .map(i => ({ mercado: i.mercado, preco: i.preco }))
-    setSearchResults(found)
-  }
+    return Array.from(map.values())
+  }, [filtered])
 
-  // Listas tab
+  // === Aba “Listas” ===
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const toggleList = (id: string) => {
     setSelectedIds(prev => {
@@ -49,7 +94,7 @@ const Compare: React.FC = () => {
   const listA = lists.find(l => l.id === selectedIds[0])
   const listB = lists.find(l => l.id === selectedIds[1])
 
-  // Une nomes das duas listas
+  // <Listas> – mesma lógica antiga de comparação
   const rows: CompareRow[] = useMemo(() => {
     const names = new Set<string>()
     listA?.itens.forEach(i => names.add(i.nome))
@@ -60,17 +105,16 @@ const Compare: React.FC = () => {
       return {
         name,
         a: a && { preco: a.preco, mercado: a.mercado },
-        b: b && { preco: b.preco, mercado: b.mercado },
+        b: b && { preco: b.preco, mercado: b.mercado }
       }
     })
   }, [listA, listB])
 
-  const totalDiff = useMemo(() => {
-    return rows.reduce((sum, { a, b }) => {
-      if (a && b) return sum + Math.max(0, a.preco - b.preco)
-      return sum
-    }, 0)
-  }, [rows])
+  const totalDiff = useMemo(
+    () =>
+      rows.reduce((sum, { a, b }) => (a && b ? sum + Math.max(0, a.preco - b.preco) : sum), 0),
+    [rows]
+  )
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
@@ -80,8 +124,8 @@ const Compare: React.FC = () => {
         <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
       </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-6 border-b">
+      {/* Tabs (centralizadas) */}
+      <div className="flex justify-center space-x-6 border-b">
         {(['prices', 'lists', 'stats'] as const).map(tab => (
           <button
             key={tab}
@@ -92,52 +136,63 @@ const Compare: React.FC = () => {
                 : 'text-gray-500'
             }`}
           >
-            {tab === 'prices'
-              ? 'Preços'
-              : tab === 'lists'
-              ? 'Listas'
-              : 'Estatísticas'}
+            {tab === 'prices' ? 'Preços' : tab === 'lists' ? 'Listas' : 'Estatísticas'}
           </button>
         ))}
       </div>
 
-      {/* Conteúdo das tabs */}
+      {/* === Aba Preços === */}
       {activeTab === 'prices' && (
         <div>
+          {/* Busca */}
           <div className="mt-4 flex gap-2">
             <input
               type="text"
-              placeholder="Buscar produto"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-2
-                         focus:outline-none focus:ring focus:border-yellow-400"
+              placeholder="Buscar produto…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring focus:border-yellow-400"
             />
             <button
-              onClick={handleSearch}
+              onClick={() => {/* filtro já ativo */}}
               className="bg-yellow-500 px-4 py-2 rounded-xl text-black font-medium"
             >
               Buscar
             </button>
           </div>
 
-          {searchResults.length === 0 ? (
+          {groupedMarkets.length === 0 ? (
             <p className="mt-10 text-center text-gray-500">
-              {searchTerm.trim()
+              {query.trim()
                 ? 'Nenhum preço encontrado.'
-                : 'Pesquise um produto acima.'}
+                : 'Digite o nome de um produto para buscar.'}
             </p>
           ) : (
             <ul className="mt-6 space-y-4">
-              {searchResults.map((r, i) => (
+              {groupedMarkets.map(market => (
+                // padding aumentado para espaçamento maior
                 <li
-                  key={i}
-                  className="border border-gray-200 rounded-xl p-4 flex justify-between items-center"
+                  key={market.key}
+                  className="border border-gray-200 rounded-xl p-6"
                 >
-                  <span className="font-medium">{r.mercado}</span>
-                  <span className="text-lg font-semibold">
-                    R$ {r.preco.toFixed(2)}
-                  </span>
+                  {/* Mercado · Nome do produto */}
+                  <strong className="block text-lg text-gray-800 mb-3">
+                    {market.label} · {market.itemName}
+                  </strong>
+                  {/* Entradas de preço */}
+                  <div className="space-y-2">
+                    {market.entries.map((e, i) => (
+                      <div
+                        key={i}
+                        className="flex justify-between text-gray-700"
+                      >
+                        <span className="text-sm">{e.listName}</span>
+                        <span className="text-sm font-semibold">
+                          R$ {e.preco.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -145,9 +200,10 @@ const Compare: React.FC = () => {
         </div>
       )}
 
+      {/* === Aba Listas === */}
       {activeTab === 'lists' && (
         <div className="space-y-4">
-          <p className="text-gray-600">Selecione duas listas</p>
+          <p className="text-gray-600">Selecione duas listas para comparar</p>
           <div className="space-y-2">
             {lists.map(list => {
               const sel = selectedIds.includes(list.id)
@@ -224,6 +280,7 @@ const Compare: React.FC = () => {
         </div>
       )}
 
+      {/* === Aba Estatísticas === */}
       {activeTab === 'stats' && (
         <div className="text-center text-gray-500 py-10">
           Em breve: suas estatísticas de economia.
