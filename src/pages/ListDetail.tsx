@@ -30,7 +30,7 @@ const ListDetail: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // sempre que mudar de lista, recarrega itens
+  // → recarrega itens toda vez que id muda
   useEffect(() => {
     if (id) fetchItems(id);
   }, [id, fetchItems]);
@@ -67,7 +67,7 @@ const ListDetail: React.FC = () => {
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white">
-      {/* cabeçalho */}
+      {/* header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center flex-1">
           <button
@@ -184,16 +184,14 @@ const ListDetail: React.FC = () => {
                     {item.nome}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {item.quantidade}x • {item.peso} {item.unidade} • {item.mercado}
+                    {item.quantidade}x • {item.peso}{item.unidade} • {item.mercado}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {/* preço total */}
                 <p className="text-lg font-semibold text-gray-800">
                   R$ {totalItem.toFixed(2)}
                 </p>
-                {/* preço unitário */}
                 <p className="text-sm text-gray-600">
                   UN. R$ {item.preco.toFixed(2)}
                 </p>
@@ -220,7 +218,6 @@ const ListDetail: React.FC = () => {
         })}
       </ul>
 
-      {/* modal de adicionar/editar */}
       <AddItemModal
         isOpen={isModalOpen}
         onClose={closeModal}

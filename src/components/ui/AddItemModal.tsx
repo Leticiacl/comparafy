@@ -15,40 +15,44 @@ const AddItemModal: React.FC<Props> = ({
   listId,
   itemToEdit,
 }) => {
-  const { addItem, updateItem, getSuggestions, saveSuggestions } = useData()
+  const {
+    addItem,
+    updateItem,      // now backed by setDoc(..., merge:true)
+    getSuggestions,
+    saveSuggestions,
+  } = useData()
 
   const [nome, setNome] = useState('')
   const [quantidade, setQuantidade] = useState(1)
-  const [peso, setPeso] = useState('')            // string para poder aceitar decimais
-  const [unidade, setUnidade] = useState('kg')    // kg primeiro
+  const [peso, setPeso] = useState('')
+  const [unidade, setUnidade] = useState('kg')
   const [preco, setPreco] = useState('')
   const [mercado, setMercado] = useState('')
   const [observacoes, setObservacoes] = useState('')
+
   const [prodSuggs, setProdSuggs] = useState<string[]>([])
   const [mktSuggs, setMktSuggs] = useState<string[]>([])
 
-  // Carrega sugestões quando o modal abre
+  // Load suggestions on open
   useEffect(() => {
     if (!isOpen) return
-    getSuggestions('products').then((r) => setProdSuggs(r))
-    getSuggestions('markets').then((r) => setMktSuggs(r))
+    getSuggestions('products').then(setProdSuggs)
+    getSuggestions('markets').then(setMktSuggs)
   }, [isOpen, getSuggestions])
 
-  // Inicializa ou reseta campos ao abrir / trocar item
+  // Initialize or reset fields
   useEffect(() => {
     if (!isOpen) return
 
     if (itemToEdit) {
       setNome(itemToEdit.nome)
       setQuantidade(itemToEdit.quantidade)
-      // só chama toString se não for nulo/undefined
-      setPeso(itemToEdit.peso != null ? itemToEdit.peso.toString() : '')
+      setPeso(itemToEdit.peso?.toString() ?? '')
       setUnidade(itemToEdit.unidade)
-      setPreco(itemToEdit.preco != null ? itemToEdit.preco.toString() : '')
+      setPreco(itemToEdit.preco?.toString() ?? '')
       setMercado(itemToEdit.mercado)
       setObservacoes(itemToEdit.observacoes || '')
     } else {
-      // reset
       setNome('')
       setQuantidade(1)
       setPeso('')
@@ -73,13 +77,14 @@ const AddItemModal: React.FC<Props> = ({
     }
 
     if (itemToEdit) {
+      // EDIT
       await updateItem(listId, itemToEdit.id, data)
     } else {
+      // CREATE
       await addItem(listId, data)
       await saveSuggestions('products', data.nome)
       await saveSuggestions('markets', data.mercado)
     }
-
     onClose()
   }
 
@@ -91,53 +96,45 @@ const AddItemModal: React.FC<Props> = ({
           {itemToEdit ? 'Editar Item' : 'Adicionar Item'}
         </h2>
 
-        {/* Nome do produto */}
-        <label className="block text-sm font-medium mb-1">
-          Nome do produto *
-        </label>
+        {/* Nome */}
+        <label className="block text-sm font-medium mb-1">Nome *</label>
         <input
           type="text"
           list="prod-list"
-          placeholder="Digite o nome"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={nome}
-          onChange={(e) => setNome(e.target.value)}
+          onChange={e => setNome(e.target.value)}
         />
         <datalist id="prod-list">
-          {prodSuggs.map((p, i) => (
-            <option key={i} value={p} />
-          ))}
+          {prodSuggs.map((p, i) => <option key={i} value={p} />)}
         </datalist>
 
-        {/* Quantidade de itens */}
+        {/* Quantidade */}
         <label className="block text-sm font-medium mb-1">
-          Quantidade de itens *
+          Quantidade *
         </label>
         <input
           type="number"
           min={1}
-          placeholder="Ex.: 5"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={quantidade}
-          onChange={(e) => setQuantidade(Math.max(1, +e.target.value))}
+          onChange={e => setQuantidade(Math.max(1, +e.target.value))}
         />
 
-        {/* Peso e Unidade */}
-        <label className="block text-sm font-medium mb-1">Peso do item</label>
+        {/* Peso & Unidade */}
+        <label className="block text-sm font-medium mb-1">Peso</label>
         <div className="flex gap-2 mb-3">
           <input
             type="number"
-            min={0}
             step="any"
-            placeholder="Ex.: 1.5"
             className="w-2/3 border rounded-lg px-3 py-2"
             value={peso}
-            onChange={(e) => setPeso(e.target.value)}
+            onChange={e => setPeso(e.target.value)}
           />
           <select
             className="w-1/3 border rounded-lg px-3 py-2"
             value={unidade}
-            onChange={(e) => setUnidade(e.target.value)}
+            onChange={e => setUnidade(e.target.value)}
           >
             <option value="kg">kg</option>
             <option value="g">g</option>
@@ -148,14 +145,13 @@ const AddItemModal: React.FC<Props> = ({
           </select>
         </div>
 
-        {/* Preço unitário */}
+        {/* Preço */}
         <label className="block text-sm font-medium mb-1">Preço</label>
         <input
           type="number"
-          placeholder="R$ 0,00"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={preco}
-          onChange={(e) => setPreco(e.target.value)}
+          onChange={e => setPreco(e.target.value)}
         />
 
         {/* Mercado */}
@@ -163,27 +159,23 @@ const AddItemModal: React.FC<Props> = ({
         <input
           type="text"
           list="mkt-list"
-          placeholder="Onde comprou?"
           className="w-full border rounded-lg px-3 py-2 mb-3"
           value={mercado}
-          onChange={(e) => setMercado(e.target.value)}
+          onChange={e => setMercado(e.target.value)}
         />
         <datalist id="mkt-list">
-          {mktSuggs.map((m, i) => (
-            <option key={i} value={m} />
-          ))}
+          {mktSuggs.map((m, i) => <option key={i} value={m} />)}
         </datalist>
 
         {/* Observações */}
         <label className="block text-sm font-medium mb-1">Observações</label>
         <textarea
-          placeholder="Alguma observação?"
           className="w-full border rounded-lg px-3 py-2 mb-4"
           value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
+          onChange={e => setObservacoes(e.target.value)}
         />
 
-        {/* Botões */}
+        {/* Buttons */}
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}

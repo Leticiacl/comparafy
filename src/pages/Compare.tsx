@@ -1,162 +1,243 @@
 // src/pages/Compare.tsx
 import React, { useState, useMemo } from 'react'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+import { Bar } from 'react-chartjs-2'
 import { useData } from '../context/DataContext'
 import BottomNav from '../components/BottomNav'
-import { CheckIcon } from '@heroicons/react/24/solid'
 import { normalizeString } from '../utils/normalizeString'
+import {
+  ShoppingCartIcon,
+  BuildingStorefrontIcon,
+} from '@heroicons/react/24/solid'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 type FlatItem = {
   nome: string
   preco: number
   mercado: string
+  unidade?: string
+  peso?: number
   listName: string
-  // Se precisar de data, adicione aqui e no DataContext:
-  // listDate: string
 }
 
-type MarketGroup = {
-  key: string          // mercado normalizado
-  label: string        // mercado capitalizado para display
-  itemName: string     // nome do produto
-  entries: Array<{
-    preco: number
-    listName: string
-    // listDate?: string
-  }>
-}
-
-type CompareRow = {
-  name: string
-  a?: { preco: number; mercado: string }
-  b?: { preco: number; mercado: string }
-}
-
-const Compare: React.FC = () => {
+export default function Compare() {
   const { lists } = useData()
-  const [activeTab, setActiveTab] = useState<'prices' | 'lists' | 'stats'>('prices')
+  const [activeTab, setActiveTab] = useState<'prices' | 'lists' | 'stats'>(
+    'prices'
+  )
   const [query, setQuery] = useState('')
 
-  // 1) Achata itens incluindo o nome da lista
-  const allItems = useMemo<FlatItem[]>(() =>
-    lists.flatMap(list =>
-      list.itens.map(item => ({
-        nome: item.nome,
-        preco: item.preco,
-        mercado: item.mercado,
-        listName: list.nome,
-        // listDate: list.date
-      }))
-    ),
+  // 1) achata todos os itens
+  const allItems = useMemo<FlatItem[]>(
+    () =>
+      lists.flatMap((list) =>
+        list.itens.map((item) => ({
+          nome: item.nome,
+          preco: item.preco,
+          mercado: item.mercado,
+          unidade: item.unidade,
+          peso: item.peso,
+          listName: list.nome,
+        }))
+      ),
     [lists]
   )
 
-  // 2) Filtra pelo nome do produto (normalizado)
+  // === ABA PREÇOS (mantida) ===
   const filtered = useMemo(() => {
     const q = normalizeString(query.trim())
     if (!q) return []
-    return allItems.filter(i => normalizeString(i.nome).includes(q))
+    return allItems.filter((i) =>
+      normalizeString(i.nome).includes(q)
+    )
   }, [query, allItems])
 
-  // 3) Agrupa pelos mercados encontrados no filtro
-  const groupedMarkets = useMemo<MarketGroup[]>(() => {
-    const map = new Map<string, MarketGroup>()
+  const groupedMarkets = useMemo(() => {
+    const map = new Map<string, {
+      key: string
+      label: string
+      itemName: string
+      pesoUnit: string
+      entries: Array<{ preco: number; listName: string }>
+    }>()
     for (const item of filtered) {
-      const mKey = normalizeString(item.mercado)
-      if (!map.has(mKey)) {
-        // capitaliza a primeira letra do mercado
+      const mk = normalizeString(item.mercado)
+      const uk = normalizeString(item.unidade ?? '')
+      const pk = `${item.peso ?? ''}`
+      const key = `${mk}::${uk}::${pk}`
+
+      if (!map.has(key)) {
         const raw = item.mercado.trim().toLowerCase()
-        const label = raw.charAt(0).toUpperCase() + raw.slice(1)
-        map.set(mKey, {
-          key: mKey,
+        const label = raw[0].toUpperCase() + raw.slice(1)
+        map.set(key, {
+          key,
           label,
           itemName: item.nome,
-          entries: []
+          pesoUnit: `${item.peso ?? ''}${item.unidade ?? ''}`,
+          entries: [],
         })
       }
-      map.get(mKey)!.entries.push({
+      map.get(key)!.entries.push({
         preco: item.preco,
         listName: item.listName,
-        // listDate: item.listDate
       })
     }
     return Array.from(map.values())
   }, [filtered])
 
-  // === Aba “Listas” ===
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const toggleList = (id: string) => {
-    setSelectedIds(prev => {
-      if (prev.includes(id)) return prev.filter(x => x !== id)
+  // === ABA LISTAS ===
+  const [selIds, setSelIds] = useState<string[]>([])
+  const toggleList = (id: string) =>
+    setSelIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
       if (prev.length < 2) return [...prev, id]
       return [prev[1], id]
     })
-  }
-  const listA = lists.find(l => l.id === selectedIds[0])
-  const listB = lists.find(l => l.id === selectedIds[1])
 
-  // <Listas> – mesma lógica antiga de comparação
-  const rows: CompareRow[] = useMemo(() => {
-    const names = new Set<string>()
-    listA?.itens.forEach(i => names.add(i.nome))
-    listB?.itens.forEach(i => names.add(i.nome))
-    return Array.from(names).map(name => {
-      const a = listA?.itens.find(i => i.nome === name)
-      const b = listB?.itens.find(i => i.nome === name)
-      return {
-        name,
-        a: a && { preco: a.preco, mercado: a.mercado },
-        b: b && { preco: b.preco, mercado: b.mercado }
-      }
+  const listA = lists.find((l) => l.id === selIds[0])
+  const listB = lists.find((l) => l.id === selIds[1])
+
+  type ListRow = {
+    key: string
+    nome: string
+    pesoUnit: string
+    priceA: number | null
+    priceB: number | null
+    diff: number | null
+  }
+  const listRows = useMemo<ListRow[]>(() => {
+    if (!listA || !listB) return []
+    const map = new Map<string, { nome: string; pesoUnit: string; prices: [number|null, number|null] }>()
+
+    function add(list: typeof listA, idx: 0 | 1) {
+      list.itens.forEach((i) => {
+        const key =
+          normalizeString(i.nome) +
+          '::' +
+          (i.peso ?? '') +
+          '::' +
+          (i.unidade ?? '')
+        if (!map.has(key)) {
+          map.set(key, {
+            nome: i.nome,
+            pesoUnit: `${i.peso ?? ''}${i.unidade ?? ''}`,
+            prices: [null, null],
+          })
+        }
+        map.get(key)!.prices[idx] = i.preco
+      })
+    }
+
+    add(listA, 0)
+    add(listB, 1)
+
+    return Array.from(map.entries()).map(([key, { nome, pesoUnit, prices }]) => {
+      const [a, b] = prices
+      const diff =
+        a != null && b != null
+          ? parseFloat((b - a).toFixed(2))
+          : null
+      return { key, nome, pesoUnit, priceA: a, priceB: b, diff }
     })
   }, [listA, listB])
 
-  const totalDiff = useMemo(
-    () =>
-      rows.reduce((sum, { a, b }) => (a && b ? sum + Math.max(0, a.preco - b.preco) : sum), 0),
-    [rows]
-  )
+  // === ABA ESTATÍSTICAS ===
+  const itemCounts = useMemo(() => {
+    const cnt: Record<string, number> = {}
+    allItems.forEach((i) => {
+      const k = normalizeString(i.nome)
+      cnt[k] = (cnt[k] || 0) + 1
+    })
+    return Object.entries(cnt)
+      .map(([k, c]) => ({
+        nome: allItems.find((i) => normalizeString(i.nome) === k)!.nome,
+        count: c,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+  }, [allItems])
+
+  const marketSpends = useMemo(() => {
+    const sums: Record<string, number> = {}
+    allItems.forEach((i) => {
+      const k = normalizeString(i.mercado)
+      sums[k] = (sums[k] || 0) + i.preco
+    })
+    return Object.entries(sums).map(([k, total]) => ({
+      mercado: allItems.find((i) => normalizeString(i.mercado) === k)!.mercado,
+      total,
+    }))
+  }, [allItems])
+
+  const chartData = {
+    labels: marketSpends.map((d) => d.mercado),
+    datasets: [
+      {
+        label: 'Gasto',
+        data: marketSpends.map((d) => d.total),
+        backgroundColor: 'rgba(252,211,77,0.8)',
+      },
+    ],
+  }
+  const chartOpts = {
+    scales: { y: { beginAtZero: true } },
+    plugins: { legend: { display: false } as any },
+  }
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      {/* Header */}
+      {/* header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Comparar</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
+        <img
+          src="/LOGO_REDUZIDA.png"
+          alt="Logo"
+          className="h-8 w-8"
+        />
       </div>
 
-      {/* Tabs (centralizadas) */}
-      <div className="flex justify-center space-x-6 border-b">
-        {(['prices', 'lists', 'stats'] as const).map(tab => (
+      {/* tabs */}
+      <div className="flex justify-between px-6 border-b border-gray-200 pb-2">
+        {(['prices', 'lists', 'stats'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`pb-2 ${
+            className={`text-sm font-medium ${
               activeTab === tab
                 ? 'text-yellow-500 border-b-2 border-yellow-500'
                 : 'text-gray-500'
             }`}
           >
-            {tab === 'prices' ? 'Preços' : tab === 'lists' ? 'Listas' : 'Estatísticas'}
+            {tab === 'prices'
+              ? 'Preços'
+              : tab === 'lists'
+              ? 'Listas'
+              : 'Estatísticas'}
           </button>
         ))}
       </div>
 
-      {/* === Aba Preços === */}
+      {/* === PREÇOS === */}
       {activeTab === 'prices' && (
         <div>
-          {/* Busca */}
           <div className="mt-4 flex gap-2">
             <input
               type="text"
               placeholder="Buscar produto…"
               value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring focus:border-yellow-400"
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 border rounded-xl px-4 py-2 focus:ring-yellow-400"
             />
-            <button
-              onClick={() => {/* filtro já ativo */}}
-              className="bg-yellow-500 px-4 py-2 rounded-xl text-black font-medium"
-            >
+            <button className="bg-yellow-500 px-4 py-2 rounded-xl text-black font-medium">
               Buscar
             </button>
           </div>
@@ -169,19 +250,16 @@ const Compare: React.FC = () => {
             </p>
           ) : (
             <ul className="mt-6 space-y-4">
-              {groupedMarkets.map(market => (
-                // padding aumentado para espaçamento maior
+              {groupedMarkets.map((m) => (
                 <li
-                  key={market.key}
-                  className="border border-gray-200 rounded-xl p-6"
+                  key={m.key}
+                  className="border rounded-xl p-4 border-gray-200"
                 >
-                  {/* Mercado · Nome do produto */}
                   <strong className="block text-lg text-gray-800 mb-3">
-                    {market.label} · {market.itemName}
+                    {m.label} · {m.itemName} · {m.pesoUnit}
                   </strong>
-                  {/* Entradas de preço */}
-                  <div className="space-y-2">
-                    {market.entries.map((e, i) => (
+                  <div className="space-y-1">
+                    {m.entries.map((e, i) => (
                       <div
                         key={i}
                         className="flex justify-between text-gray-700"
@@ -200,90 +278,95 @@ const Compare: React.FC = () => {
         </div>
       )}
 
-      {/* === Aba Listas === */}
+      {/* === LISTAS === */}
       {activeTab === 'lists' && (
         <div className="space-y-4">
-          <p className="text-gray-600">Selecione duas listas para comparar</p>
+          <p className="text-gray-600">
+            Selecione duas listas para comparar
+          </p>
           <div className="space-y-2">
-            {lists.map(list => {
-              const sel = selectedIds.includes(list.id)
+            {lists.map((l) => {
+              const sel = selIds.includes(l.id)
               return (
                 <button
-                  key={list.id}
-                  onClick={() => toggleList(list.id)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition ${
+                  key={l.id}
+                  onClick={() => toggleList(l.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border ${
                     sel
-                      ? 'border-yellow-500 bg-yellow-100'
+                      ? 'bg-yellow-100 border-yellow-500'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-gray-800">
-                      {list.nome}
-                    </span>
-                    {sel && <CheckIcon className="h-5 w-5 text-yellow-500" />}
-                  </div>
+                  {l.nome}
                 </button>
               )
             })}
           </div>
-          {listA && listB && (
-            <div className="mt-4 border rounded-xl overflow-hidden shadow-sm">
-              <div className="px-4 py-2 bg-gray-50 flex justify-between text-sm text-gray-700 font-medium">
-                <span>{listA.nome}</span>
-                <span>→</span>
-                <span>{listB.nome}</span>
+
+          <div className="space-y-3">
+            {listRows.map((r) => (
+              <div
+                key={r.key}
+                className="border rounded-xl p-4 flex justify-between items-center"
+              >
+                <div>
+                  <h3 className="font-semibold">
+                    {r.nome} · {r.pesoUnit}
+                  </h3>
+                  <p className="text-sm text-gray-700">
+                    Semanal: {r.priceA != null ? `R$ ${r.priceA.toFixed(2)}` : '–'}{' '}
+                    Mensal: {r.priceB != null ? `R$ ${r.priceB.toFixed(2)}` : '–'}
+                  </p>
+                </div>
+                {r.diff != null && (
+                  <span
+                    className={`font-semibold ${
+                      r.diff > 0 ? 'text-red-600' : 'text-green-600'
+                    }`}
+                  >
+                    {r.diff > 0 ? '+' : '–'} R$ {Math.abs(r.diff).toFixed(2)}
+                  </span>
+                )}
               </div>
-              <div className="divide-y">
-                {rows.map(({ name, a, b }) => (
-                  <div key={name} className="px-4 py-4">
-                    <h2 className="font-semibold text-gray-800">{name}</h2>
-                    <div className="mt-2 space-y-1">
-                      {a && (
-                        <div className="text-gray-700">
-                          R$ {a.preco.toFixed(2)}{' '}
-                          <span className="text-sm text-gray-500">
-                            ({a.mercado})
-                          </span>
-                        </div>
-                      )}
-                      {b && (
-                        <div className="text-gray-700">
-                          R$ {b.preco.toFixed(2)}{' '}
-                          <span className="text-sm text-gray-500">
-                            ({b.mercado})
-                          </span>
-                        </div>
-                      )}
-                      {a && b && a.preco !== b.preco && (
-                        <div
-                          className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
-                            a.preco > b.preco
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {a.preco > b.preco
-                            ? `Economia R$ ${(a.preco - b.preco).toFixed(2)}`
-                            : `+ R$ ${(b.preco - a.preco).toFixed(2)} em A`}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="px-4 py-3 bg-gray-50 text-right font-semibold text-gray-800">
-                Economia total: R$ {totalDiff.toFixed(2)}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* === Aba Estatísticas === */}
+      {/* === ESTATÍSTICAS === */}
       {activeTab === 'stats' && (
-        <div className="text-center text-gray-500 py-10">
-          Em breve: suas estatísticas de economia.
+        <div className="space-y-6">
+          {/* itens mais comprados */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="flex items-center mb-3 text-yellow-500">
+              <ShoppingCartIcon className="h-6 w-6 mr-2" />
+              <h2 className="text-lg font-semibold">
+                Itens mais comprados
+              </h2>
+            </div>
+            <ul className="divide-y">
+              {itemCounts.map((it, idx) => (
+                <li
+                  key={idx}
+                  className="py-2 flex justify-between text-gray-700"
+                >
+                  <span>{it.nome}</span>
+                  <span className="font-semibold">{it.count}x</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* gastos por supermercado */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <div className="flex items-center mb-3 text-yellow-500">
+              <BuildingStorefrontIcon className="h-6 w-6 mr-2" />
+              <h2 className="text-lg font-semibold">
+                Gastos por supermercado
+              </h2>
+            </div>
+            <Bar data={chartData} options={chartOpts} />
+          </div>
         </div>
       )}
 
@@ -291,5 +374,3 @@ const Compare: React.FC = () => {
     </div>
   )
 }
-
-export default Compare

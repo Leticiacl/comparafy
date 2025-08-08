@@ -1,4 +1,3 @@
-// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -57,21 +56,20 @@ export async function updateListName(
 
 // Buscar itens da lista
 export async function fetchItemsFromList(userId: string, listId: string) {
-  const itemsRef = collection(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items"
-  );
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
   return snapshot.docs.map((docSnap) => {
     const data = docSnap.data();
     return {
       id: docSnap.id,
-      ...data,
+      nome: data.nome,
+      quantidade: data.quantidade,
+      unidade: data.unidade,
+      preco: data.preco,
+      mercado: data.mercado,
+      observacoes: data.observacoes,
       comprado: data.purchased ?? false,
+      peso: data.peso, // caso você esteja salvando peso
     };
   });
 }
@@ -82,15 +80,7 @@ export async function toggleItemPurchased(
   listId: string,
   itemId: string
 ) {
-  const itemRef = doc(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items",
-    itemId
-  );
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   const itemSnap = await getDoc(itemRef);
   const current = itemSnap.exists() ? itemSnap.data().purchased : false;
   await updateDoc(itemRef, { purchased: !current });
@@ -103,15 +93,7 @@ export async function deleteItem(
   listId: string,
   itemId: string
 ) {
-  const itemRef = doc(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items",
-    itemId
-  );
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   await deleteDoc(itemRef);
 }
 
@@ -121,14 +103,7 @@ export async function addItemToList(
   listId: string,
   item: any
 ) {
-  const itemsRef = collection(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items"
-  );
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const docRef = await addDoc(itemsRef, {
     ...item,
     purchased: false,
@@ -140,7 +115,7 @@ export async function addItemToList(
   };
 }
 
-// **Atualizar todos os campos de um item existente**
+// **CREATE-or-UPDATE** todos os campos de um item existente
 export async function updateItem(
   userId: string,
   listId: string,
@@ -149,28 +124,33 @@ export async function updateItem(
     nome?: string;
     quantidade?: number;
     unidade?: string;
+    peso?: number;
     preco?: number;
     mercado?: string;
     observacoes?: string;
   }
 ) {
-  const itemRef = doc(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items",
-    itemId
+  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
+
+  // Lê flag purchased atual (se existir) para não perder esse campo
+  const snap = await getDoc(itemRef);
+  const existingPurchased = snap.exists() ? snap.data().purchased : false;
+
+  // Merge dos campos – cria o documento se não existir e preserva purchased
+  await setDoc(
+    itemRef,
+    {
+      ...(data.nome        !== undefined && { nome: data.nome }),
+      ...(data.quantidade  !== undefined && { quantidade: data.quantidade }),
+      ...(data.unidade     !== undefined && { unidade: data.unidade }),
+      ...(data.peso        !== undefined && { peso: data.peso }),
+      ...(data.preco       !== undefined && { preco: data.preco }),
+      ...(data.mercado     !== undefined && { mercado: data.mercado }),
+      ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
+      purchased: existingPurchased,
+    },
+    { merge: true }
   );
-  const toUpdate: any = {};
-  if (data.nome !== undefined) toUpdate.nome = data.nome;
-  if (data.quantidade !== undefined) toUpdate.quantidade = data.quantidade;
-  if (data.unidade !== undefined) toUpdate.unidade = data.unidade;
-  if (data.preco !== undefined) toUpdate.preco = data.preco;
-  if (data.mercado !== undefined) toUpdate.mercado = data.mercado;
-  if (data.observacoes !== undefined) toUpdate.observacoes = data.observacoes;
-  await updateDoc(itemRef, toUpdate);
 }
 
 // Sugestões – salvar
@@ -202,14 +182,7 @@ export async function deleteListFromFirestore(
   userId: string,
   listId: string
 ) {
-  const itemsRef = collection(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items"
-  );
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
   await Promise.all(snapshot.docs.map((d) => deleteDoc(d.ref)));
   const listRef = doc(db, "users", userId, "lists", listId);
@@ -221,13 +194,7 @@ export async function duplicateList(
   userId: string,
   originalListId: string
 ) {
-  const originalRef = doc(
-    db,
-    "users",
-    userId,
-    "lists",
-    originalListId
-  );
+  const originalRef = doc(db, "users", userId, "lists", originalListId);
   const originalSnap = await getDoc(originalRef);
   if (!originalSnap.exists()) return;
   const originalData = originalSnap.data();
@@ -259,14 +226,7 @@ export async function markAllItemsPurchased(
   userId: string,
   listId: string
 ) {
-  const itemsRef = collection(
-    db,
-    "users",
-    userId,
-    "lists",
-    listId,
-    "items"
-  );
+  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
   for (const docSnap of snapshot.docs) {
     await updateDoc(docSnap.ref, { purchased: true });
