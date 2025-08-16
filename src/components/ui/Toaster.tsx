@@ -1,6 +1,20 @@
 // src/components/ui/Toaster.tsx
-import { Toaster as HotToaster } from 'react-hot-toast';
+import React from "react";
+import { Toaster, toast } from "sonner";
 
-export const Toaster = () => {
-  return <HotToaster position="top-center" />;
-};
+// Exporta uma função de atalho para telas que chamam showToast
+export function showToast(
+  message: string,
+  type: "success" | "error" | "info" = "info"
+) {
+  if (type === "success") return toast.success(message);
+  if (type === "error") return toast.error(message);
+  return toast(message);
+}
+
+// Host global do toaster (adicione em App)
+const AppToaster: React.FC = () => (
+  <Toaster position="top-center" richColors closeButton />
+);
+
+export default AppToaster;

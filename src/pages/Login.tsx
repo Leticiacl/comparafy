@@ -1,6 +1,7 @@
+// src/pages/Login.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { auth, provider } from "../services/firebase";
 import {
   signInWithEmailAndPassword,
@@ -13,13 +14,16 @@ const Login: React.FC = () => {
   const [senha, setSenha] = useState("");
   const navigate = useNavigate();
 
+  const goHome = () => navigate("/"); // Dashboard está em "/"
+
   const handleLogin = async () => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, senha);
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
       sessionStorage.setItem("userId", user.uid);
+      sessionStorage.setItem("authType", "email");
       toast.success("Login realizado com sucesso!");
-      navigate("/dashboard");
+      goHome();
     } catch {
       toast.error("Erro ao fazer login.");
     }
@@ -30,8 +34,9 @@ const Login: React.FC = () => {
       const { user } = await signInWithPopup(auth, provider);
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
       sessionStorage.setItem("userId", user.uid);
+      sessionStorage.setItem("authType", "google");
       toast.success("Login com Google realizado!");
-      navigate("/dashboard");
+      goHome();
     } catch {
       toast.error("Erro ao fazer login com Google.");
     }
@@ -42,8 +47,9 @@ const Login: React.FC = () => {
       const { user } = await signInAnonymously(auth);
       sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
       sessionStorage.setItem("userId", user.uid);
+      sessionStorage.setItem("authType", "anonymous");
       toast.success("Login como visitante realizado!");
-      navigate("/dashboard");
+      goHome();
     } catch {
       toast.error("Erro ao entrar como visitante.");
     }
@@ -55,7 +61,7 @@ const Login: React.FC = () => {
         {/* Logo e título */}
         <div className="flex flex-col items-center mb-6">
           <img
-            src="/LOGO_REDUZIDA.png"  /* ou "/LOGO%20REDUZIDA.png" se o arquivo tiver espaço */
+            src="/LOGO_REDUZIDA.png"
             alt="Comparafy"
             className="w-12 h-12 mb-2"
           />
@@ -99,11 +105,7 @@ const Login: React.FC = () => {
           onClick={handleGoogleLogin}
           className="w-full border text-gray-800 font-medium py-3 rounded-lg mb-3 hover:bg-gray-50 transition flex items-center justify-center gap-2"
         >
-          <img
-            src="/google-icon.png"
-            alt="Google"
-            className="w-5 h-5"
-          />
+          <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
           Continuar com Google
         </button>
 
@@ -118,10 +120,7 @@ const Login: React.FC = () => {
         {/* Link para cadastro */}
         <p className="mt-6 text-center text-sm text-gray-600">
           Não tem uma conta?{" "}
-          <a
-            href="/register"
-            className="text-yellow-600 font-semibold hover:underline"
-          >
+          <a href="/register" className="text-yellow-600 font-semibold hover:underline">
             Cadastre-se
           </a>
         </p>

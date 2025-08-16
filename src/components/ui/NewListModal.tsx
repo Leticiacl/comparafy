@@ -1,54 +1,67 @@
 import React, { useState } from "react";
 import { useData } from "../../context/DataContext";
 
-interface NewListModalProps {
+type Props = {
   isOpen: boolean;
   onClose: () => void;
-}
+};
 
-const NewListModal: React.FC<NewListModalProps> = ({ isOpen, onClose }) => {
+const NewListModalComp: React.FC<Props> = ({ isOpen, onClose }) => {
   const { createList } = useData();
-  const [listName, setListName] = useState("");
-
-  const handleCreate = async () => {
-    const trimmedName = listName.trim();
-    if (!trimmedName) {
-      alert("Digite um nome para a lista.");
-      return;
-    }
-
-    const result = await createList(trimmedName);
-    if (result) {
-      setListName("");
-      onClose();
-    }
-  };
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const canCreate = name.trim().length > 0 && !loading;
 
   if (!isOpen) return null;
 
+  const handleCreate = async () => {
+    if (!canCreate) return;
+    try {
+      setLoading(true);
+      const created = await createList(name.trim());
+      if (!created) {
+        alert("Você precisa estar logado para criar listas.");
+        return;
+      }
+      setName("");
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert("Não foi possível criar a lista.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (e.key === "Enter") handleCreate();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Nova Lista</h2>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+        <h2 className="text-2xl font-bold mb-4">Nova Lista</h2>
+
+        <label className="block text-sm font-medium mb-1">Nome da lista</label>
         <input
-          type="text"
-          placeholder="Nome da lista"
-          value={listName}
-          onChange={(e) => setListName(e.target.value)}
-          className="w-full border px-4 py-2 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          className="w-full border rounded-lg px-3 py-2 mb-5"
+          placeholder="Ex.: Mensal"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={onKeyDown}
+          autoFocus
         />
+
         <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
+          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-lg">
             Cancelar
           </button>
           <button
             onClick={handleCreate}
-            className="px-4 py-2 rounded-lg bg-yellow-500 text-black font-semibold hover:bg-yellow-600"
+            className="px-4 py-2 bg-yellow-500 rounded-lg text-black disabled:opacity-60"
+            disabled={!canCreate}
           >
-            Criar
+            {loading ? "Criando..." : "Criar"}
           </button>
         </div>
       </div>
@@ -56,4 +69,6 @@ const NewListModal: React.FC<NewListModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default NewListModal;
+// Exporta dos dois jeitos p/ evitar mismatch de import
+export const NewListModal = NewListModalComp;
+export default NewListModalComp;
