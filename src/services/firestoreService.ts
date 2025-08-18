@@ -1,4 +1,3 @@
-// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -8,6 +7,9 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
+  query,
+  where,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -28,14 +30,26 @@ export type PurchaseItem = {
 
 export type Purchase = {
   id: string;
-  nome?: string; // nome da compra
-  createdAt: any;
+  name: string;          // nome da compra
+  market?: string;
+  itens: PurchaseItem[];
+  itemCount: number;
+  total: number;
+  createdAt: any;        // Timestamp | ms
   source: "list" | "receipt";
   sourceRefId?: string;
   sourceRefName?: string;
-  market?: string;
-  itens: PurchaseItem[];
 };
+
+/* =========================================================
+ * HELPERS
+ * =======================================================*/
+const toMs = (ts: any) =>
+  typeof ts === "number"
+    ? ts
+    : ts?.seconds
+    ? ts.seconds * 1000
+    : Date.parse(ts || "") || Date.now();
 
 /* =========================================================
  * LISTAS
@@ -61,7 +75,7 @@ export async function fetchUserLists(userId: string) {
   return lists;
 }
 
-// Criar nova lista (apenas nome, como combinado)
+// Criar nova lista
 export async function createNewList(userId: string, name: string) {
   const trimmed = name.trim();
   const listsRef = collection(db, "users", userId, "lists");
@@ -253,48 +267,43 @@ export async function markAllItemsPurchased(userId: string, listId: string) {
  * =======================================================*/
 
 // Buscar compras
-export async function fetchPurchasesForUser(
-  userId: string
-): Promise<Purchase[]> {
+export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]> {
   const purchasesRef = collection(db, "users", userId, "purchases");
-  const snap = await getDocs(purchasesRef);
+  const qs = await getDocs(query(purchasesRef, where("name", ">=", "")));
 
-  const result: Purchase[] = [];
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data() as any;
+  const out: Purchase[] = [];
+  for (const d of qs.docs) {
+    const data = d.data() as any;
 
+    // Tenta ler itens do campo "itens"; se não houver, busca subcoleção /items
     let itens: PurchaseItem[] = Array.isArray(data.itens) ? data.itens : [];
     if (!itens.length) {
-      const itemsRef = collection(
-        db,
-        "users",
-        userId,
-        "purchases",
-        docSnap.id,
-        "items"
-      );
-      const itemsSnap = await getDocs(itemsRef);
-      itens = itemsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const itemsSnap = await getDocs(collection(db, "users", userId, "purchases", d.id, "items"));
+      itens = itemsSnap.docs.map((i) => ({ id: i.id, ...(i.data() as any) }));
     }
 
-    result.push({
-      id: docSnap.id,
-      nome: data.name ?? "",
-      createdAt: data.createdAt ?? new Date(),
-      source: data.source ?? "list",
+    const total = Number(data.total ?? itens.reduce((s, it) => s + (Number(it.preco) || 0), 0));
+    const itemCount = Number(data.itemCount ?? itens.length);
+
+    out.push({
+      id: d.id,
+      name: data.name ?? "Compra",
+      market: data.market ?? "—",
+      itens,
+      itemCount,
+      total,
+      createdAt: data.createdAtMs ?? data.createdAt ?? Date.now(),
+      source: (data.source as any) || "list",
       sourceRefId: data.sourceRefId,
       sourceRefName: data.sourceRefName,
-      market: data.market,
-      itens,
     });
   }
 
-  return result;
+  return out.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
 }
 
 /**
- * Criar compra a partir de LISTA, permitindo selecionar itens.
- * Se `selectedItemIds` vier vazio/undefined, leva TODOS os itens.
+ * Criar compra a partir de LISTA, com seleção e EXTRAS.
  */
 export async function createPurchaseFromList(params: {
   userId: string;
@@ -303,58 +312,68 @@ export async function createPurchaseFromList(params: {
   market: string;
   date: Date;
   selectedItemIds?: string[];
-}) {
-  const { userId, listId, name, market, date, selectedItemIds } = params;
+  extras?: PurchaseItem[];
+}): Promise<Purchase> {
+  const { userId, listId, name, market, selectedItemIds = [], extras = [] } = params;
 
-  // lista + nome
+  // Carrega lista + itens
   const listRef = doc(db, "users", userId, "lists", listId);
   const listSnap = await getDoc(listRef);
   const listData = (listSnap.data() || {}) as any;
   const listName = listData.name || "Lista";
 
-  // itens da lista
   let listItems = await fetchItemsFromList(userId, listId);
-  if (selectedItemIds && selectedItemIds.length) {
-    const set = new Set(selectedItemIds);
-    listItems = listItems.filter((it) => set.has(it.id));
+  if (selectedItemIds.length) {
+    const allow = new Set(selectedItemIds);
+    listItems = listItems.filter((it) => allow.has(it.id));
   }
 
-  // cria a compra (doc)
+  // Monta itens finais
+  const itens: PurchaseItem[] = [
+    ...listItems.map(({ id, comprado, ...rest }) => rest),
+    ...extras.map((e) => ({
+      nome: e.nome,
+      quantidade: e.quantidade ?? 1,
+      unidade: e.unidade ?? "un",
+      preco: Number(e.preco || 0),
+      mercado: e.mercado ?? "",
+      observacoes: e.observacoes ?? "",
+      peso: e.peso ?? undefined,
+    })),
+  ];
+
+  const total = itens.reduce((s, it) => s + (Number(it.preco) || 0), 0);
+  const itemCount = itens.length;
+
+  const createdAtMs = Date.now();
   const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
     name,
     market,
-    createdAt: date,
     source: "list",
     sourceRefId: listId,
     sourceRefName: listName,
+    itens,           // grava direto no doc
+    itemCount,
+    total,
+    createdAt: serverTimestamp(), // para ordenação no backend
+    createdAtMs,                  // para exibir imediatamente sem "Invalid Date"
   });
-
-  // subcoleção items
-  const pItemsRef = collection(
-    db,
-    "users",
-    userId,
-    "purchases",
-    pRef.id,
-    "items"
-  );
-  for (const it of listItems) {
-    const { id, comprado, ...payload } = it;
-    await addDoc(pItemsRef, payload);
-  }
 
   return {
     id: pRef.id,
-    nome: name,
-    createdAt: date,
-    source: "list" as const,
+    name,
+    market,
+    itens,
+    itemCount,
+    total,
+    createdAt: createdAtMs,
+    source: "list",
     sourceRefId: listId,
     sourceRefName: listName,
-    market,
-    itens: listItems.map(({ id, comprado, ...rest }) => rest),
   };
 }
-// Append itens a uma compra existente (subcoleção /items)
+
+// Anexar itens numa compra já criada (se precisar)
 export async function appendItemsToPurchase(params: {
   userId: string;
   purchaseId: string;
@@ -376,45 +395,36 @@ export async function appendItemsToPurchase(params: {
   }
 }
 
-// Criar compra a partir de CUPOM (scanner + parser server-side)
+// Criar compra a partir de CUPOM (scanner + parser)
 export async function createPurchaseFromReceipt(params: {
   userId: string;
   name: string;
   market: string;
   date: Date;
-  itens?: PurchaseItem[]; // itens opcional: quando vier do parser
-}) {
+  itens?: PurchaseItem[];
+}): Promise<Purchase> {
   const { userId, name, market, date, itens = [] } = params;
 
+  const createdAtMs = date?.getTime?.() || Date.now();
   const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
     name,
     market,
-    createdAt: date,
     source: "receipt",
+    itens,
+    itemCount: itens.length,
+    total: itens.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+    createdAt: serverTimestamp(),
+    createdAtMs,
   });
-
-  // Se houverem itens já parseados, grava
-  if (itens.length) {
-    const pItemsRef = collection(
-      db,
-      "users",
-      userId,
-      "purchases",
-      pRef.id,
-      "items"
-    );
-    for (const it of itens) {
-      const { id, ...payload } = it;
-      await addDoc(pItemsRef, payload);
-    }
-  }
 
   return {
     id: pRef.id,
-    nome: name,
-    createdAt: date,
-    source: "receipt" as const,
+    name,
     market,
     itens,
+    itemCount: itens.length,
+    total: itens.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+    createdAt: createdAtMs,
+    source: "receipt",
   };
 }

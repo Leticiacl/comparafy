@@ -1,199 +1,216 @@
-// src/pages/PurchaseFromList.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import BottomNav from "../components/BottomNav";
-import { useData } from "../context/DataContext";
 import { useNavigate } from "react-router-dom";
+import RoundCheck from "@/components/RoundCheck";
+import PurchaseItemModal, { PurchaseExtraItem } from "@/components/PurchaseItemModal";
+import BottomNav from "@/components/BottomNav";
+import { useData } from "@/context/DataContext";
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function toDate(d: any): Date {
-  if (!d) return new Date(0);
-  if (typeof d?.seconds === "number") return new Date(d.seconds * 1000);
-  if (typeof d === "string") return new Date(d);
-  return new Date(d);
-}
-function formatDateBR(d: any) {
-  const date = toDate(d);
-  try {
-    return date.toLocaleDateString("pt-BR");
-  } catch {
-    return "";
-  }
-}
+type ListOption = { id: string; nome: string };
+const currency = (n: number) => `R$ ${Number(n || 0).toFixed(2)}`;
 
 const PurchaseFromList: React.FC = () => {
-  const { lists, fetchUserData, fetchItems, createPurchaseFromListInContext } =
-    useData();
+  const navigate = useNavigate();
+  const { lists, fetchItems, createPurchaseFromListInContext } = useData();
+
   const [listId, setListId] = useState<string>("");
-  const [name, setName] = useState("");
-  const [market, setMarket] = useState("");
-  const [date, setDate] = useState<string>(todayISO());
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [selectAll, setSelectAll] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const nav = useNavigate();
+  const [selectAll, setSelectAll] = useState<boolean>(true);
 
+  const [extras, setExtras] = useState<PurchaseExtraItem[]>([]);
+  const [openModal, setOpenModal] = useState(false);
+
+  // seleciona primeira lista
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (lists.length && !listId) setListId(lists[0].id);
+  }, [lists]);
 
-  const currentList = useMemo(
-    () => lists.find((l) => l.id === listId),
-    [lists, listId]
-  );
-
-  // quando troca de lista, carrega itens
+  // carrega itens e marca todos
   useEffect(() => {
-    if (listId) fetchItems(listId);
+    if (!listId) return;
+    fetchItems(listId).then(() => {
+      const l = lists.find((x) => x.id === listId);
+      const next: Record<string, boolean> = {};
+      (l?.itens || []).forEach((it) => (next[it.id] = true));
+      setSelected(next);
+      setSelectAll(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
 
-  // controlar Select All
-  useEffect(() => {
-    if (!currentList) return;
-    const next: Record<string, boolean> = {};
-    for (const it of currentList.itens || []) next[it.id] = selectAll;
-    setSelected(next);
-  }, [selectAll, currentList?.id]);
+  const options: ListOption[] = useMemo(
+    () => lists.map((l) => ({ id: l.id, nome: l.nome })),
+    [lists]
+  );
+  const list = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
 
-  const toggleItem = (id: string) => {
-    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleItem = (id: string, val: boolean) => {
+    const next = { ...selected, [id]: val };
+    setSelected(next);
+    setSelectAll((list?.itens || []).every((it) => next[it.id]));
   };
 
-  const canCreate =
-    listId && name.trim() && market.trim() && date && currentList;
+  const toggleAll = (val: boolean) => {
+    setSelectAll(val);
+    const map: Record<string, boolean> = {};
+    (list?.itens || []).forEach((it) => (map[it.id] = val));
+    setSelected(map);
+  };
+
+  const selectedCount = useMemo(
+    () => Object.values(selected).filter(Boolean).length,
+    [selected]
+  );
+
+  const totalSelected = useMemo(() => {
+    const ids = new Set(Object.entries(selected).filter(([, v]) => v).map(([k]) => k));
+    return (list?.itens || [])
+      .filter((it) => ids.has(it.id))
+      .reduce((sum, it) => sum + (Number(it.preco) || 0), 0);
+  }, [selected, list]);
+
+  const extrasTotal = useMemo(
+    () => extras.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+    [extras]
+  );
+
+  const grandTotal = totalSelected + extrasTotal;
+
+  const addExtra = (item: PurchaseExtraItem) => setExtras((prev) => [...prev, item]);
+  const removeExtra = (idx: number) => setExtras((prev) => prev.filter((_, i) => i !== idx));
 
   const handleCreate = async () => {
-    if (!canCreate) return;
-    try {
-      setLoading(true);
-      const selectedItemIds = Object.entries(selected)
-        .filter(([, v]) => v)
-        .map(([k]) => k);
+    if (!list) return;
 
-      await createPurchaseFromListInContext({
-        listId,
-        name: name.trim(),
-        market: market.trim(),
-        date: new Date(date),
-        selectedItemIds, // se vazio, o service leva todos
-      });
+    const ids = Object.entries(selected)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
 
-      alert("Compra criada a partir da lista.");
-      nav("/purchases");
-    } finally {
-      setLoading(false);
-    }
+    await createPurchaseFromListInContext({
+      listId: list.id,
+      name: list.nome,
+      market: list.market ?? "—",
+      date: new Date(),
+      selectedItemIds: ids,
+      extras, // <<< será persistido
+    });
+
+    navigate("/purchases");
   };
 
   return (
-    <div className="p-4 pb-28 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Compra de lista</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8" />
+    <div className="max-w-xl mx-auto bg-white p-4 pb-32">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-3xl font-extrabold text-gray-900">Compra de uma lista</h1>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
       </div>
 
-      <div className="mt-4 border rounded-xl p-4 space-y-3">
-        <label className="block text-sm text-gray-700">Selecione a lista</label>
-        <select
-          className="w-full border rounded-lg px-3 py-2"
-          value={listId}
-          onChange={(e) => setListId(e.target.value)}
+      {/* Seleção de lista */}
+      <label className="mb-2 block font-medium text-gray-800">Selecione a lista</label>
+      <select
+        value={listId}
+        onChange={(e) => setListId(e.target.value)}
+        className="mb-6 w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.nome}
+          </option>
+        ))}
+      </select>
+
+      {/* Selecionar tudo */}
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Itens da lista</h2>
+        <button
+          type="button"
+          onClick={() => toggleAll(!selectAll)}
+          className="flex items-center gap-2 text-gray-700"
         >
-          <option value="">-- Escolha uma lista --</option>
-          {lists.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.nome} • {formatDateBR(l.createdAt)}
-            </option>
-          ))}
-        </select>
-
-        <label className="block text-sm text-gray-700">Nome da compra</label>
-        <input
-          className="w-full border rounded-lg px-3 py-2"
-          placeholder="Ex.: Compra do mês"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <label className="block text-sm text-gray-700">Mercado</label>
-        <input
-          className="w-full border rounded-lg px-3 py-2"
-          placeholder="Ex.: Carrefour"
-          value={market}
-          onChange={(e) => setMarket(e.target.value)}
-        />
-
-        <label className="block text-sm text-gray-700">Data</label>
-        <input
-          type="date"
-          className="w-full border rounded-lg px-3 py-2"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+          <RoundCheck checked={selectAll} onChange={toggleAll} size={20} />
+          <span>Selecionar tudo</span>
+        </button>
       </div>
 
-      {/* Itens da lista com selecionar tudo */}
-      {currentList && (
-        <div className="mt-6 border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Itens da lista</h2>
-            <label className="text-sm flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={selectAll}
-                onChange={(e) => setSelectAll(e.target.checked)}
+      {/* Itens da lista */}
+      <ul className="mb-6 space-y-2">
+        {(list?.itens || []).map((it) => {
+          const checked = !!selected[it.id];
+          return (
+            <li
+              key={it.id}
+              className="flex items-start gap-3 rounded-xl border border-gray-200 p-4 active:scale-[.995]"
+              onClick={() => toggleItem(it.id, !checked)}
+            >
+              <RoundCheck
+                checked={checked}
+                onChange={(val) => toggleItem(it.id, val)}
+                size={24}
+                className="mt-1"
               />
-              Selecionar tudo
-            </label>
-          </div>
+              <div className="flex-1">
+                <div className="text-lg font-semibold text-gray-900">{it.nome}</div>
+                <div className="text-sm text-gray-500">
+                  {it.peso ? `${it.peso} ${it.unidade ?? ""}` : `${it.quantidade ?? 1} ${it.unidade || "un"}`} ·{" "}
+                  {currency(Number(it.preco) || 0)}
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-gray-900">{currency(Number(it.preco) || 0)}</div>
+            </li>
+          );
+        })}
+      </ul>
 
-          {(currentList.itens || []).length === 0 ? (
-            <p className="text-gray-500">Lista sem itens.</p>
-          ) : (
-            <ul className="space-y-2">
-              {currentList.itens.map((it) => {
-                const total = Number(it.preco || 0) * Number(it.quantidade || 1);
-                return (
-                  <li
-                    key={it.id}
-                    className="flex items-center justify-between border rounded-lg px-3 py-2"
-                  >
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={!!selected[it.id]}
-                        onChange={() => toggleItem(it.id)}
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800">
-                          {it.nome} {it.peso ? `· ${it.peso}${it.unidade || ""}` : ""}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {it.quantidade}x • UN R$ {Number(it.preco || 0).toFixed(2)}
-                        </div>
-                      </div>
-                    </label>
-                    <div className="text-sm font-semibold">
-                      R$ {total.toFixed(2)}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+      {/* Itens extras */}
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Itens extras</h2>
+        <button onClick={() => setOpenModal(true)} className="font-semibold text-yellow-600">
+          + Adicionar
+        </button>
+      </div>
+
+      {extras.length > 0 && (
+        <ul className="mb-6 space-y-2">
+          {extras.map((ex, i) => (
+            <li key={i} className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
+              <div>
+                <div className="font-medium text-gray-800">{ex.nome}</div>
+                <div className="text-sm text-gray-500">
+                  {ex.quantidade ?? 1}x {ex.peso ? `• ${ex.peso} ${ex.unidade}` : `• ${ex.unidade}`} • {currency(ex.preco)}
+                </div>
+              </div>
+              <button onClick={() => removeExtra(i)} className="text-sm text-red-600">
+                Remover
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
+      {/* Resumo */}
+      <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3">
+        <div className="text-sm text-gray-600">
+          {selectedCount}/{list?.itens?.length ?? 0} itens
+        </div>
+        <div className="text-sm font-semibold text-gray-900">{currency(grandTotal)}</div>
+      </div>
+
       <button
-        className="w-full mt-6 bg-yellow-500 text-black py-3 rounded-xl font-medium shadow disabled:opacity-50"
         onClick={handleCreate}
-        disabled={!canCreate || loading}
+        className="mb-6 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black"
       >
-        {loading ? "Criando..." : "Criar compra"}
+        Criar compra
       </button>
 
       <BottomNav activeTab="purchases" />
+
+      {/* Modal */}
+      <PurchaseItemModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        onConfirm={addExtra}
+        title="Adicionar Item"
+      />
     </div>
   );
 };

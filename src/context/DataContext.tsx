@@ -281,7 +281,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userId = getStoredUserId();
     if (!userId) throw new Error("missing-user");
     const p = await createPurchaseFromList({ userId, ...params });
-    setPurchases((prev) => [p, ...prev]);
+setPurchases((prev) => [p, ...prev]);
   };
 
   const createPurchaseFromReceiptInContext = async (params: {

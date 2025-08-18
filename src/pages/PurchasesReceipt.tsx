@@ -1,194 +1,154 @@
-// src/pages/PurchasesReceipt.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { useData } from "../context/DataContext";
-import { BrowserQRCodeReader, IScannerControls } from "@zxing/browser";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 
-function isLikelyNfceUrl(text: string) {
-  try {
-    const u = new URL(text);
-    const host = u.hostname.toLowerCase();
-    // Portais comuns (cada UF tem um)
-    return (
-      host.includes("sefaz") ||
-      host.includes("fazenda") ||
-      host.includes("nfe") ||
-      host.includes("nfce")
-    );
-  } catch {
-    return false;
-  }
-}
+// Import dinâmico resiliente ao pacote (@yudiel/react-qr-scanner)
+const QrAny = React.lazy(async () => {
+  const m: any = await import("@yudiel/react-qr-scanner");
+  return { default: m.QrScanner || m.Scanner || m.default };
+});
 
-function guessMarketFromHost(host: string) {
-  // nome simples a partir do host do portal da NFC-e
-  const h = host.toLowerCase();
-  if (h.includes("mg") || h.includes("minas")) return "NFC-e MG";
-  if (h.includes("sp") || h.includes("paul")) return "NFC-e SP";
-  if (h.includes("rj")) return "NFC-e RJ";
-  if (h.includes("rs")) return "NFC-e RS";
-  return "NFC-e";
-}
+const endpoint = import.meta.env.VITE_PARSE_NFCE_URL as string | undefined;
+
+type ParsedItem = {
+  nome: string;
+  quantidade: number;
+  unidade: string;
+  preco: number;
+  mercado?: string;
+};
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const PurchasesReceipt: React.FC = () => {
   const navigate = useNavigate();
-  const { createPurchaseFromReceiptInContext, appendItemsToPurchaseInContext } = useData() as any;
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
+  const { createPurchaseFromReceiptInContext } = useData();
 
-  const [scanning, setScanning] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [scanUrl, setScanUrl] = React.useState<string>("");
+  const [loading, setLoading] = React.useState(false);
+  const [items, setItems] = React.useState<ParsedItem[]>([]);
+  const [name, setName] = React.useState("Compra via QR Code");
+  const [market, setMarket] = React.useState("");
+  const [date, setDate] = React.useState(todayISO());
 
-  // inicia scanner
-  const startScan = async () => {
+  const handleDecode = async (text: string) => {
+    if (!text || text === scanUrl) return;
+    setScanUrl(text);
+    if (!endpoint) {
+      toast.error("Configure VITE_PARSE_NFCE_URL no .env");
+      return;
+    }
+    setLoading(true);
     try {
-      setScanning(true);
-      const reader = new BrowserQRCodeReader();
-      controlsRef.current = await reader.decodeFromVideoDevice(
-        undefined, // câmera padrão (traseira em mobile)
-        videoRef.current!,
-        (result, err, controls) => {
-          if (result) {
-            controls.stop();
-            controlsRef.current = null;
-            setScanning(false);
-            handleDecoded(result.getText());
-          }
-          // ignore 'err' de frames sem QR
-        }
-      );
+      const resp = await fetch(`${endpoint}?url=${encodeURIComponent(text)}`);
+      const json = await resp.json();
+      if (!json?.items?.length) {
+        toast.error("Não foi possível ler itens da NFC-e.");
+        return;
+      }
+      setItems(json.items as ParsedItem[]);
+      toast.success(`Itens carregados (${json.items.length})`);
     } catch (e) {
       console.error(e);
-      setScanning(false);
-      toast.error("Não foi possível acessar a câmera.");
+      toast.error("Falha ao consultar a NFC-e.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const stopScan = () => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-    setScanning(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      // cleanup ao sair
-      controlsRef.current?.stop();
-    };
-  }, []);
-
-  // quando decodificar o QR
-  const handleDecoded = async (text: string) => {
+  const handleSave = async () => {
+    if (!items.length) {
+      toast.error("Nenhum item para salvar.");
+      return;
+    }
+    setLoading(true);
     try {
-      if (!isLikelyNfceUrl(text)) {
-        toast.error("QR lido não parece ser de uma NFC-e.");
-        return;
-      }
-
-      const u = new URL(text);
-      const market = guessMarketFromHost(u.hostname);
-      const name = "Compra (QR Code)";
-      const date = new Date();
-
-      setBusy(true);
-
-      // cria a compra vazia primeiro
       await createPurchaseFromReceiptInContext({
-        name,
+        name: name || "Compra",
         market,
-        date,
+        date: new Date(date),
+        itens: items,
       });
-
-      // chama a função de parsing (Cloud Function ou outro endpoint)
-      const endpoint =
-        import.meta.env.VITE_PARSE_NFCE_URL ||
-        import.meta.env.VITE_FUNCTIONS_PARSE_NFCE_URL; // use qualquer uma configurada
-
-      if (!endpoint) {
-        setBusy(false);
-        toast("Compra criada. Configure VITE_PARSE_NFCE_URL para importar itens.");
-        navigate("/purchases");
-        return;
-      }
-
-      const resp = await fetch(`${endpoint}?url=${encodeURIComponent(text)}`);
-      if (!resp.ok) {
-        throw new Error("Falha ao chamar o parser");
-      }
-      const data = await resp.json();
-
-      // data.items = [{ nome, quantidade, unidade, preco }]
-      const items = Array.isArray(data.items) ? data.items : [];
-
-      if (!items.length) {
-        setBusy(false);
-        toast("Compra criada, mas não encontrei itens na nota.");
-        navigate("/purchases");
-        return;
-      }
-
-      // adiciona itens à última compra criada (no topo da lista)
-      const createdId = await appendItemsToPurchaseInContext(items);
-      setBusy(false);
-      toast.success("Compra criada a partir do QR Code!");
+      toast.success("Compra salva!");
       navigate("/purchases");
     } catch (e) {
       console.error(e);
-      setBusy(false);
-      toast.error("Erro ao processar o QR Code.");
+      toast.error("Erro ao salvar compra.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-4 pb-28 max-w-xl mx-auto bg-white">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Nova compra (QR Code)</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8" />
+    <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Importar via QR Code</h1>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
       </div>
 
-      <div className="space-y-4">
-        <div className="rounded-xl border border-gray-200 p-4">
-          <p className="text-gray-600 mb-3">
-            Aponte a câmera para o QR Code da sua nota fiscal eletrônica (NFC-e).
-          </p>
+      {/* Scanner */}
+      <div className="rounded-xl overflow-hidden border border-gray-200">
+        <React.Suspense fallback={<div className="p-6 text-center">Abrindo câmera…</div>}>
+          <QrAny
+            onDecode={handleDecode}
+            onError={(err: any) => {
+              console.error(err);
+              toast.error("Erro na câmera/permits.");
+            }}
+            constraints={{ facingMode: "environment" }}
+            containerStyle={{ width: "100%", minHeight: 240 }}
+          />
+        </React.Suspense>
+      </div>
 
-          <div className="aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
-            <video ref={videoRef} className="w-full h-full" muted playsInline />
-          </div>
+      {/* Dados da compra */}
+      <div className="space-y-3">
+        <input
+          placeholder="Nome da compra"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full border rounded-xl px-4 py-2"
+        />
+        <input
+          placeholder="Mercado (opcional)"
+          value={market}
+          onChange={(e) => setMarket(e.target.value)}
+          className="w-full border rounded-xl px-4 py-2"
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full border rounded-xl px-4 py-2"
+        />
+      </div>
 
-          <div className="flex gap-2 mt-3">
-            {!scanning ? (
-              <button
-                onClick={startScan}
-                className="flex-1 bg-yellow-500 text-black font-medium py-2 rounded-lg"
-              >
-                Iniciar scanner
-              </button>
-            ) : (
-              <button
-                onClick={stopScan}
-                className="flex-1 bg-gray-200 text-gray-800 font-medium py-2 rounded-lg"
-              >
-                Parar
-              </button>
-            )}
-            <button
-              onClick={() => navigate(-1)}
-              className="px-4 py-2 rounded-lg border"
-            >
-              Voltar
-            </button>
-          </div>
+      {/* Itens lidos */}
+      {items.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Itens importados</h2>
+          <ul className="divide-y rounded-xl border border-gray-200">
+            {items.map((it, idx) => (
+              <li key={idx} className="p-3">
+                <div className="font-medium text-gray-800">{it.nome}</div>
+                <div className="text-xs text-gray-500">
+                  {it.quantidade} {it.unidade} · R$ {it.preco.toFixed(2)}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
+      )}
 
-        {busy && (
-          <div className="text-center text-sm text-gray-600">
-            Processando itens da nota…
-          </div>
-        )}
-      </div>
+      <button
+        disabled={loading || !items.length}
+        onClick={handleSave}
+        className="w-full bg-yellow-500 disabled:opacity-60 px-4 py-3 rounded-xl text-black font-semibold"
+      >
+        {loading ? "Salvando..." : "Salvar compra"}
+      </button>
 
       <BottomNav activeTab="purchases" />
     </div>
