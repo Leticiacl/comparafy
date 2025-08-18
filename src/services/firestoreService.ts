@@ -1,3 +1,4 @@
+// src/services/firestoreService.ts
 import {
   collection,
   addDoc,
@@ -9,6 +10,32 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
+
+/* =========================================================
+ * TIPOS
+ * =======================================================*/
+
+export type PurchaseItem = {
+  id?: string;
+  nome: string;
+  quantidade?: number;
+  unidade?: string;
+  preco: number;
+  mercado?: string;
+  observacoes?: string;
+  peso?: number;
+};
+
+export type Purchase = {
+  id: string;
+  nome?: string; // nome da compra
+  createdAt: any;
+  source: "list" | "receipt";
+  sourceRefId?: string;
+  sourceRefName?: string;
+  market?: string;
+  itens: PurchaseItem[];
+};
 
 /* =========================================================
  * LISTAS
@@ -26,6 +53,7 @@ export async function fetchUserLists(userId: string) {
         id: docSnap.id,
         nome: data.name || "Sem nome",
         createdAt: data.createdAt || null,
+        market: data.market || "",
         itens: items,
       };
     })
@@ -33,12 +61,15 @@ export async function fetchUserLists(userId: string) {
   return lists;
 }
 
-// Criar nova lista (apenas nome + createdAt)
+// Criar nova lista (apenas nome, como combinado)
 export async function createNewList(userId: string, name: string) {
   const trimmed = name.trim();
-  const createdAt = new Date();
   const listsRef = collection(db, "users", userId, "lists");
-  const newDoc = await addDoc(listsRef, { name: trimmed, createdAt });
+  const createdAt = new Date();
+  const newDoc = await addDoc(listsRef, {
+    name: trimmed,
+    createdAt,
+  });
   return {
     id: newDoc.id,
     nome: trimmed,
@@ -85,7 +116,9 @@ export async function toggleItemPurchased(
 ) {
   const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   const itemSnap = await getDoc(itemRef);
-  const current = itemSnap.exists() ? (itemSnap.data() as any).purchased : false;
+  const current = itemSnap.exists()
+    ? (itemSnap.data() as any).purchased
+    : false;
   await updateDoc(itemRef, { purchased: !current });
   return { comprado: !current };
 }
@@ -107,8 +140,15 @@ export async function addItemToList(
   item: any
 ) {
   const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const docRef = await addDoc(itemsRef, { ...item, purchased: false });
-  return { id: docRef.id, ...item, comprado: false };
+  const docRef = await addDoc(itemsRef, {
+    ...item,
+    purchased: false,
+  });
+  return {
+    id: docRef.id,
+    ...item,
+    comprado: false,
+  };
 }
 
 // Atualizar/merge de um item
@@ -128,7 +168,9 @@ export async function updateItem(
 ) {
   const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   const snap = await getDoc(itemRef);
-  const existingPurchased = snap.exists() ? (snap.data() as any).purchased : false;
+  const existingPurchased = snap.exists()
+    ? (snap.data() as any).purchased
+    : false;
   await setDoc(
     itemRef,
     {
@@ -145,7 +187,7 @@ export async function updateItem(
   );
 }
 
-// Sugestões – salvar/buscar
+// Sugestões (autocomplete)
 export async function saveSuggestion(
   userId: string,
   field: string,
@@ -176,7 +218,7 @@ export async function deleteListFromFirestore(
   await deleteDoc(listRef);
 }
 
-// Duplicar lista (copiando os itens)
+// Duplicar lista (inclui itens)
 export async function duplicateList(userId: string, originalListId: string) {
   const originalRef = doc(db, "users", userId, "lists", originalListId);
   const originalSnap = await getDoc(originalRef);
@@ -191,13 +233,13 @@ export async function duplicateList(userId: string, originalListId: string) {
   const items = await fetchItemsFromList(userId, originalListId);
   const itemsRef = collection(db, "users", userId, "lists", newRef.id, "items");
   for (const item of items) {
-    const { id, ...rest } = item;
+    const { id, comprado, ...rest } = item;
     await addDoc(itemsRef, rest);
   }
   return newRef.id;
 }
 
-// ✅ REPOSTO: Marcar todos os itens da lista como comprados
+// Marcar todos como comprados
 export async function markAllItemsPurchased(userId: string, listId: string) {
   const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
@@ -210,29 +252,7 @@ export async function markAllItemsPurchased(userId: string, listId: string) {
  * COMPRAS
  * =======================================================*/
 
-export type PurchaseItem = {
-  id?: string;
-  nome: string;
-  quantidade?: number;
-  unidade?: string;
-  preco: number;
-  mercado?: string;
-  observacoes?: string;
-  peso?: number;
-};
-
-export type Purchase = {
-  id: string;
-  nome?: string;
-  createdAt: any;
-  source: "list" | "receipt";
-  sourceRefId?: string;
-  sourceRefName?: string;
-  market?: string;
-  itens: PurchaseItem[];
-};
-
-// Buscar compras do usuário
+// Buscar compras
 export async function fetchPurchasesForUser(
   userId: string
 ): Promise<Purchase[]> {
@@ -272,23 +292,34 @@ export async function fetchPurchasesForUser(
   return result;
 }
 
-// Criar compra a partir de LISTA (copia os itens)
+/**
+ * Criar compra a partir de LISTA, permitindo selecionar itens.
+ * Se `selectedItemIds` vier vazio/undefined, leva TODOS os itens.
+ */
 export async function createPurchaseFromList(params: {
   userId: string;
   listId: string;
   name: string;
   market: string;
   date: Date;
+  selectedItemIds?: string[];
 }) {
-  const { userId, listId, name, market, date } = params;
+  const { userId, listId, name, market, date, selectedItemIds } = params;
 
+  // lista + nome
   const listRef = doc(db, "users", userId, "lists", listId);
   const listSnap = await getDoc(listRef);
   const listData = (listSnap.data() || {}) as any;
   const listName = listData.name || "Lista";
 
-  const listItems = await fetchItemsFromList(userId, listId);
+  // itens da lista
+  let listItems = await fetchItemsFromList(userId, listId);
+  if (selectedItemIds && selectedItemIds.length) {
+    const set = new Set(selectedItemIds);
+    listItems = listItems.filter((it) => set.has(it.id));
+  }
 
+  // cria a compra (doc)
   const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
     name,
     market,
@@ -298,6 +329,7 @@ export async function createPurchaseFromList(params: {
     sourceRefName: listName,
   });
 
+  // subcoleção items
   const pItemsRef = collection(
     db,
     "users",
@@ -307,7 +339,7 @@ export async function createPurchaseFromList(params: {
     "items"
   );
   for (const it of listItems) {
-    const { id, ...payload } = it;
+    const { id, comprado, ...payload } = it;
     await addDoc(pItemsRef, payload);
   }
 
@@ -319,18 +351,40 @@ export async function createPurchaseFromList(params: {
     sourceRefId: listId,
     sourceRefName: listName,
     market,
-    itens: listItems,
+    itens: listItems.map(({ id, comprado, ...rest }) => rest),
   };
 }
+// Append itens a uma compra existente (subcoleção /items)
+export async function appendItemsToPurchase(params: {
+  userId: string;
+  purchaseId: string;
+  items: PurchaseItem[];
+}) {
+  const { userId, purchaseId, items } = params;
+  const itemsRef = collection(db, "users", userId, "purchases", purchaseId, "items");
+  for (const it of items) {
+    const payload = {
+      nome: it.nome,
+      quantidade: it.quantidade ?? 1,
+      unidade: it.unidade ?? "",
+      preco: it.preco ?? 0,
+      mercado: it.mercado ?? "",
+      observacoes: it.observacoes ?? "",
+      peso: it.peso ?? null,
+    };
+    await addDoc(itemsRef, payload);
+  }
+}
 
-// Criar compra a partir de CUPOM
+// Criar compra a partir de CUPOM (scanner + parser server-side)
 export async function createPurchaseFromReceipt(params: {
   userId: string;
   name: string;
   market: string;
   date: Date;
+  itens?: PurchaseItem[]; // itens opcional: quando vier do parser
 }) {
-  const { userId, name, market, date } = params;
+  const { userId, name, market, date, itens = [] } = params;
 
   const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
     name,
@@ -339,12 +393,28 @@ export async function createPurchaseFromReceipt(params: {
     source: "receipt",
   });
 
+  // Se houverem itens já parseados, grava
+  if (itens.length) {
+    const pItemsRef = collection(
+      db,
+      "users",
+      userId,
+      "purchases",
+      pRef.id,
+      "items"
+    );
+    for (const it of itens) {
+      const { id, ...payload } = it;
+      await addDoc(pItemsRef, payload);
+    }
+  }
+
   return {
     id: pRef.id,
     nome: name,
     createdAt: date,
     source: "receipt" as const,
     market,
-    itens: [],
+    itens,
   };
 }

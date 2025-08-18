@@ -1,5 +1,8 @@
+// src/App.tsx
 import React from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./services/firebase";
 
 // Páginas
 import Dashboard from "./pages/Dashboard";
@@ -20,18 +23,60 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Register from "./pages/Register";
 
-/* -------- helpers -------- */
-/** Só considera o usuário logado se TAMBÉM existir authType.
-    Isso evita “sessões fantasmas” e garante exibir Onboarding/Login
-    quando não estiver realmente autenticado. */
-function getStoredUserId(): string | null {
-  const id = sessionStorage.getItem("userId");
-  const authType = sessionStorage.getItem("authType"); // 'email' | 'google' | 'anonymous'
-  if (!id || !authType) return null;
-  return id;
+/* ------------ helpers ------------- */
+function cleanBadSession() {
+  const bad = new Set(["", "undefined", "null"]);
+  const v1 = sessionStorage.getItem("userId");
+  if (v1 && bad.has(v1)) sessionStorage.removeItem("userId");
+  const v2 = sessionStorage.getItem("user");
+  if (v2 && bad.has(v2)) sessionStorage.removeItem("user");
 }
 
-/* -------- guards -------- */
+function looksLikeUid(s: string | null) {
+  return !!s && /^[A-Za-z0-9_-]{10,}$/.test(s);
+}
+
+function getStoredUserId(): string | null {
+  cleanBadSession();
+
+  const direct = sessionStorage.getItem("userId");
+  if (looksLikeUid(direct)) return direct!;
+
+  const raw = sessionStorage.getItem("user");
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    const uid = obj?.uid || obj?.id || obj?.userId || null;
+    return looksLikeUid(uid) ? uid : null;
+  } catch {
+    // se salvaram o UID puro como string
+    return looksLikeUid(raw) ? raw : null;
+  }
+}
+
+/* ---------- bootstrap de auth --------- */
+const AuthBootstrap: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user?.uid) {
+        sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
+        sessionStorage.setItem("userId", user.uid);
+      } else {
+        sessionStorage.removeItem("user");
+        sessionStorage.removeItem("userId");
+      }
+      setReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  if (!ready) return null; // pode trocar por um splash se quiser
+  return <>{children}</>;
+};
+
+/* -------------- guards --------------- */
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const uid = getStoredUserId();
   if (!uid) return <Navigate to="/onboarding" replace />;
@@ -44,21 +89,26 @@ const PublicOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children 
   return children;
 };
 
-// convenience: rolar pro topo na navegação
+/* ----------- util ---------- */
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
   React.useEffect(() => window.scrollTo(0, 0), [pathname]);
   return null;
 };
 
-const App: React.FC = () => {
+/* Se não estiver logada, "/" manda para /onboarding; senão mostra Dashboard */
+const RootIndex: React.FC = () => {
   const uid = getStoredUserId();
+  return uid ? <Dashboard /> : <Navigate to="/onboarding" replace />;
+};
 
+/* -------------- App --------------- */
+const App: React.FC = () => {
   return (
-    <>
+    <AuthBootstrap>
       <ScrollToTop />
       <Routes>
-        {/* PRÉ-LOGIN */}
+        {/* pré-login */}
         <Route
           path="/onboarding"
           element={
@@ -95,15 +145,10 @@ const App: React.FC = () => {
         {/* público livre */}
         <Route path="/terms" element={<Terms />} />
 
-        {/* PROTEGIDAS */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+        {/* index decide */}
+        <Route path="/" element={<RootIndex />} />
+
+        {/* protegidas */}
         <Route
           path="/lists"
           element={
@@ -178,9 +223,9 @@ const App: React.FC = () => {
         />
 
         {/* fallback */}
-        <Route path="*" element={<Navigate to={uid ? "/" : "/onboarding"} replace />} />
+        <Route path="*" element={<RootIndex />} />
       </Routes>
-    </>
+    </AuthBootstrap>
   );
 };
 
