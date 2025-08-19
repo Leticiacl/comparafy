@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import PageHeader from "../components/ui/PageHeader";
 import RoundCheck from "@/components/RoundCheck";
 import PurchaseItemModal, { PurchaseExtraItem } from "@/components/PurchaseItemModal";
 import BottomNav from "@/components/BottomNav";
@@ -10,7 +12,9 @@ const currency = (n: number) => `R$ ${Number(n || 0).toFixed(2)}`;
 
 const PurchaseFromList: React.FC = () => {
   const navigate = useNavigate();
-  const { lists, fetchItems, createPurchaseFromListInContext } = useData();
+
+  // ✅ AQUI estava o problema: incluir fetchPurchases
+  const { lists, fetchItems, fetchPurchases, createPurchaseFromListInContext } = useData();
 
   const [listId, setListId] = useState<string>("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -19,12 +23,10 @@ const PurchaseFromList: React.FC = () => {
   const [extras, setExtras] = useState<PurchaseExtraItem[]>([]);
   const [openModal, setOpenModal] = useState(false);
 
-  // seleciona primeira lista
   useEffect(() => {
     if (lists.length && !listId) setListId(lists[0].id);
-  }, [lists]);
+  }, [lists, listId]);
 
-  // carrega itens e marca todos
   useEffect(() => {
     if (!listId) return;
     fetchItems(listId).then(() => {
@@ -79,33 +81,42 @@ const PurchaseFromList: React.FC = () => {
   const removeExtra = (idx: number) => setExtras((prev) => prev.filter((_, i) => i !== idx));
 
   const handleCreate = async () => {
-    if (!list) return;
+    try {
+      if (!list) return;
 
-    const ids = Object.entries(selected)
-      .filter(([, v]) => v)
-      .map(([k]) => k);
+      const ids = Object.entries(selected)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
 
-    await createPurchaseFromListInContext({
-      listId: list.id,
-      name: list.nome,
-      market: list.market ?? "—",
-      date: new Date(),
-      selectedItemIds: ids,
-      extras, // <<< será persistido
-    });
+      const created = await createPurchaseFromListInContext({
+        listId: list.id,
+        name: list.nome,
+        market: list.market ?? "—",
+        date: new Date(),
+        selectedItemIds: ids,
+        extras,
+      });
 
-    navigate("/purchases");
+      // Atualiza a store e navega
+      await fetchPurchases();
+      toast.success("Compra criada!");
+
+      if (created?.id) {
+        navigate(`/purchases/${created.id}`);
+      } else {
+        navigate("/purchases");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível criar a compra");
+      navigate("/purchases");
+    }
   };
 
   return (
     <div className="max-w-xl mx-auto bg-white p-4 pb-32">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-extrabold text-gray-900">Compra de uma lista</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
-      </div>
+      <PageHeader title="Compra de uma lista" />
 
-      {/* Seleção de lista */}
       <label className="mb-2 block font-medium text-gray-800">Selecione a lista</label>
       <select
         value={listId}
@@ -119,7 +130,6 @@ const PurchaseFromList: React.FC = () => {
         ))}
       </select>
 
-      {/* Selecionar tudo */}
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Itens da lista</h2>
         <button
@@ -132,7 +142,6 @@ const PurchaseFromList: React.FC = () => {
         </button>
       </div>
 
-      {/* Itens da lista */}
       <ul className="mb-6 space-y-2">
         {(list?.itens || []).map((it) => {
           const checked = !!selected[it.id];
@@ -161,7 +170,6 @@ const PurchaseFromList: React.FC = () => {
         })}
       </ul>
 
-      {/* Itens extras */}
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Itens extras</h2>
         <button onClick={() => setOpenModal(true)} className="font-semibold text-yellow-600">
@@ -187,7 +195,6 @@ const PurchaseFromList: React.FC = () => {
         </ul>
       )}
 
-      {/* Resumo */}
       <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3">
         <div className="text-sm text-gray-600">
           {selectedCount}/{list?.itens?.length ?? 0} itens
@@ -204,11 +211,10 @@ const PurchaseFromList: React.FC = () => {
 
       <BottomNav activeTab="purchases" />
 
-      {/* Modal */}
       <PurchaseItemModal
         open={openModal}
         onClose={() => setOpenModal(false)}
-        onConfirm={addExtra}
+        onConfirm={setExtras}
         title="Adicionar Item"
       />
     </div>

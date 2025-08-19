@@ -269,13 +269,12 @@ export async function markAllItemsPurchased(userId: string, listId: string) {
 // Buscar compras
 export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]> {
   const purchasesRef = collection(db, "users", userId, "purchases");
-  const qs = await getDocs(query(purchasesRef, where("name", ">=", "")));
+  const snap = await getDocs(purchasesRef);
 
   const out: Purchase[] = [];
-  for (const d of qs.docs) {
+  for (const d of snap.docs) {
     const data = d.data() as any;
 
-    // Tenta ler itens do campo "itens"; se não houver, busca subcoleção /items
     let itens: PurchaseItem[] = Array.isArray(data.itens) ? data.itens : [];
     if (!itens.length) {
       const itemsSnap = await getDocs(collection(db, "users", userId, "purchases", d.id, "items"));

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react'
 import { useData, Item } from '../context/DataContext'
 import BottomNav from '../components/BottomNav'
 import { normalizeString } from '../utils/normalizeString'
+import PageHeader from "../components/ui/PageHeader";
 
 interface FlatItem extends Item {
   listName: string

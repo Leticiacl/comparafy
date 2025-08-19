@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import BottomNav from '../components/BottomNav';
+import PageHeader from "../components/ui/PageHeader";
 
 const Scanner: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -41,9 +42,7 @@ const Scanner: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <div className="flex justify-between items-center p-4">
-        <h1 className="text-xl font-bold">Scanner</h1>
-      </div>
+      <PageHeader title="Scanner" />
       <div className="flex-1 px-4 flex flex-col items-center justify-center text-gray-500">
         <video ref={videoRef} className="border w-full max-w-md mb-4" muted playsInline />
         <p>{status}</p>

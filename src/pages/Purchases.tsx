@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import { useData } from "@/context/DataContext";
 
@@ -27,20 +28,19 @@ const Purchases: React.FC = () => {
 
   return (
     <div className="p-4 pb-28 max-w-xl mx-auto bg-white">
-      {/* Header no mesmo padrão de Listas */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-extrabold text-gray-900">Compras</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
-      </div>
+      <PageHeader title="Compras" />
 
-      {/* Botão igual ao de Listas */}
-      <button
-        onClick={() => navigate("/purchases/new")}
-        className="w-full bg-yellow-500 hover:bg-yellow-500/90 text-black font-semibold py-3 rounded-xl mb-4 flex items-center justify-center gap-2"
+      <Link
+        to="/purchases/new"
+        className="w-full bg-yellow-500 hover:bg-yellow-500/90 text-black font-medium py-3 rounded-xl mb-4 flex items-center justify-center gap-2"
       >
         <span className="text-xl">+</span>
         <span>Nova compra</span>
-      </button>
+      </Link>
+
+      {purchases.length === 0 && (
+        <div className="text-sm text-gray-500 px-1 mb-2">Nenhuma compra ainda.</div>
+      )}
 
       <div className="space-y-3">
         {purchases.map((p) => {
@@ -52,21 +52,22 @@ const Purchases: React.FC = () => {
             ) ??
             0;
 
-        return (
-          <button
-            key={p.id}
-            onClick={() => p.id && navigate(`/purchases/${p.id}`)}
-            className="w-full text-left rounded-2xl border border-gray-200 p-4 active:scale-[0.99] transition bg-white"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold text-gray-900">{p.name || "Compra"}</div>
-              <div className="text-gray-900 font-semibold">{currency(total)}</div>
-            </div>
-            <div className="mt-1 text-sm text-gray-500">
-              {fmtDate(p.createdAt)} · {p.market || "—"} · {p.itemCount ?? p.itens?.length ?? 0} itens
-            </div>
-          </button>
-        )})}
+          return (
+            <button
+              key={p.id}
+              onClick={() => p.id && navigate(`/purchases/${p.id}`)}
+              className="w-full text-left rounded-2xl border border-gray-200 p-4 active:scale-[0.99] transition bg-white"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-lg font-semibold text-gray-900">{p.name || "Compra"}</div>
+                <div className="text-gray-900 font-semibold">{currency(total)}</div>
+              </div>
+              <div className="mt-1 text-sm text-gray-500">
+                {fmtDate(p.createdAt)} · {p.market || "—"} · {p.itemCount ?? p.itens?.length ?? 0} itens
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <BottomNav activeTab="purchases" />

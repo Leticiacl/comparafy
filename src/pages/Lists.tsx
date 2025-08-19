@@ -3,6 +3,8 @@ import { useData } from '../context/DataContext';
 import BottomNav from '../components/BottomNav';
 import NewListModal from '../components/ui/NewListModal';
 import ListaCard from '../components/ListaCard';
+import PageHeader from '../components/ui/PageHeader';
+import PrimaryButton from '../components/ui/PrimaryButton';
 
 const Lists: React.FC = () => {
   const { lists, fetchUserData } = useData();
@@ -14,10 +16,7 @@ const Lists: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white pb-24">
-      <div className="flex justify-between items-center px-4 pt-6 mb-4">
-        <h1 className="text-2xl font-semibold text-gray-800">Minhas Listas</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="w-10 h-10" />
-      </div>
+      <PageHeader title="Minhas Listas" divider />
 
       <div className="px-4 mb-6">
         <button

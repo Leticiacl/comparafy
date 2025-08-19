@@ -30,11 +30,13 @@ const Onboarding: React.FC = () => {
     if (step < slides.length - 1) {
       setStep((s) => s + 1);
     } else {
+      localStorage.setItem("onboardingSeen","1");
       navigate("/login", { replace: true });
     }
   };
 
-  const handleSkip = () => navigate("/login", { replace: true });
+  const handleSkip = () => localStorage.setItem("onboardingSeen","1");
+      navigate("/login", { replace: true });
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-between px-6 py-10">
@@ -63,14 +65,14 @@ const Onboarding: React.FC = () => {
         </div>
       </div>
 
-      <button
+      <button type="button"
         onClick={handleNext}
         className="w-full bg-yellow-400 text-black font-medium py-4 rounded-xl shadow mb-4"
       >
         {step === slides.length - 1 ? "Começar" : "Próximo"}
       </button>
 
-      <button onClick={handleSkip} className="text-gray-500 underline">
+      <button type="button" onClick={handleSkip} className="text-gray-500 underline">
         Pular
       </button>
     </div>

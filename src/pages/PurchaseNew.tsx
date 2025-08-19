@@ -1,16 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
+import PageHeader from "../components/ui/PageHeader";
 
 const PurchaseNew: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Nova compra</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
-      </div>
+      <PageHeader title="Nova compra" />
 
       <div className="space-y-4 mt-6">
         <button

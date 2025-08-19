@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { useData } from "../context/DataContext";
 import { toast } from "react-hot-toast";
+import PageHeader from "../components/ui/PageHeader";
 
 // Import dinâmico resiliente ao pacote (@yudiel/react-qr-scanner)
 const QrAny = React.lazy(async () => {
@@ -83,10 +84,7 @@ const PurchasesReceipt: React.FC = () => {
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Importar via QR Code</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
-      </div>
+      <PageHeader title="Recibo" />
 
       {/* Scanner */}
       <div className="rounded-xl overflow-hidden border border-gray-200">

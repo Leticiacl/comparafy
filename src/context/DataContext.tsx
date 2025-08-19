@@ -69,13 +69,7 @@ interface DataContextType {
   // compras
   purchases: Purchase[];
   fetchPurchases(): Promise<void>;
-  createPurchaseFromListInContext(params: {
-    listId: string;
-    name: string;
-    market: string;
-    date: Date;
-    selectedItemIds?: string[];
-  }): Promise<void>;
+  createPurchaseFromListInContext(params: { listId: string; name: string; market: string; date: Date; selectedItemIds?: string[]; extras?: PurchaseItem[]; }): Promise<Purchase>;
   createPurchaseFromReceiptInContext(params: {
     name: string;
     market: string;
@@ -271,17 +265,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, 0);
 
   // ===== compras =====
-  const createPurchaseFromListInContext = async (params: {
-    listId: string;
-    name: string;
-    market: string;
-    date: Date;
-    selectedItemIds?: string[];
-  }) => {
+  const createPurchaseFromListInContext = async (params: { listId: string; name: string; market: string; date: Date; selectedItemIds?: string[]; extras?: PurchaseItem[]; }) => {
     const userId = getStoredUserId();
     if (!userId) throw new Error("missing-user");
     const p = await createPurchaseFromList({ userId, ...params });
 setPurchases((prev) => [p, ...prev]);
+    return p;
   };
 
   const createPurchaseFromReceiptInContext = async (params: {

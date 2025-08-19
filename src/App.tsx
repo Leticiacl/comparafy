@@ -85,7 +85,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
 const PublicOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const uid = getStoredUserId();
-  if (uid) return <Navigate to="/" replace />;
+  const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
+  if (uid && seen) return <Navigate to="/" replace />;
   return children;
 };
 
@@ -99,7 +100,9 @@ const ScrollToTop: React.FC = () => {
 /* Se não estiver logada, "/" manda para /onboarding; senão mostra Dashboard */
 const RootIndex: React.FC = () => {
   const uid = getStoredUserId();
-  return uid ? <Dashboard /> : <Navigate to="/onboarding" replace />;
+  const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
+  if (!seen) return <Navigate to="/onboarding" replace />;
+  return uid ? <Dashboard /> : <Navigate to="/login" replace />;
 };
 
 /* -------------- App --------------- */

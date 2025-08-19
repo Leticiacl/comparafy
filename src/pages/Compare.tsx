@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import BottomNav from "../components/BottomNav";
 import { useData } from "../context/DataContext";
+import PageHeader from "../components/ui/PageHeader";
 
 /* ============================
    ÍCONES AMARELINHOS (inline)
@@ -234,10 +235,7 @@ const Compare: React.FC = () => {
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Comparar</h1>
-        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
-      </div>
+      <PageHeader title="Comparar" />
 
       {/* Tabs */}
       <div className="flex justify-between px-6 border-b border-gray-200 pb-2">

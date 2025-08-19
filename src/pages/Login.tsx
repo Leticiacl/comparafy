@@ -23,6 +23,7 @@ const Login: React.FC = () => {
       sessionStorage.setItem("userId", user.uid);
       sessionStorage.setItem("authType", "email");
       toast.success("Login realizado com sucesso!");
+      localStorage.setItem("onboardingSeen","1");
       goHome();
     } catch {
       toast.error("Erro ao fazer login.");
@@ -36,6 +37,7 @@ const Login: React.FC = () => {
       sessionStorage.setItem("userId", user.uid);
       sessionStorage.setItem("authType", "google");
       toast.success("Login com Google realizado!");
+      localStorage.setItem("onboardingSeen","1");
       goHome();
     } catch {
       toast.error("Erro ao fazer login com Google.");
@@ -49,6 +51,7 @@ const Login: React.FC = () => {
       sessionStorage.setItem("userId", user.uid);
       sessionStorage.setItem("authType", "anonymous");
       toast.success("Login como visitante realizado!");
+      localStorage.setItem("onboardingSeen","1");
       goHome();
     } catch {
       toast.error("Erro ao entrar como visitante.");
