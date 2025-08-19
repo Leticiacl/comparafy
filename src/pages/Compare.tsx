@@ -1,497 +1,436 @@
 // src/pages/Compare.tsx
 import React, { useMemo, useState } from "react";
-import BottomNav from "../components/BottomNav";
-import { useData } from "../context/DataContext";
-import PageHeader from "../components/ui/PageHeader";
+import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
+import BottomNav from "@/components/BottomNav";
+import RoundCheck from "@/components/RoundCheck";
+import { useData } from "@/context/DataContext";
 
-/* ============================
-   ÍCONES AMARELINHOS (inline)
-   ============================ */
-const YellowCartIcon: React.FC<{ className?: string }> = ({
-  className = "h-5 w-5",
-}) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="#EAB308"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 .001 3.999A2 2 0 0 0 17 18ZM6.2 6l.3 2H20a1 1 0 0 1 .98 1.197l-1.5 7A1 1 0 0 1 18.5 17H8a1 1 0 0 1-.98-.804L5.14 5H3a1 1 0 1 1 0-2h3a1 1 0 0 1 .98.804L7.2 6Z" />
-  </svg>
-);
+const brl = (n: number) =>
+  (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const YellowStoreIcon: React.FC<{ className?: string }> = ({
-  className = "h-5 w-5",
-}) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="#EAB308"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M3 9.5V7l2.5-4h13L21 7v2.5A2.5 2.5 0 0 1 18.5 12a2.5 2.5 0 0 1-2.5-2.5A2.5 2.5 0 0 1 13.5 12 2.5 2.5 0 0 1 11 9.5 2.5 2.5 0 0 1 8.5 12 2.5 2.5 0  0 1 6 9.5 2.5 2.5 0 0 1 3 9.5ZM5 14h14v6a1 1 0 0 1-1 1h-4v-4H10v4H6a1 1 0 0 1-1-1v-6Z" />
-  </svg>
-);
-
-/* ============================
-   HELPERS
-   ============================ */
-const ns = (s?: string) =>
-  (s ?? "")
+// normaliza string (sem acento/ç/maiúsculas)
+function norm(s: string) {
+  return (s || "")
     .normalize("NFD")
     // @ts-ignore
     .replace(/\p{Diacritic}/gu, "")
+    .replace(/ç/gi, "c")
     .toLowerCase()
     .trim();
+}
 
-const currency = (n: number) =>
-  `R$ ${Number.isFinite(n) ? n.toFixed(2) : "0.00"}`;
+type Tab = "produtos" | "compras" | "estatisticas";
 
-/* ============================
-   TIPOS LOCAIS
-   ============================ */
-type FlatItem = {
-  nome: string;
-  preco: number;
-  mercado: string;
-  unidade?: string;
-  peso?: number;
-  listName: string;
-};
-
-type MarketEntry = {
-  preco: number;
-  listName: string;
-  mercado: string;
-};
-
-type ProductGroup = {
-  key: string; // nome+peso+un
-  itemName: string;
-  pesoUnit: string; // "2kg", "300g", etc.
-  entries: MarketEntry[];
-};
-
-/* ============================
-   COMPONENTE
-   ============================ */
 const Compare: React.FC = () => {
   const { lists, purchases } = useData();
-  // 👇 Inicia em "products" (Produtos)
-  const [activeTab, setActiveTab] = useState<"products" | "purchases" | "stats">(
-    "products"
-  );
+  const [tab, setTab] = useState<Tab>("compras");
+
+  /* ========================= PRODUTOS ========================= */
   const [query, setQuery] = useState("");
+  const canSearch = query.trim().length > 0;
 
-  /* ============ ABA PRODUTOS ============ */
-  const allItems = useMemo<FlatItem[]>(
-    () =>
-      lists.flatMap((list) =>
-        (list.itens || []).map((item) => ({
-          nome: item.nome,
-          preco: item.preco ?? 0,
-          mercado: item.mercado ?? "",
-          unidade: item.unidade,
-          peso: item.peso,
-          listName: list.nome,
-        }))
-      ),
-    [lists]
+  type MarketRow = {
+    market: string;
+    price: number;
+    sourceKind: "compra" | "lista";
+    sourceName: string;
+  };
+
+  // nome “canônico” do item a partir dos matches
+  const matchedName = useMemo(() => {
+    if (!canSearch) return "";
+    const q = norm(query);
+    const counts = new Map<string, number>();
+
+    const add = (nome?: string) => {
+      const k = (nome || "").trim();
+      if (!k) return;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    };
+
+    // varre compras
+    for (const p of purchases) {
+      for (const it of p.itens || []) {
+        if (norm(it.nome).includes(q)) add(it.nome);
+      }
+    }
+    // varre listas
+    for (const l of lists) {
+      for (const it of l.itens || []) {
+        if (norm(it.nome).includes(q)) add(it.nome);
+      }
+    }
+
+    let best = "";
+    let max = -1;
+    counts.forEach((c, name) => {
+      if (c > max) {
+        max = c;
+        best = name;
+      }
+    });
+
+    return best || query.trim();
+  }, [canSearch, query, lists, purchases]);
+
+  // resultados por mercado (menor preço de cada mercado)
+  const produtoPorMercado: MarketRow[] = useMemo(() => {
+    if (!canSearch) return [];
+    const q = norm(query);
+    const bestByMarket: Record<string, MarketRow> = {};
+
+    // COMPRAS
+    for (const p of purchases) {
+      const market = p.market || "—";
+      for (const it of p.itens || []) {
+        if (!norm(it.nome).includes(q)) continue;
+        const price = Number(it.preco) || 0;
+        const current = bestByMarket[market];
+        if (!current || price < current.price) {
+          bestByMarket[market] = {
+            market,
+            price,
+            sourceKind: "compra",
+            sourceName: p.name || "Compra",
+          };
+        }
+      }
+    }
+
+    // LISTAS (opcional; deixe se quiser considerar listas)
+    for (const l of lists) {
+      for (const it of l.itens || []) {
+        if (!norm(it.nome).includes(q)) continue;
+        const market = it.mercado || l.market || "—";
+        const price = Number(it.preco) || 0;
+        const current = bestByMarket[market];
+        if (!current || price < current.price) {
+          bestByMarket[market] = {
+            market,
+            price,
+            sourceKind: "lista",
+            sourceName: l.nome || "Lista",
+          };
+        }
+      }
+    }
+
+    return Object.values(bestByMarket).sort((a, b) => a.price - b.price);
+  }, [canSearch, query, lists, purchases]);
+
+  const menorPrecoGlobal = useMemo(
+    () => (produtoPorMercado.length ? Math.min(...produtoPorMercado.map((r) => r.price)) : null),
+    [produtoPorMercado]
   );
 
-  const filtered = useMemo(() => {
-    const q = ns(query);
-    if (!q) return [];
-    return allItems.filter((i) => ns(i.nome).includes(q));
-  }, [query, allItems]);
-
-  const productGroups = useMemo<ProductGroup[]>(() => {
-    const map = new Map<string, ProductGroup>();
-    for (const item of filtered) {
-      const key = `${ns(item.nome)}::${String(item.peso ?? "")}::${ns(
-        item.unidade
-      )}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          itemName: item.nome,
-          pesoUnit: `${item.peso ?? ""}${item.unidade ?? ""}`,
-          entries: [],
-        });
-      }
-      map.get(key)!.entries.push({
-        preco: item.preco ?? 0,
-        listName: item.listName,
-        mercado: item.mercado ?? "",
-      });
-    }
-    return Array.from(map.values()).map((g) => ({
-      ...g,
-      entries: g.entries.sort((a, b) => a.preco - b.preco),
-    }));
-  }, [filtered]);
-
-  /* ============ ABA COMPRAS ============ */
-  const [selPurchaseIds, setSelPurchaseIds] = useState<string[]>([]);
+  /* ========================= COMPRAS ========================= */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const togglePurchase = (id: string) => {
-    setSelPurchaseIds((prev) => {
+    setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length < 2) return [...prev, id];
-      return [prev[1], id];
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
     });
   };
-  const pA = purchases?.find((p) => p.id === selPurchaseIds[0]);
-  const pB = purchases?.find((p) => p.id === selPurchaseIds[1]);
 
-  type PurchaseCompareRow = {
-    key: string; // nome+peso+un
-    itemName: string;
-    pesoUnit: string;
-    cheapest: {
-      preco: number;
-      market?: string;
-      purchaseName: string;
-    } | null;
-    options: Array<{
-      preco: number;
-      market?: string;
-      purchaseName: string;
-    }>;
-  };
+  const selectedPurchases = useMemo(() => {
+    const arr = purchases.filter((p) => selectedIds.includes(p.id));
+    return arr.sort((a, b) => {
+      const na = (a.name || "").toLowerCase();
+      const nb = (b.name || "").toLowerCase();
+      if (na !== nb) return na.localeCompare(nb);
+      const ta =
+        typeof a.createdAt === "number"
+          ? a.createdAt
+          : a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : Date.parse(a.createdAt || "");
+      const tb =
+        typeof b.createdAt === "number"
+          ? b.createdAt
+          : b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : Date.parse(b.createdAt || "");
+      return ta - tb;
+    });
+  }, [purchases, selectedIds]);
 
-  const purchaseRows: PurchaseCompareRow[] = useMemo(() => {
-    if (!pA || !pB) return [];
+  const commonRows = useMemo(() => {
+    if (selectedPurchases.length !== 2) return [];
+    const [A, B] = selectedPurchases;
 
-    const mapA = new Map<
-      string,
-      { preco: number; market?: string; purchaseName: string }
-    >();
-    for (const it of pA.itens || []) {
-      const key = `${ns(it.nome)}::${String(it.peso ?? "")}::${ns(it.unidade)}`;
-      mapA.set(key, {
-        preco: (it.preco ?? 0) * (it.quantidade ?? 1),
-        market: it.mercado,
-        purchaseName: pA.sourceRefName ?? pA.market ?? "Compra A",
-      });
+    const mapA = new Map<string, { rotulo: string; preco: number }>();
+    for (const it of A.itens || []) {
+      const k = norm(it.nome);
+      if (!mapA.has(k)) mapA.set(k, { rotulo: it.nome, preco: Number(it.preco) || 0 });
+    }
+    const mapB = new Map<string, { rotulo: string; preco: number }>();
+    for (const it of B.itens || []) {
+      const k = norm(it.nome);
+      if (!mapB.has(k)) mapB.set(k, { rotulo: it.nome, preco: Number(it.preco) || 0 });
     }
 
-    const rows: PurchaseCompareRow[] = [];
-    for (const it of pB.itens || []) {
-      const key = `${ns(it.nome)}::${String(it.peso ?? "")}::${ns(it.unidade)}`;
-      if (mapA.has(key)) {
-        const a = mapA.get(key)!;
-        const b = {
-          preco: (it.preco ?? 0) * (it.quantidade ?? 1),
-          market: it.mercado,
-          purchaseName: pB.sourceRefName ?? pB.market ?? "Compra B",
-        };
-        const itemName = it.nome ?? "";
-        const pesoUnit = `${it.peso ?? ""}${it.unidade ?? ""}`;
-
-        const options = [a, b].sort((x, y) => x.preco - y.preco);
-        rows.push({
-          key,
-          itemName,
-          pesoUnit,
-          cheapest: options[0],
-          options,
-        });
+    const commons: Array<{ nome: string; a: number; b: number }> = [];
+    for (const [k, va] of mapA.entries()) {
+      if (mapB.has(k)) {
+        const vb = mapB.get(k)!;
+        commons.push({ nome: va.rotulo || vb.rotulo, a: va.preco, b: vb.preco });
       }
     }
-    rows.sort((x, y) => x.itemName.localeCompare(y.itemName));
-    return rows;
-  }, [pA, pB]);
+    return commons.sort((x, y) => norm(x.nome).localeCompare(norm(y.nome), "pt-BR", { sensitivity: "base" }));
+  }, [selectedPurchases]);
 
-  /* ============ ABA ESTATÍSTICAS ============ */
+  /* ========================= ESTATÍSTICAS ========================= */
   const stats = useMemo(() => {
-    const countMap = new Map<string, number>();
-    const spendMap = new Map<string, number>();
+    const counts: Record<string, { nome: string; c: number }> = {};
+    const byMarket: Record<string, number> = {};
+    for (const p of purchases) {
+      const total =
+        typeof p.total === "number"
+          ? p.total
+          : (p.itens || []).reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+      const market = p.market || "—";
+      byMarket[market] = (byMarket[market] || 0) + total;
 
-    for (const p of purchases || []) {
       for (const it of p.itens || []) {
-        const name = it.nome ?? "";
-        const qty = it.quantidade ?? 1;
-        countMap.set(name, (countMap.get(name) ?? 0) + qty);
-
-        const mkt = it.mercado ?? p.market ?? "—";
-        const total = (it.preco ?? 0) * (it.quantidade ?? 1);
-        spendMap.set(mkt, (spendMap.get(mkt) ?? 0) + total);
+        const k = norm(it.nome);
+        if (!counts[k]) counts[k] = { nome: it.nome, c: 0 };
+        counts[k].c += 1;
       }
     }
+    const topItems = Object.values(counts).sort((a, b) => b.c - a.c);
+    const markets = Object.entries(byMarket).sort((a, b) => b[1] - a[1]);
 
-    const itemsMost = Array.from(countMap.entries())
-      .map(([name, qty]) => ({ name, qty }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
-
-    const spend = Array.from(spendMap.entries())
-      .map(([market, total]) => ({ market, total }))
-      .sort((a, b) => b.total - a.total);
-
-    return { itemsMost, spend };
+    return { topItems, markets };
   }, [purchases]);
 
-  /* ============ RENDER ============ */
   return (
-    <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      {/* Header */}
-      <PageHeader title="Comparar" />
-
-      {/* Tabs */}
-      <div className="flex justify-between px-6 border-b border-gray-200 pb-2">
-        {(["products", "purchases", "stats"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`text-sm font-medium pb-1 ${
-              activeTab === tab
-                ? "text-yellow-500 border-b-2 border-yellow-500"
-                : "text-gray-500"
-            }`}
-          >
-            {tab === "products"
-              ? "Produtos"
-              : tab === "purchases"
-              ? "Compras"
-              : "Estatísticas"}
-          </button>
-        ))}
+    <div className="mx-auto max-w-xl bg-white p-4 pb-28">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-3xl font-extrabold text-gray-900">Comparar</h1>
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="h-8 w-8" />
       </div>
 
-      {/* === ABA PRODUTOS === */}
-      {activeTab === "products" && (
-        <div>
-          <div className="mt-4 flex gap-2">
+      {/* Tabs */}
+      <div className="mb-3 flex items-center gap-8 border-b">
+        <button
+          className={`pb-2 text-sm ${tab === "produtos" ? "border-b-2 border-yellow-500 font-semibold text-gray-900" : "text-gray-500"}`}
+          onClick={() => setTab("produtos")}
+        >
+          Produtos
+        </button>
+        <button
+          className={`pb-2 text-sm ${tab === "compras" ? "border-b-2 border-yellow-500 font-semibold text-gray-900" : "text-gray-500"}`}
+          onClick={() => setTab("compras")}
+        >
+          Compras
+        </button>
+        <button
+          className={`pb-2 text-sm ${tab === "estatisticas" ? "border-b-2 border-yellow-500 font-semibold text-gray-900" : "text-gray-500"}`}
+          onClick={() => setTab("estatisticas")}
+        >
+          Estatísticas
+        </button>
+      </div>
+
+      {/* ======================== PRODUTOS ======================== */}
+      {tab === "produtos" && (
+        <>
+          <div className="mb-4 flex gap-2">
             <input
-              type="text"
-              placeholder="Buscar produto…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 border rounded-xl px-4 py-2 focus:ring-yellow-400"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
+              placeholder="Buscar produto..."
             />
-            <button className="bg-yellow-500 px-4 py-2 rounded-xl text-black font-medium">
+            <button
+              className="rounded-2xl bg-yellow-500 px-4 py-3 font-medium text-black"
+              onClick={() => setQuery((q) => q.trim())}
+            >
               Buscar
             </button>
           </div>
 
-          {productGroups.length === 0 ? (
-            <p className="mt-10 text-center text-gray-500">
-              {query.trim()
-                ? "Nenhum produto encontrado."
-                : "Digite o nome de um produto para buscar."}
+          {!canSearch ? (
+            <p className="px-1 text-center text-sm text-gray-500">
+              Digite o nome de um produto para buscar.
             </p>
+          ) : produtoPorMercado.length === 0 ? (
+            <p className="px-1 text-center text-sm text-gray-500">Nenhum resultado.</p>
           ) : (
-            <ul className="mt-6 space-y-4">
-              {productGroups.map((g) => {
-                const cheapest = g.entries[0];
+            <div className="overflow-hidden rounded-2xl border border-gray-200">
+              {/* Cabeçalho agora mostra o NOME DO ITEM */}
+              <div className="flex items-center justify-between border-b bg-gray-50 p-3">
+                <div className="text-base font-semibold text-gray-900">{matchedName}</div>
+                {menorPrecoGlobal !== null && (
+                  <div className="text-sm font-semibold text-green-600">
+                    Melhor preço: {brl(menorPrecoGlobal)}
+                  </div>
+                )}
+              </div>
+
+              {produtoPorMercado.map((r, i) => {
+                const isBest = menorPrecoGlobal !== null && r.price === menorPrecoGlobal;
                 return (
-                  <li
-                    key={g.key}
-                    className="border rounded-xl p-4 border-gray-200"
-                  >
-                    <strong className="block text-lg text-gray-800 mb-3">
-                      {g.itemName} · {g.pesoUnit}
-                    </strong>
-
-                    {cheapest && (
-                      <div className="rounded-lg bg-green-50 border border-green-100 p-3 mb-2">
-                        <div className="flex justify-between">
-                          <div className="font-medium text-gray-800">
-                            {cheapest.mercado}
-                            <span className="text-sm text-gray-500 ml-2">
-                              ({cheapest.listName})
-                            </span>
-                          </div>
-                          <div className="font-semibold text-green-700">
-                            {currency(cheapest.preco)}
-                          </div>
-                        </div>
-                        {g.entries.length > 1 && (
-                          <div className="text-xs text-green-700 mt-1">
-                            Economia de{" "}
-                            {currency(
-                              g.entries[1].preco - g.entries[0].preco
-                            )}{" "}
-                            em relação ao segundo mais barato
-                          </div>
-                        )}
+                  <div key={i} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-gray-900">{r.market}</div>
+                      <div className={`font-semibold ${isBest ? "text-green-600" : "text-gray-900"}`}>
+                        {brl(r.price)}
                       </div>
-                    )}
-
-                    <div className="space-y-1">
-                      {g.entries.slice(1).map((e, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between rounded-lg px-2 py-1"
-                        >
-                          <span className="text-sm text-gray-700">
-                            {e.mercado}{" "}
-                            <span className="text-gray-400">({e.listName})</span>
-                          </span>
-                          <span className="text-sm font-semibold text-gray-800">
-                            {currency(e.preco)}
-                          </span>
-                        </div>
-                      ))}
                     </div>
-                  </li>
+                    <div className="mt-1 text-sm text-gray-500">
+                      {r.sourceKind === "compra" ? "Compra: " : "Lista: "}
+                      {r.sourceName}
+                      {isBest && (
+                        <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                          melhor preço
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* === ABA COMPRAS === */}
-      {activeTab === "purchases" && (
-        <div className="space-y-4">
-          <p className="text-gray-600">Selecione duas compras para comparar</p>
+      {/* ======================== COMPRAS ======================== */}
+      {tab === "compras" && (
+        <>
+          <p className="mb-3 px-1 text-sm text-gray-600">
+            Selecione <span className="font-semibold">duas</span> compras para comparar itens em comum.
+          </p>
 
-          <div className="space-y-2">
-            {(purchases || []).map((p) => {
-              const sel = selPurchaseIds.includes(p.id);
-              const title = p.sourceRefName || p.market || "Compra";
+          <div className="mb-4 space-y-3">
+            {purchases.map((p) => {
+              const selected = selectedIds.includes(p.id);
+              const total =
+                typeof p.total === "number"
+                  ? p.total
+                  : (p.itens || []).reduce(
+                      (acc, it) => acc + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+                      0
+                    );
+              const created =
+                typeof p.createdAt === "number"
+                  ? p.createdAt
+                  : p.createdAt?.seconds
+                  ? p.createdAt.seconds * 1000
+                  : Date.parse(p.createdAt || "");
+              const date = Number.isFinite(created)
+                ? new Date(created).toLocaleDateString("pt-BR")
+                : "";
+
               return (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => togglePurchase(p.id)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border ${
-                    sel
-                      ? "bg-yellow-100 border-yellow-500"
-                      : "border-gray-300 hover:bg-gray-50"
-                  }`}
+                  className={`flex items-start justify-between rounded-2xl border p-4 ${selected ? "border-yellow-400 ring-1 ring-yellow-200" : "border-gray-200"}`}
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-gray-800">{title}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(
-                        p.createdAt?.seconds
-                          ? p.createdAt.seconds * 1000
-                          : p.createdAt
-                      ).toLocaleDateString()}
-                    </span>
+                  <div className="flex flex-1 items-start gap-3">
+                    <RoundCheck checked={selected} onChange={() => togglePurchase(p.id)} />
+                    <div>
+                      <div className="font-semibold text-gray-900">{p.name || "Compra"}</div>
+                      <div className="mt-0.5 text-sm text-gray-500">
+                        {date} · {p.market || "—"} · {p.itemCount ?? p.itens?.length ?? 0} itens
+                      </div>
+                    </div>
                   </div>
-                </button>
+                  <div className="pl-3 text-right">
+                    <div className="font-semibold text-gray-900">{brl(total)}</div>
+                  </div>
+                </div>
               );
             })}
           </div>
 
-          {pA && pB && (
-            <ul className="mt-4 space-y-3">
-              {purchaseRows.map((r) => (
-                <li
-                  key={r.key}
-                  className="border rounded-xl p-4 border-gray-200"
-                >
-                  <strong className="block text-lg text-gray-800 mb-2">
-                    {r.itemName} · {r.pesoUnit}
-                  </strong>
+          {selectedPurchases.length === 2 ? (
+            <div className="overflow-hidden rounded-2xl border border-gray-200">
+              <div className="border-b bg-gray-50 p-3 text-sm font-semibold text-gray-800">
+                Itens em comum ({selectedPurchases[0].name} × {selectedPurchases[1].name})
+              </div>
 
-                  {r.cheapest && (
-                    <div className="rounded-lg bg-green-50 border border-green-100 p-3 mb-2">
-                      <div className="flex justify-between">
-                        <div className="font-medium text-gray-800">
-                          {r.cheapest.market ?? "—"}
-                          <span className="text-sm text-gray-500 ml-2">
-                            ({r.cheapest.purchaseName})
-                          </span>
-                        </div>
-                        <div className="font-semibold text-green-700">
-                          {currency(r.cheapest.preco)}
-                        </div>
+              <div className="grid grid-cols-[1fr,120px,120px] gap-2 border-b p-3 text-xs font-medium text-gray-500">
+                <div>Item</div>
+                <div className="text-right">{selectedPurchases[0].name}</div>
+                <div className="text-right">{selectedPurchases[1].name}</div>
+              </div>
+
+              {commonRows.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Nenhum item em comum.</div>
+              ) : (
+                commonRows.map((r, i) => {
+                  const min = Math.min(r.a, r.b);
+                  return (
+                    <div key={i} className="grid grid-cols-[1fr,120px,120px] items-center gap-2 p-3">
+                      <div className="font-medium text-gray-900">{r.nome}</div>
+                      <div className={`text-right ${r.a <= min ? "font-semibold text-green-600" : "text-gray-700"}`}>
+                        {brl(r.a)}
+                      </div>
+                      <div className={`text-right ${r.b <= min ? "font-semibold text-green-600" : "text-gray-700"}`}>
+                        {brl(r.b)}
                       </div>
                     </div>
-                  )}
-
-                  <div className="space-y-1">
-                    {r.options.slice(1).map((o, idx) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between rounded-lg px-2 py-1"
-                      >
-                        <span className="text-sm text-gray-700">
-                          {o.market ?? "—"}{" "}
-                          <span className="text-gray-400">
-                            ({o.purchaseName})
-                          </span>
-                        </span>
-                        <span className="text-sm font-semibold text-gray-800">
-                          {currency(o.preco)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </li>
-              ))}
-              {purchaseRows.length === 0 && (
-                <p className="text-center text-gray-500">
-                  Nenhum produto em comum entre as duas compras.
-                </p>
+                  );
+                })
               )}
-            </ul>
+            </div>
+          ) : (
+            <p className="px-1 text-sm text-gray-500">Escolha duas compras para ver a comparação.</p>
           )}
-        </div>
+        </>
       )}
 
-      {/* === ABA ESTATÍSTICAS === */}
-      {activeTab === "stats" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <YellowCartIcon />
-              <h2 className="text-lg font-semibold">Itens mais comprados</h2>
+      {/* ======================== ESTATÍSTICAS ======================== */}
+      {tab === "estatisticas" && (
+        <>
+          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <ShoppingCartIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Itens mais comprados</div>
             </div>
-
-            {stats.itemsMost.length === 0 ? (
-              <p className="text-center text-gray-400">Sem dados.</p>
+            {stats.topItems.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500">Sem dados ainda.</div>
             ) : (
-              <ul className="divide-y">
-                {stats.itemsMost.map((it) => (
-                  <li
-                    key={it.name}
-                    className="flex justify-between py-2 text-gray-700"
-                  >
-                    <span>{it.name}</span>
-                    <span className="font-medium">{it.qty}</span>
-                  </li>
-                ))}
-              </ul>
+              stats.topItems.slice(0, 20).map((it, i) => (
+                <div key={i} className="flex items-center justify-between p-3">
+                  <div className="text-gray-800">{it.nome}</div>
+                  <div className="text-gray-700">{it.c}x</div>
+                </div>
+              ))
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <YellowStoreIcon />
-              <h2 className="text-lg font-semibold">Gastos por supermercado</h2>
+          <div className="overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <BuildingStorefrontIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Gastos por supermercado</div>
             </div>
 
-            {stats.spend.length === 0 ? (
-              <p className="text-center text-gray-400">Sem dados.</p>
+            {stats.markets.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500">Sem dados ainda.</div>
             ) : (
-              <div className="space-y-3">
-                {(() => {
-                  const max = Math.max(...stats.spend.map((s) => s.total), 1);
-                  return stats.spend.map((s) => (
-                    <div key={s.market}>
-                      <div className="flex justify-between text-sm text-gray-700 mb-1">
-                        <span>{s.market}</span>
-                        <span className="font-semibold">
-                          {currency(s.total)}
-                        </span>
+              <div className="p-3">
+                {stats.markets.map(([market, total], i) => {
+                  const max = stats.markets[0][1] || 1;
+                  const pct = Math.max(3, Math.round((total / max) * 100));
+                  return (
+                    <div key={i} className="mb-3">
+                      <div className="mb-1 flex items-center justify-between text-sm text-gray-700">
+                        <span>{market}</span>
+                        <span>{brl(total)}</span>
                       </div>
-                      <div className="w-full h-2 bg-gray-200 rounded">
-                        <div
-                          className="h-2 rounded bg-yellow-500"
-                          style={{ width: `${(s.total / max) * 100}%` }}
-                        />
+                      <div className="h-2 w-full rounded bg-gray-200">
+                        <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
-                  ));
-                })()}
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
       <BottomNav activeTab="compare" />

@@ -7,8 +7,6 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
-  query,
-  where,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -51,11 +49,26 @@ const toMs = (ts: any) =>
     ? ts.seconds * 1000
     : Date.parse(ts || "") || Date.now();
 
+// remove chaves com undefined (recursivo)
+function stripUndefined<T>(val: T): T {
+  if (Array.isArray(val)) {
+    // @ts-expect-error - mapeando genericamente
+    return val.map(stripUndefined) as T;
+  }
+  if (val && typeof val === "object") {
+    const out: any = {};
+    for (const [k, v] of Object.entries(val as any)) {
+      if (v !== undefined) out[k] = stripUndefined(v as any);
+    }
+    return out;
+  }
+  return val;
+}
+
 /* =========================================================
  * LISTAS
  * =======================================================*/
 
-// Buscar todas as listas do usuário
 export async function fetchUserLists(userId: string) {
   const listsRef = collection(db, "users", userId, "lists");
   const snapshot = await getDocs(listsRef);
@@ -75,7 +88,6 @@ export async function fetchUserLists(userId: string) {
   return lists;
 }
 
-// Criar nova lista
 export async function createNewList(userId: string, name: string) {
   const trimmed = name.trim();
   const listsRef = collection(db, "users", userId, "lists");
@@ -92,7 +104,6 @@ export async function createNewList(userId: string, name: string) {
   };
 }
 
-// Atualizar nome da lista
 export async function updateListName(
   userId: string,
   listId: string,
@@ -102,7 +113,6 @@ export async function updateListName(
   await updateDoc(listRef, { name: newName.trim() });
 }
 
-// Buscar itens da lista
 export async function fetchItemsFromList(userId: string, listId: string) {
   const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
@@ -117,12 +127,11 @@ export async function fetchItemsFromList(userId: string, listId: string) {
       mercado: data.mercado,
       observacoes: data.observacoes,
       comprado: data.purchased ?? false,
-      peso: data.peso,
+      peso: data.peso, // pode ser undefined
     };
   });
 }
 
-// Alternar item como comprado
 export async function toggleItemPurchased(
   userId: string,
   listId: string,
@@ -137,7 +146,6 @@ export async function toggleItemPurchased(
   return { comprado: !current };
 }
 
-// Deletar item
 export async function deleteItem(
   userId: string,
   listId: string,
@@ -147,7 +155,6 @@ export async function deleteItem(
   await deleteDoc(itemRef);
 }
 
-// Adicionar item
 export async function addItemToList(
   userId: string,
   listId: string,
@@ -155,7 +162,7 @@ export async function addItemToList(
 ) {
   const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const docRef = await addDoc(itemsRef, {
-    ...item,
+    ...stripUndefined(item),
     purchased: false,
   });
   return {
@@ -165,7 +172,6 @@ export async function addItemToList(
   };
 }
 
-// Atualizar/merge de um item
 export async function updateItem(
   userId: string,
   listId: string,
@@ -188,20 +194,21 @@ export async function updateItem(
   await setDoc(
     itemRef,
     {
-      ...(data.nome !== undefined && { nome: data.nome }),
-      ...(data.quantidade !== undefined && { quantidade: data.quantidade }),
-      ...(data.unidade !== undefined && { unidade: data.unidade }),
-      ...(data.peso !== undefined && { peso: data.peso }),
-      ...(data.preco !== undefined && { preco: data.preco }),
-      ...(data.mercado !== undefined && { mercado: data.mercado }),
-      ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
-      purchased: existingPurchased,
+      ...stripUndefined({
+        ...(data.nome !== undefined && { nome: data.nome }),
+        ...(data.quantidade !== undefined && { quantidade: data.quantidade }),
+        ...(data.unidade !== undefined && { unidade: data.unidade }),
+        ...(data.peso !== undefined && { peso: data.peso }),
+        ...(data.preco !== undefined && { preco: data.preco }),
+        ...(data.mercado !== undefined && { mercado: data.mercado }),
+        ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
+        purchased: existingPurchased,
+      }),
     },
     { merge: true }
   );
 }
 
-// Sugestões (autocomplete)
 export async function saveSuggestion(
   userId: string,
   field: string,
@@ -220,7 +227,6 @@ export async function getSuggestionsForField(userId: string, field: string) {
   return snap.exists() ? ((snap.data() as any).list || []) : [];
 }
 
-// Excluir lista e seus itens
 export async function deleteListFromFirestore(
   userId: string,
   listId: string
@@ -232,7 +238,6 @@ export async function deleteListFromFirestore(
   await deleteDoc(listRef);
 }
 
-// Duplicar lista (inclui itens)
 export async function duplicateList(userId: string, originalListId: string) {
   const originalRef = doc(db, "users", userId, "lists", originalListId);
   const originalSnap = await getDoc(originalRef);
@@ -248,12 +253,11 @@ export async function duplicateList(userId: string, originalListId: string) {
   const itemsRef = collection(db, "users", userId, "lists", newRef.id, "items");
   for (const item of items) {
     const { id, comprado, ...rest } = item;
-    await addDoc(itemsRef, rest);
+    await addDoc(itemsRef, stripUndefined(rest));
   }
   return newRef.id;
 }
 
-// Marcar todos como comprados
 export async function markAllItemsPurchased(userId: string, listId: string) {
   const itemsRef = collection(db, "users", userId, "lists", listId, "items");
   const snapshot = await getDocs(itemsRef);
@@ -266,7 +270,6 @@ export async function markAllItemsPurchased(userId: string, listId: string) {
  * COMPRAS
  * =======================================================*/
 
-// Buscar compras
 export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]> {
   const purchasesRef = collection(db, "users", userId, "purchases");
   const snap = await getDocs(purchasesRef);
@@ -313,7 +316,7 @@ export async function createPurchaseFromList(params: {
   selectedItemIds?: string[];
   extras?: PurchaseItem[];
 }): Promise<Purchase> {
-  const { userId, listId, name, market, selectedItemIds = [], extras = [] } = params;
+  const { userId, listId, name, market, date, selectedItemIds = [], extras = [] } = params;
 
   // Carrega lista + itens
   const listRef = doc(db, "users", userId, "lists", listId);
@@ -327,36 +330,50 @@ export async function createPurchaseFromList(params: {
     listItems = listItems.filter((it) => allow.has(it.id));
   }
 
-  // Monta itens finais
+  // Monta itens finais (sem campos undefined)
   const itens: PurchaseItem[] = [
-    ...listItems.map(({ id, comprado, ...rest }) => rest),
-    ...extras.map((e) => ({
-      nome: e.nome,
-      quantidade: e.quantidade ?? 1,
-      unidade: e.unidade ?? "un",
-      preco: Number(e.preco || 0),
-      mercado: e.mercado ?? "",
-      observacoes: e.observacoes ?? "",
-      peso: e.peso ?? undefined,
-    })),
+    ...listItems.map(({ id, comprado, ...rest }) =>
+      stripUndefined({
+        ...rest,
+        quantidade: rest.quantidade ?? 1,
+        unidade: rest.unidade ?? "un",
+        preco: Number(rest.preco || 0),
+        mercado: rest.mercado ?? "",
+        observacoes: rest.observacoes ?? "",
+      })
+    ),
+    ...extras.map((e) =>
+      stripUndefined({
+        nome: e.nome,
+        quantidade: e.quantidade ?? 1,
+        unidade: e.unidade ?? "un",
+        preco: Number(e.preco || 0),
+        mercado: e.mercado ?? "",
+        observacoes: e.observacoes ?? "",
+        peso: e.peso,
+      })
+    ),
   ];
 
   const total = itens.reduce((s, it) => s + (Number(it.preco) || 0), 0);
   const itemCount = itens.length;
 
-  const createdAtMs = Date.now();
-  const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
+  const createdAtMs = date?.getTime?.() || Date.now();
+
+  const payload = stripUndefined({
     name,
     market,
     source: "list",
     sourceRefId: listId,
     sourceRefName: listName,
-    itens,           // grava direto no doc
+    itens,
     itemCount,
     total,
-    createdAt: serverTimestamp(), // para ordenação no backend
-    createdAtMs,                  // para exibir imediatamente sem "Invalid Date"
+    createdAt: serverTimestamp(),
+    createdAtMs,
   });
+
+  const pRef = await addDoc(collection(db, "users", userId, "purchases"), payload);
 
   return {
     id: pRef.id,
@@ -370,28 +387,6 @@ export async function createPurchaseFromList(params: {
     sourceRefId: listId,
     sourceRefName: listName,
   };
-}
-
-// Anexar itens numa compra já criada (se precisar)
-export async function appendItemsToPurchase(params: {
-  userId: string;
-  purchaseId: string;
-  items: PurchaseItem[];
-}) {
-  const { userId, purchaseId, items } = params;
-  const itemsRef = collection(db, "users", userId, "purchases", purchaseId, "items");
-  for (const it of items) {
-    const payload = {
-      nome: it.nome,
-      quantidade: it.quantidade ?? 1,
-      unidade: it.unidade ?? "",
-      preco: it.preco ?? 0,
-      mercado: it.mercado ?? "",
-      observacoes: it.observacoes ?? "",
-      peso: it.peso ?? null,
-    };
-    await addDoc(itemsRef, payload);
-  }
 }
 
 // Criar compra a partir de CUPOM (scanner + parser)
@@ -404,26 +399,148 @@ export async function createPurchaseFromReceipt(params: {
 }): Promise<Purchase> {
   const { userId, name, market, date, itens = [] } = params;
 
+  const cleanItems = itens.map((i) =>
+    stripUndefined({
+      nome: i.nome,
+      quantidade: i.quantidade ?? 1,
+      unidade: i.unidade ?? "un",
+      preco: Number(i.preco || 0),
+      mercado: i.mercado ?? "",
+      observacoes: i.observacoes ?? "",
+      peso: i.peso,
+    })
+  );
+
   const createdAtMs = date?.getTime?.() || Date.now();
-  const pRef = await addDoc(collection(db, "users", userId, "purchases"), {
-    name,
-    market,
-    source: "receipt",
-    itens,
-    itemCount: itens.length,
-    total: itens.reduce((s, it) => s + (Number(it.preco) || 0), 0),
-    createdAt: serverTimestamp(),
-    createdAtMs,
-  });
+  const pRef = await addDoc(
+    collection(db, "users", userId, "purchases"),
+    stripUndefined({
+      name,
+      market,
+      source: "receipt",
+      itens: cleanItems,
+      itemCount: cleanItems.length,
+      total: cleanItems.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+      createdAt: serverTimestamp(),
+      createdAtMs,
+    })
+  );
 
   return {
     id: pRef.id,
     name,
     market,
-    itens,
-    itemCount: itens.length,
-    total: itens.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+    itens: cleanItems,
+    itemCount: cleanItems.length,
+    total: cleanItems.reduce((s, it) => s + (Number(it.preco) || 0), 0),
     createdAt: createdAtMs,
     source: "receipt",
   };
+}
+
+/* ====== AÇÕES SOBRE A COMPRA (inline no doc) ====== */
+
+// atualizar metadados (name/market/date se necessário)
+export async function updatePurchaseMeta(
+  userId: string,
+  purchaseId: string,
+  data: Partial<{ name: string; market: string; createdAtMs: number }>
+) {
+  const ref = doc(db, "users", userId, "purchases", purchaseId);
+  await updateDoc(ref, stripUndefined(data));
+}
+
+// deletar compra (e subcoleção de items se existir)
+export async function deletePurchase(userId: string, purchaseId: string) {
+  const sub = collection(db, "users", userId, "purchases", purchaseId, "items");
+  const snap = await getDocs(sub);
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  const ref = doc(db, "users", userId, "purchases", purchaseId);
+  await deleteDoc(ref);
+}
+
+// editar um item do array `itens` por índice
+export async function updatePurchaseItem(
+  userId: string,
+  purchaseId: string,
+  index: number,
+  item: PurchaseItem
+) {
+  const ref = doc(db, "users", userId, "purchases", purchaseId);
+  const snap = await getDoc(ref);
+  const data = snap.data() as any;
+  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
+  itens[index] = stripUndefined({
+    nome: item.nome,
+    quantidade: item.quantidade ?? 1,
+    unidade: item.unidade ?? "un",
+    preco: Number(item.preco || 0),
+    mercado: item.mercado ?? "",
+    observacoes: item.observacoes ?? "",
+    peso: item.peso,
+  });
+  const total = itens.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens, itemCount: itens.length, total });
+}
+
+// excluir um item do array `itens` por índice
+export async function deletePurchaseItem(
+  userId: string,
+  purchaseId: string,
+  index: number
+) {
+  const ref = doc(db, "users", userId, "purchases", purchaseId);
+  const snap = await getDoc(ref);
+  const data = snap.data() as any;
+  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
+  const next = itens.filter((_, i) => i !== index);
+  const total = next.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens: next, itemCount: next.length, total });
+}
+
+// anexar 1..n itens ao array `itens`
+export async function appendItemsToPurchaseArray(
+  userId: string,
+  purchaseId: string,
+  items: PurchaseItem[]
+) {
+  const ref = doc(db, "users", userId, "purchases", purchaseId);
+  const snap = await getDoc(ref);
+  const data = snap.data() as any;
+  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
+  const clean = items.map((i) =>
+    stripUndefined({
+      nome: i.nome,
+      quantidade: i.quantidade ?? 1,
+      unidade: i.unidade ?? "un",
+      preco: Number(i.preco || 0),
+      mercado: i.mercado ?? "",
+      observacoes: i.observacoes ?? "",
+      peso: i.peso,
+    })
+  );
+  const next = [...itens, ...clean];
+  const total = next.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens: next, itemCount: next.length, total });
+}
+
+/* ===== legado: subcoleção (usado pelo QR antigo) ===== */
+export async function appendItemsToPurchase(params: {
+  userId: string;
+  purchaseId: string;
+  items: PurchaseItem[];
+}) {
+  const { userId, purchaseId, items } = params;
+  const itemsRef = collection(db, "users", userId, "purchases", purchaseId, "items");
+  for (const it of items) {
+    await addDoc(itemsRef, stripUndefined({
+      nome: it.nome,
+      quantidade: it.quantidade ?? 1,
+      unidade: it.unidade ?? "",
+      preco: it.preco ?? 0,
+      mercado: it.mercado ?? "",
+      observacoes: it.observacoes ?? "",
+      peso: it.peso,
+    }));
+  }
 }

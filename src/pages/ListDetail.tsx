@@ -13,19 +13,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/24/solid";
 
-function formatDate(value: any): string {
-  try {
-    if (!value) return "";
-    if (value.seconds) return new Date(value.seconds * 1000).toLocaleDateString("pt-BR");
-    if (typeof value.toDate === "function") return value.toDate().toLocaleDateString("pt-BR");
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("pt-BR");
-  } catch {
-    return "";
-  }
-}
-
 const ListDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -82,10 +69,6 @@ const ListDetail: React.FC = () => {
     setItemToEdit(null);
   };
 
-  // metadados tolerantes a versões antigas
-  const mercado = (lista as any).market || (lista as any).mercado || "";
-  const dataLista = (lista as any).createdAt || "";
-
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white">
       {/* Cabeçalho */}
@@ -111,13 +94,7 @@ const ListDetail: React.FC = () => {
             ) : (
               <>
                 <h1 className="text-2xl font-bold">{lista.nome}</h1>
-                {(mercado || dataLista) && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {mercado ? mercado : null}
-                    {mercado && dataLista ? " · " : ""}
-                    {dataLista ? formatDate(dataLista) : null}
-                  </p>
-                )}
+                {/* Removido subtítulo de mercado/data para manter Listas como antes */}
               </>
             )}
           </div>
@@ -271,7 +248,12 @@ const ListDetail: React.FC = () => {
       </ul>
 
       {/* Modal adicionar/editar */}
-      <AddItemModal isOpen={isModalOpen} onClose={closeModal} listId={lista.id} itemToEdit={itemToEdit} />
+      <AddItemModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        listId={lista.id}
+        itemToEdit={itemToEdit}
+      />
 
       <BottomNav activeTab="lists" />
     </div>

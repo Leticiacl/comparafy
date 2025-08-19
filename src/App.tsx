@@ -14,6 +14,7 @@ import Purchases from "./pages/Purchases";
 import PurchaseNew from "./pages/PurchaseNew";
 import PurchaseFromList from "./pages/PurchaseFromList";
 import PurchasesReceipt from "./pages/PurchasesReceipt";
+import PurchaseDetail from "./pages/PurchaseDetail";
 import Profile from "./pages/Profile";
 import Terms from "./pages/Terms";
 
@@ -49,7 +50,6 @@ function getStoredUserId(): string | null {
     const uid = obj?.uid || obj?.id || obj?.userId || null;
     return looksLikeUid(uid) ? uid : null;
   } catch {
-    // se salvaram o UID puro como string
     return looksLikeUid(raw) ? raw : null;
   }
 }
@@ -72,7 +72,7 @@ const AuthBootstrap: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return () => unsub();
   }, []);
 
-  if (!ready) return null; // pode trocar por um splash se quiser
+  if (!ready) return null; // splash opcional
   return <>{children}</>;
 };
 
@@ -213,6 +213,14 @@ const App: React.FC = () => {
           element={
             <ProtectedRoute>
               <PurchasesReceipt />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchases/:id"
+          element={
+            <ProtectedRoute>
+              <PurchaseDetail />
             </ProtectedRoute>
           }
         />

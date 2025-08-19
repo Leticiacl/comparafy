@@ -1,4 +1,3 @@
-// src/context/DataContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   // listas
@@ -19,7 +18,12 @@ import {
   fetchPurchasesForUser,
   createPurchaseFromList,
   createPurchaseFromReceipt,
-  appendItemsToPurchase, // << novo helper p/ anexar itens numa compra existente
+  appendItemsToPurchase,         // fluxo legado (última compra)
+  appendItemsToPurchaseArray,    // novo: anexa no array itens do doc
+  updatePurchaseMeta,
+  deletePurchase,
+  updatePurchaseItem,
+  deletePurchaseItem,
   type Purchase,
   type PurchaseItem,
 } from "../services/firestoreService";
@@ -51,11 +55,7 @@ interface DataContextType {
   createList(nome: string): Promise<Lista | null>;
   fetchItems(listId: string): Promise<void>;
   addItem(listId: string, item: Omit<Item, "id" | "comprado">): Promise<void>;
-  updateItem(
-    listId: string,
-    itemId: string,
-    data: Omit<Item, "id" | "comprado">
-  ): Promise<void>;
+  updateItem(listId: string, itemId: string, data: Omit<Item, "id" | "comprado">): Promise<void>;
   toggleItem(listId: string, itemId: string): Promise<void>;
   deleteItem(listId: string, itemId: string): Promise<void>;
   updateListNameInContext(listId: string, novoNome: string): void;
@@ -69,15 +69,27 @@ interface DataContextType {
   // compras
   purchases: Purchase[];
   fetchPurchases(): Promise<void>;
-  createPurchaseFromListInContext(params: { listId: string; name: string; market: string; date: Date; selectedItemIds?: string[]; extras?: PurchaseItem[]; }): Promise<Purchase>;
+  createPurchaseFromListInContext(params: {
+    listId: string;
+    name: string;
+    market: string;
+    date: Date;
+    selectedItemIds?: string[];
+    extras?: PurchaseItem[];
+  }): Promise<Purchase>;
   createPurchaseFromReceiptInContext(params: {
     name: string;
     market: string;
     date: Date;
     itens?: PurchaseItem[];
   }): Promise<void>;
+  renamePurchaseInContext(purchaseId: string, newName: string): Promise<void>;
+  deletePurchaseInContext(purchaseId: string): Promise<void>;
+  updatePurchaseItemInContext(purchaseId: string, index: number, item: PurchaseItem): Promise<void>;
+  deletePurchaseItemInContext(purchaseId: string, index: number): Promise<void>;
+  appendItemsToPurchaseById(purchaseId: string, items: PurchaseItem[]): Promise<void>;
 
-  // novo: anexar itens (usado no fluxo do QR)
+  // legado: anexa na última compra (scanner antigo)
   appendItemsToPurchaseInContext(items: PurchaseItem[]): Promise<string | null>;
 }
 
@@ -114,12 +126,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const data = await fetchPurchasesForUser(userId);
     setPurchases(
       data.sort((a, b) => {
-        const ta = new Date(
-          a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt
-        ).getTime();
-        const tb = new Date(
-          b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt
-        ).getTime();
+        const ta = new Date(a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime();
+        const tb = new Date(b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime();
         return tb - ta;
       })
     );
@@ -130,7 +138,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchPurchases();
   }, []);
 
-  // ===== listas =====
+  /* ========= LISTAS ========= */
+
   const createList = async (nome: string) => {
     const userId = getStoredUserId();
     if (!userId) return null;
@@ -143,42 +152,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userId = getStoredUserId();
     if (!userId) return;
     const itens = await fetchItemsFromList(userId, listId);
-    setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, itens } : l))
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, itens } : l)));
   };
 
-  const addItem = async (
-    listId: string,
-    item: Omit<Item, "id" | "comprado">
-  ) => {
+  const addItem = async (listId: string, item: Omit<Item, "id" | "comprado">) => {
     const userId = getStoredUserId();
     if (!userId) return;
     const newItem = await addItemToList(userId, listId, item);
     setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId ? { ...l, itens: [...(l.itens || []), newItem] } : l
-      )
+      prev.map((l) => (l.id === listId ? { ...l, itens: [...(l.itens || []), newItem] } : l))
     );
   };
 
-  const updateItem = async (
-    listId: string,
-    itemId: string,
-    data: Omit<Item, "id" | "comprado">
-  ) => {
+  const updateItem = async (listId: string, itemId: string, data: Omit<Item, "id" | "comprado">) => {
     const userId = getStoredUserId();
     if (!userId) return;
     await updateItemInFirestore(userId, listId, itemId, data);
     setLists((prev) =>
       prev.map((l) =>
         l.id === listId
-          ? {
-              ...l,
-              itens: (l.itens || []).map((i) =>
-                i.id === itemId ? { ...i, ...data } : i
-              ),
-            }
+          ? { ...l, itens: (l.itens || []).map((i) => (i.id === itemId ? { ...i, ...data } : i)) }
           : l
       )
     );
@@ -191,12 +184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLists((prev) =>
       prev.map((l) =>
         l.id === listId
-          ? {
-              ...l,
-              itens: (l.itens || []).map((i) =>
-                i.id === itemId ? { ...i, comprado: updated.comprado } : i
-              ),
-            }
+          ? { ...l, itens: (l.itens || []).map((i) => (i.id === itemId ? { ...i, comprado: updated.comprado } : i)) }
           : l
       )
     );
@@ -207,11 +195,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!userId) return;
     await deleteItemFromFirestore(userId, listId, itemId);
     setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? { ...l, itens: (l.itens || []).filter((i) => i.id !== itemId) }
-          : l
-      )
+      prev.map((l) => (l.id === listId ? { ...l, itens: (l.itens || []).filter((i) => i.id !== itemId) } : l))
     );
   };
 
@@ -219,9 +203,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userId = getStoredUserId();
     if (!userId) return;
     updateListName(userId, listId, novoNome);
-    setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, nome: novoNome } : l))
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, nome: novoNome } : l)));
   };
 
   const deleteList = async (listId: string) => {
@@ -243,9 +225,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!userId) return;
     await markAllItemsPurchased(userId, listId);
     const itens = await fetchItemsFromList(userId, listId);
-    setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, itens } : l))
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, itens } : l)));
   };
 
   const saveSuggestions = async (field: string, value: string) => {
@@ -264,12 +244,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sum + itens.reduce((acc, i) => (i.comprado ? acc + i.preco : acc), 0);
   }, 0);
 
-  // ===== compras =====
-  const createPurchaseFromListInContext = async (params: { listId: string; name: string; market: string; date: Date; selectedItemIds?: string[]; extras?: PurchaseItem[]; }) => {
+  /* ========= COMPRAS ========= */
+
+  const createPurchaseFromListInContext = async (params: {
+    listId: string;
+    name: string;
+    market: string;
+    date: Date;
+    selectedItemIds?: string[];
+    extras?: PurchaseItem[];
+  }) => {
     const userId = getStoredUserId();
     if (!userId) throw new Error("missing-user");
     const p = await createPurchaseFromList({ userId, ...params });
-setPurchases((prev) => [p, ...prev]);
+    setPurchases((prev) => [p, ...prev]);
     return p;
   };
 
@@ -285,7 +273,75 @@ setPurchases((prev) => [p, ...prev]);
     setPurchases((prev) => [p, ...prev]);
   };
 
-  // usado pelo scanner: anexa itens na ÚLTIMA compra criada (topo do array)
+  const renamePurchaseInContext = async (purchaseId: string, newName: string) => {
+    const userId = getStoredUserId();
+    if (!userId) return;
+    await updatePurchaseMeta(userId, purchaseId, { name: newName.trim() });
+    setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, name: newName.trim() } : p)));
+  };
+
+  const deletePurchaseInContext = async (purchaseId: string) => {
+    const userId = getStoredUserId();
+    if (!userId) return;
+    await deletePurchase(userId, purchaseId);
+    setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
+  };
+
+  const updatePurchaseItemInContext = async (purchaseId: string, index: number, item: PurchaseItem) => {
+    const userId = getStoredUserId();
+    if (!userId) return;
+    await updatePurchaseItem(userId, purchaseId, index, item);
+    setPurchases((prev) =>
+      prev.map((p) => {
+        if (p.id !== purchaseId) return p;
+        const itens = p.itens.map((it, i) => (i === index ? { ...item } : it));
+        const total = itens.reduce(
+          (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+          0
+        );
+        return { ...p, itens, itemCount: itens.length, total };
+      })
+    );
+  };
+
+  const deletePurchaseItemInContext = async (purchaseId: string, index: number) => {
+    const userId = getStoredUserId();
+    if (!userId) return;
+    await deletePurchaseItem(userId, purchaseId, index);
+    setPurchases((prev) =>
+      prev.map((p) => {
+        if (p.id !== purchaseId) return p;
+        const itens = p.itens.filter((_, i) => i !== index);
+        const total = itens.reduce(
+          (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+          0
+        );
+        return { ...p, itens, itemCount: itens.length, total };
+      })
+    );
+  };
+
+  const appendItemsToPurchaseById = async (purchaseId: string, items: PurchaseItem[]) => {
+    const userId = getStoredUserId();
+    if (!userId) return;
+    await appendItemsToPurchaseArray(userId, purchaseId, items);
+    setPurchases((prev) =>
+      prev.map((p) =>
+        p.id === purchaseId
+          ? {
+              ...p,
+              itens: [...(p.itens || []), ...items],
+              itemCount: (p.itemCount || 0) + items.length,
+              total:
+                (typeof p.total === "number" ? p.total : 0) +
+                items.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0),
+            }
+          : p
+      )
+    );
+  };
+
+  // legado: anexa itens na ÚLTIMA compra criada (topo do array)
   const appendItemsToPurchaseInContext = async (items: PurchaseItem[]) => {
     const userId = getStoredUserId();
     if (!userId) return null;
@@ -327,7 +383,12 @@ setPurchases((prev) => [p, ...prev]);
         fetchPurchases,
         createPurchaseFromListInContext,
         createPurchaseFromReceiptInContext,
-        appendItemsToPurchaseInContext, // << novo
+        renamePurchaseInContext,
+        deletePurchaseInContext,
+        updatePurchaseItemInContext,
+        deletePurchaseItemInContext,
+        appendItemsToPurchaseById,
+        appendItemsToPurchaseInContext, // legado
       }}
     >
       {children}
