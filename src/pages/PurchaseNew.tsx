@@ -1,7 +1,7 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import BottomNav from "../components/BottomNav";
-import PageHeader from "../components/ui/PageHeader";
+import { Link, useNavigate } from "react-router-dom";
+import BottomNav from "@/components/BottomNav";
+import PageHeader from "@/components/ui/PageHeader";
 
 const PurchaseNew: React.FC = () => {
   const navigate = useNavigate();
@@ -11,25 +11,25 @@ const PurchaseNew: React.FC = () => {
       <PageHeader title="Nova compra" />
 
       <div className="space-y-4 mt-6">
-        <button
-          onClick={() => navigate("/purchases/receipt")}
-          className="w-full rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
+        <Link
+          to="/purchases/receipt"
+          className="block rounded-2xl border border-gray-200 bg-white p-4 active:scale-[.995]"
         >
-          <div className="text-lg font-semibold text-gray-800">Via QR Code</div>
+          <div className="font-semibold text-gray-900">Via QR Code (NFC-e)</div>
           <div className="text-sm text-gray-500">
-            Escaneie a NFC-e e importe os itens automaticamente.
+            Escaneie o QR da nota fiscal e importe os itens.
           </div>
-        </button>
+        </Link>
 
-        <button
-          onClick={() => navigate("/purchases/from-list")}
-          className="w-full rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
+        <Link
+          to="/purchases/from-list"
+          className="block rounded-2xl border border-gray-200 bg-white p-4 active:scale-[.995]"
         >
-          <div className="text-lg font-semibold text-gray-800">A partir de uma lista</div>
+          <div className="font-semibold text-gray-900">A partir de uma lista</div>
           <div className="text-sm text-gray-500">
-            Selecione sua lista, escolha os itens comprados e salve.
+            Selecione sua lista, escolha os itens e salve a compra.
           </div>
-        </button>
+        </Link>
       </div>
 
       <BottomNav activeTab="purchases" />

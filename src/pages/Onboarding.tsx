@@ -1,79 +1,95 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+
+/**
+ * Onboarding no estilo original:
+ * - Cabeçalho simples: nome do app à esquerda e "Pular" à direita
+ * - Conteúdo central, sem card/caixa
+ * - Indicadores (bolinhas) ao centro
+ * - CTA "Próximo" fixo na base; no último slide vira "Começar"
+ * - Fluxo: apenas ao finalizar OU pular -> grava onboardingSeen=1 e vai para /login
+ */
 
 const slides = [
   {
-    title: "Crie listas de compras",
-    description:
-      "Adicione produtos, quantidades e acompanhe quanto vai gastar antes mesmo de ir ao mercado.",
-    image: "/slide1.png",
+    icon: "🛒",
+    title: "Bem-vinda ao Comparafy",
+    desc: "Crie listas, registre compras e compare preços em segundos.",
   },
   {
-    title: "Compare preços",
-    description:
-      "Veja qual supermercado está mais barato e economize na sua compra.",
-    image: "/slide2.png",
+    icon: "📝",
+    title: "Liste e controle",
+    desc: "Monte listas, marque itens comprados e acompanhe o total gasto.",
   },
   {
-    title: "Acompanhe suas economias",
-    description:
-      "Veja quanto está economizando em cada lista e acompanhe sua evolução.",
-    image: "/slide3.png",
+    icon: "💸",
+    title: "Compare e economize",
+    desc: "Veja onde está mais barato e acompanhe seus gastos por mercado.",
   },
 ];
 
 const Onboarding: React.FC = () => {
+  const [index, setIndex] = React.useState(0);
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
 
-  const handleNext = () => {
-    if (step < slides.length - 1) {
-      setStep((s) => s + 1);
+  const next = () => {
+    if (index < slides.length - 1) {
+      setIndex((i) => i + 1);
     } else {
-      localStorage.setItem("onboardingSeen","1");
+      // terminou
+      localStorage.setItem("onboardingSeen", "1");
       navigate("/login", { replace: true });
     }
   };
 
-  const handleSkip = () => localStorage.setItem("onboardingSeen","1");
-      navigate("/login", { replace: true });
+  const skip = () => {
+    localStorage.setItem("onboardingSeen", "1");
+    navigate("/login", { replace: true });
+  };
+
+  const s = slides[index];
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-between px-6 py-10">
-      <img src="/COMPARAFY.png" alt="Comparafy" className="w-32 mt-4" />
+    <div className="mx-auto flex min-h-screen max-w-xl flex-col bg-white px-6 pb-8 pt-10">
+      {/* header */}
+      <div className="mb-10 flex items-center justify-between">
+        <div className="text-2xl font-extrabold text-gray-900">Comparafy</div>
+        <button
+          onClick={skip}
+          className="rounded-lg px-2 py-1 text-sm font-medium text-gray-500 hover:text-gray-700"
+        >
+          Pular
+        </button>
+      </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <img
-          src={slides[step].image}
-          alt={slides[step].title}
-          className="w-40 h-40 object-contain mb-6"
-        />
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          {slides[step].title}
-        </h2>
-        <p className="text-gray-500">{slides[step].description}</p>
+      {/* conteúdo central */}
+      <div className="flex flex-1 flex-col items-center justify-center text-center">
+        <div className="mb-4 text-5xl leading-none">{s.icon}</div>
+        <h1 className="mx-auto mb-2 max-w-[24ch] text-3xl font-extrabold text-gray-900">
+          {s.title}
+        </h1>
+        <p className="mx-auto max-w-[36ch] text-base text-gray-600">{s.desc}</p>
 
-        <div className="flex mt-6 space-x-2">
+        {/* indicadores */}
+        <div className="mt-6 flex items-center gap-2">
           {slides.map((_, i) => (
             <span
               key={i}
-              className={`h-2 w-2 rounded-full ${
-                i === step ? "bg-yellow-400" : "bg-gray-300"
-              }`}
+              className={
+                "h-2 w-2 rounded-full " +
+                (i === index ? "bg-yellow-500" : "bg-gray-300")
+              }
             />
           ))}
         </div>
       </div>
 
-      <button type="button"
-        onClick={handleNext}
-        className="w-full bg-yellow-400 text-black font-medium py-4 rounded-xl shadow mb-4"
+      {/* CTA base */}
+      <button
+        onClick={next}
+        className="mt-8 w-full rounded-xl bg-yellow-500 py-3 text-center text-base font-semibold text-black active:scale-[.995]"
       >
-        {step === slides.length - 1 ? "Começar" : "Próximo"}
-      </button>
-
-      <button type="button" onClick={handleSkip} className="text-gray-500 underline">
-        Pular
+        {index < slides.length - 1 ? "Próximo" : "Começar"}
       </button>
     </div>
   );

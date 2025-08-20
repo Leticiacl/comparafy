@@ -20,7 +20,7 @@ export type PurchaseItem = {
   nome: string;
   quantidade?: number;
   unidade?: string;
-  preco: number;
+  preco: number;         // preço unitário
   mercado?: string;
   observacoes?: string;
   peso?: number;
@@ -31,8 +31,8 @@ export type Purchase = {
   name: string;          // nome da compra
   market?: string;
   itens: PurchaseItem[];
-  itemCount: number;
-  total: number;
+  itemCount: number;     // soma das quantidades
+  total: number;         // soma (preco * quantidade)
   createdAt: any;        // Timestamp | ms
   source: "list" | "receipt";
   sourceRefId?: string;
@@ -278,22 +278,26 @@ export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]>
   for (const d of snap.docs) {
     const data = d.data() as any;
 
+    // itens podem estar inline (novo) ou em subcoleção (legado)
     let itens: PurchaseItem[] = Array.isArray(data.itens) ? data.itens : [];
     if (!itens.length) {
       const itemsSnap = await getDocs(collection(db, "users", userId, "purchases", d.id, "items"));
       itens = itemsSnap.docs.map((i) => ({ id: i.id, ...(i.data() as any) }));
     }
 
-    const total = Number(data.total ?? itens.reduce((s, it) => s + (Number(it.preco) || 0), 0));
-    const itemCount = Number(data.itemCount ?? itens.length);
+    const computedTotal = itens.reduce(
+      (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+      0
+    );
+    const computedCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
 
     out.push({
       id: d.id,
       name: data.name ?? "Compra",
       market: data.market ?? "—",
       itens,
-      itemCount,
-      total,
+      itemCount: Number.isFinite(Number(data.itemCount)) ? Number(data.itemCount) : computedCount,
+      total: Number.isFinite(Number(data.total)) ? Number(data.total) : computedTotal,
       createdAt: data.createdAtMs ?? data.createdAt ?? Date.now(),
       source: (data.source as any) || "list",
       sourceRefId: data.sourceRefId,
@@ -305,7 +309,8 @@ export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]>
 }
 
 /**
- * Criar compra a partir de LISTA, com seleção e EXTRAS.
+ * Criar compra a partir de LISTA.
+ * Considera preço unitário e soma quantidades para os totais.
  */
 export async function createPurchaseFromList(params: {
   userId: string;
@@ -330,7 +335,7 @@ export async function createPurchaseFromList(params: {
     listItems = listItems.filter((it) => allow.has(it.id));
   }
 
-  // Monta itens finais (sem campos undefined)
+  // Normaliza itens (unit price + quantidade)
   const itens: PurchaseItem[] = [
     ...listItems.map(({ id, comprado, ...rest }) =>
       stripUndefined({
@@ -355,8 +360,11 @@ export async function createPurchaseFromList(params: {
     ),
   ];
 
-  const total = itens.reduce((s, it) => s + (Number(it.preco) || 0), 0);
-  const itemCount = itens.length;
+  const total = itens.reduce(
+    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    0
+  );
+  const itemCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
 
   const createdAtMs = date?.getTime?.() || Date.now();
 
@@ -389,7 +397,7 @@ export async function createPurchaseFromList(params: {
   };
 }
 
-// Criar compra a partir de CUPOM (scanner + parser)
+/** Criar compra a partir de CUPOM (scanner + parser) */
 export async function createPurchaseFromReceipt(params: {
   userId: string;
   name: string;
@@ -404,7 +412,7 @@ export async function createPurchaseFromReceipt(params: {
       nome: i.nome,
       quantidade: i.quantidade ?? 1,
       unidade: i.unidade ?? "un",
-      preco: Number(i.preco || 0),
+      preco: Number(i.preco || 0), // unitário
       mercado: i.mercado ?? "",
       observacoes: i.observacoes ?? "",
       peso: i.peso,
@@ -412,6 +420,12 @@ export async function createPurchaseFromReceipt(params: {
   );
 
   const createdAtMs = date?.getTime?.() || Date.now();
+  const total = cleanItems.reduce(
+    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    0
+  );
+  const itemCount = cleanItems.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
+
   const pRef = await addDoc(
     collection(db, "users", userId, "purchases"),
     stripUndefined({
@@ -419,8 +433,8 @@ export async function createPurchaseFromReceipt(params: {
       market,
       source: "receipt",
       itens: cleanItems,
-      itemCount: cleanItems.length,
-      total: cleanItems.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+      itemCount,
+      total,
       createdAt: serverTimestamp(),
       createdAtMs,
     })
@@ -431,8 +445,8 @@ export async function createPurchaseFromReceipt(params: {
     name,
     market,
     itens: cleanItems,
-    itemCount: cleanItems.length,
-    total: cleanItems.reduce((s, it) => s + (Number(it.preco) || 0), 0),
+    itemCount,
+    total,
     createdAt: createdAtMs,
     source: "receipt",
   };
@@ -440,7 +454,6 @@ export async function createPurchaseFromReceipt(params: {
 
 /* ====== AÇÕES SOBRE A COMPRA (inline no doc) ====== */
 
-// atualizar metadados (name/market/date se necessário)
 export async function updatePurchaseMeta(
   userId: string,
   purchaseId: string,
@@ -450,7 +463,6 @@ export async function updatePurchaseMeta(
   await updateDoc(ref, stripUndefined(data));
 }
 
-// deletar compra (e subcoleção de items se existir)
 export async function deletePurchase(userId: string, purchaseId: string) {
   const sub = collection(db, "users", userId, "purchases", purchaseId, "items");
   const snap = await getDocs(sub);
@@ -459,7 +471,6 @@ export async function deletePurchase(userId: string, purchaseId: string) {
   await deleteDoc(ref);
 }
 
-// editar um item do array `itens` por índice
 export async function updatePurchaseItem(
   userId: string,
   purchaseId: string,
@@ -479,11 +490,14 @@ export async function updatePurchaseItem(
     observacoes: item.observacoes ?? "",
     peso: item.peso,
   });
-  const total = itens.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens, itemCount: itens.length, total });
+  const total = itens.reduce(
+    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    0
+  );
+  const itemCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens, itemCount, total });
 }
 
-// excluir um item do array `itens` por índice
 export async function deletePurchaseItem(
   userId: string,
   purchaseId: string,
@@ -494,11 +508,14 @@ export async function deletePurchaseItem(
   const data = snap.data() as any;
   const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
   const next = itens.filter((_, i) => i !== index);
-  const total = next.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens: next, itemCount: next.length, total });
+  const total = next.reduce(
+    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    0
+  );
+  const itemCount = next.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens: next, itemCount, total });
 }
 
-// anexar 1..n itens ao array `itens`
 export async function appendItemsToPurchaseArray(
   userId: string,
   purchaseId: string,
@@ -520,11 +537,15 @@ export async function appendItemsToPurchaseArray(
     })
   );
   const next = [...itens, ...clean];
-  const total = next.reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens: next, itemCount: next.length, total });
+  const total = next.reduce(
+    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    0
+  );
+  const itemCount = next.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
+  await updateDoc(ref, { itens: next, itemCount, total });
 }
 
-/* ===== legado: subcoleção (usado pelo QR antigo) ===== */
+/* ===== legado (subcoleção) — mantido para compatibilidade ===== */
 export async function appendItemsToPurchase(params: {
   userId: string;
   purchaseId: string;

@@ -1,157 +1,155 @@
-import React, { useEffect, useState } from "react";
-import { useData, Item } from "../../context/DataContext";
+// src/components/ui/AddItemModal.tsx
+import React from "react";
+import { Dialog } from "@headlessui/react";
 
-interface Props {
+type Props = {
   isOpen: boolean;
-  onClose: () => void;
+  onClose(): void;
   listId: string;
-  itemToEdit: Item | null;
-}
+  itemToEdit?: any | null;
+  onAdd?: (payload: {
+    nome: string;
+    quantidade: number;
+    unidade: string;
+    peso?: number | null;
+    preco: number;
+    mercado?: string;
+    observacoes?: string;
+  }) => Promise<void> | void; // (opcional) para listas fora do contexto
+};
 
-const AddItemModal: React.FC<Props> = ({ isOpen, onClose, listId, itemToEdit }) => {
-  const { addItem, updateItem, getSuggestions, saveSuggestions } = useData();
+const defaultState = {
+  nome: "",
+  quantidade: 1,
+  unidade: "un",
+  peso: "" as number | "" | null,
+  preco: "" as number | "",
+  mercado: "",
+  observacoes: "",
+};
 
-  const [nome, setNome] = useState("");
-  const [quantidade, setQuantidade] = useState(1);
-  const [peso, setPeso] = useState<string>(""); // aceita decimais
-  const [unidade, setUnidade] = useState("kg");
-  const [preco, setPreco] = useState("");
-  const [observacoes, setObservacoes] = useState("");
-  const [prodSuggs, setProdSuggs] = useState<string[]>([]);
+const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) => {
+  const [form, setForm] = React.useState(defaultState);
+  const [saving, setSaving] = React.useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    getSuggestions("products").then((r) => setProdSuggs(r));
-  }, [isOpen, getSuggestions]);
-
-  useEffect(() => {
-    if (!isOpen) return;
+  React.useEffect(() => {
     if (itemToEdit) {
-      setNome(itemToEdit.nome || "");
-      setQuantidade(itemToEdit.quantidade || 1);
-      setPeso(itemToEdit.peso != null ? String(itemToEdit.peso) : "");
-      setUnidade(itemToEdit.unidade || "kg");
-      setPreco(itemToEdit.preco != null ? String(itemToEdit.preco) : "");
-      setObservacoes(itemToEdit.observacoes || "");
+      setForm({
+        nome: itemToEdit.nome || "",
+        quantidade: itemToEdit.quantidade ?? 1,
+        unidade: itemToEdit.unidade || "un",
+        peso: itemToEdit.peso ?? "",
+        preco: itemToEdit.preco ?? "",
+        mercado: itemToEdit.mercado || "",
+        observacoes: itemToEdit.observacoes || "",
+      });
     } else {
-      setNome("");
-      setQuantidade(1);
-      setPeso("");
-      setUnidade("kg");
-      setPreco("");
-      setObservacoes("");
+      setForm(defaultState);
     }
-  }, [isOpen, itemToEdit]);
+  }, [itemToEdit, isOpen]);
 
-  const handleSave = async () => {
-    if (!nome.trim()) return;
-
-    const data = {
-      nome: nome.trim(),
-      quantidade,
-      peso: parseFloat(peso) || 0,
-      unidade,
-      preco: parseFloat(preco) || 0,
-      observacoes: observacoes.trim(),
+  const handleAdd = async () => {
+    if (saving) return;
+    const payload = {
+      nome: form.nome.trim(),
+      quantidade: Number(form.quantidade || 1),
+      unidade: form.unidade || "un",
+      peso: form.peso === "" ? undefined : Number(form.peso),
+      preco: Number(form.preco || 0),
+      mercado: form.mercado?.trim() || "",
+      observacoes: form.observacoes?.trim() || "",
     };
+    if (!payload.nome) return;
 
-    if (itemToEdit) {
-      await updateItem(listId, itemToEdit.id, data as any);
-    } else {
-      await addItem(listId, data as any);
-      await saveSuggestions("products", data.nome);
+    setSaving(true);
+    try {
+      if (onAdd) await onAdd(payload);
+      // NÃO fecha – limpa para facilitar adicionar vários itens
+      setForm({
+        ...defaultState,
+        unidade: form.unidade, // mantém unidade mais usada
+      });
+    } finally {
+      setSaving(false);
     }
-    onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-2xl font-bold mb-4">
-          {itemToEdit ? "Editar Item" : "Adicionar Item"}
-        </h2>
+    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/20" />
+      <div className="fixed inset-0 grid place-items-center p-4">
+        <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-4">
+          <Dialog.Title className="mb-3 text-lg font-semibold">
+            {itemToEdit ? "Editar item" : "Adicionar item"}
+          </Dialog.Title>
 
-        <label className="block text-sm font-medium mb-1">Nome *</label>
-        <input
-          type="text"
-          list="prod-list"
-          className="w-full border rounded-lg px-3 py-2 mb-3"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          placeholder="Ex.: Arroz"
-        />
-        <datalist id="prod-list">
-          {prodSuggs.map((p, i) => (
-            <option key={i} value={p} />
-          ))}
-        </datalist>
+          <div className="space-y-3">
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              placeholder="Nome"
+              value={form.nome}
+              onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                className="rounded-lg border px-3 py-2"
+                type="number"
+                placeholder="Qtd"
+                value={form.quantidade}
+                onChange={(e) => setForm((s) => ({ ...s, quantidade: Number(e.target.value || 1) }))}
+              />
+              <input
+                className="rounded-lg border px-3 py-2"
+                placeholder="Unidade (un, kg, g...)"
+                value={form.unidade}
+                onChange={(e) => setForm((s) => ({ ...s, unidade: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border px-3 py-2"
+                type="number"
+                placeholder="Peso (opcional)"
+                value={form.peso}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, peso: e.target.value === "" ? "" : Number(e.target.value) }))
+                }
+              />
+            </div>
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              type="number"
+              placeholder="Preço"
+              value={form.preco}
+              onChange={(e) => setForm((s) => ({ ...s, preco: e.target.value === "" ? "" : Number(e.target.value) }))}
+            />
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              placeholder="Mercado (opcional)"
+              value={form.mercado}
+              onChange={(e) => setForm((s) => ({ ...s, mercado: e.target.value }))}
+            />
+            <textarea
+              className="w-full rounded-lg border px-3 py-2"
+              placeholder="Observações"
+              value={form.observacoes}
+              onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
+            />
+          </div>
 
-        <label className="block text-sm font-medium mb-1">Quantidade *</label>
-        <input
-          type="number"
-          min={1}
-          className="w-full border rounded-lg px-3 py-2 mb-3"
-          value={quantidade}
-          onChange={(e) => setQuantidade(Math.max(1, +e.target.value))}
-        />
-
-        <label className="block text-sm font-medium mb-1">Peso</label>
-        <div className="flex gap-2 mb-3">
-          <input
-            type="number"
-            min={0}
-            step="any"
-            className="w-2/3 border rounded-lg px-3 py-2"
-            value={peso}
-            onChange={(e) => setPeso(e.target.value)}
-            placeholder="Ex.: 1.5"
-          />
-          <select
-            className="w-1/3 border rounded-lg px-3 py-2"
-            value={unidade}
-            onChange={(e) => setUnidade(e.target.value)}
-          >
-            <option value="kg">kg</option>
-            <option value="g">g</option>
-            <option value="l">l</option>
-            <option value="ml">ml</option>
-            <option value="dúzia">dúzia</option>
-            <option value="un">un</option>
-          </select>
-        </div>
-
-        <label className="block text-sm font-medium mb-1">Preço</label>
-        <input
-          type="number"
-          className="w-full border rounded-lg px-3 py-2 mb-3"
-          value={preco}
-          onChange={(e) => setPreco(e.target.value)}
-          placeholder="R$ 0,00"
-        />
-
-        <label className="block text-sm font-medium mb-1">Observações</label>
-        <textarea
-          className="w-full border rounded-lg px-3 py-2 mb-4"
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
-          placeholder="Alguma observação?"
-        />
-
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-lg">
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-yellow-500 text-black rounded-lg"
-          >
-            {itemToEdit ? "Salvar" : "Adicionar"}
-          </button>
-        </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button className="rounded-lg bg-gray-100 px-4 py-2" onClick={onClose}>
+              Cancelar
+            </button>
+            <button
+              disabled={saving}
+              className="rounded-lg bg-yellow-500 px-4 py-2 font-semibold text-black disabled:opacity-60"
+              onClick={handleAdd}
+            >
+              {itemToEdit ? "Salvar" : "Adicionar"}
+            </button>
+          </div>
+        </Dialog.Panel>
       </div>
-    </div>
+    </Dialog>
   );
 };
 

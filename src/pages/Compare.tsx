@@ -8,7 +8,6 @@ import { useData } from "@/context/DataContext";
 const brl = (n: number) =>
   (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-// normaliza string (sem acento/ç/maiúsculas)
 function norm(s: string) {
   return (s || "")
     .normalize("NFD")
@@ -18,6 +17,35 @@ function norm(s: string) {
     .toLowerCase()
     .trim();
 }
+const unitFactor: Record<string, number> = {
+  kg: 1000,
+  g: 1,
+  l: 1000,
+  ml: 1,
+  un: 1,
+};
+
+function variantKey(nome: string, peso?: number, unidade?: string) {
+  const u = (unidade || "").toLowerCase();
+  const p = peso ?? 0;
+  return `${norm(nome)}|${p}|${u}`;
+}
+function variantLabel(nome: string, peso?: number, unidade?: string) {
+  return peso ? `${nome} — ${peso} ${unidade || ""}` : nome;
+}
+function sameDimension(u1?: string, u2?: string) {
+  const a = (u1 || "").toLowerCase();
+  const b = (u2 || "").toLowerCase();
+  if (!a || !b) return false;
+  const weight = new Set(["kg", "g"]);
+  const volume = new Set(["l", "ml"]);
+  if (a === "un" || b === "un") return false;
+  return (weight.has(a) && weight.has(b)) || (volume.has(a) && volume.has(b));
+}
+function toBase(peso: number, unidade: string) {
+  const f = unitFactor[(unidade || "").toLowerCase()] || 1;
+  return peso * f;
+}
 
 type Tab = "produtos" | "compras" | "estatisticas";
 
@@ -25,105 +53,89 @@ const Compare: React.FC = () => {
   const { lists, purchases } = useData();
   const [tab, setTab] = useState<Tab>("compras");
 
-  /* ========================= PRODUTOS ========================= */
+  /* ========================= PRODUTOS (por variante) ========================= */
   const [query, setQuery] = useState("");
   const canSearch = query.trim().length > 0;
 
-  type MarketRow = {
+  type Row = {
     market: string;
     price: number;
     sourceKind: "compra" | "lista";
     sourceName: string;
+    nome: string;
+    peso?: number;
+    unidade?: string;
   };
 
-  // nome “canônico” do item a partir dos matches
-  const matchedName = useMemo(() => {
-    if (!canSearch) return "";
-    const q = norm(query);
-    const counts = new Map<string, number>();
+  type Group = {
+    variant: { nome: string; peso?: number; unidade?: string };
+    rows: Row[];
+  };
 
-    const add = (nome?: string) => {
-      const k = (nome || "").trim();
-      if (!k) return;
-      counts.set(k, (counts.get(k) || 0) + 1);
-    };
-
-    // varre compras
-    for (const p of purchases) {
-      for (const it of p.itens || []) {
-        if (norm(it.nome).includes(q)) add(it.nome);
-      }
-    }
-    // varre listas
-    for (const l of lists) {
-      for (const it of l.itens || []) {
-        if (norm(it.nome).includes(q)) add(it.nome);
-      }
-    }
-
-    let best = "";
-    let max = -1;
-    counts.forEach((c, name) => {
-      if (c > max) {
-        max = c;
-        best = name;
-      }
-    });
-
-    return best || query.trim();
-  }, [canSearch, query, lists, purchases]);
-
-  // resultados por mercado (menor preço de cada mercado)
-  const produtoPorMercado: MarketRow[] = useMemo(() => {
+  const produtoGrupos: Group[] = useMemo(() => {
     if (!canSearch) return [];
     const q = norm(query);
-    const bestByMarket: Record<string, MarketRow> = {};
 
-    // COMPRAS
+    // coletas
+    const rows: Row[] = [];
+
+    // compras
     for (const p of purchases) {
-      const market = p.market || "—";
       for (const it of p.itens || []) {
         if (!norm(it.nome).includes(q)) continue;
-        const price = Number(it.preco) || 0;
-        const current = bestByMarket[market];
-        if (!current || price < current.price) {
-          bestByMarket[market] = {
-            market,
-            price,
-            sourceKind: "compra",
-            sourceName: p.name || "Compra",
-          };
-        }
+        rows.push({
+          market: p.market || "—",
+          price: Number(it.preco) || 0,
+          sourceKind: "compra",
+          sourceName: p.name || "Compra",
+          nome: it.nome,
+          peso: it.peso,
+          unidade: it.unidade,
+        });
       }
     }
-
-    // LISTAS (opcional; deixe se quiser considerar listas)
+    // listas (opcional)
     for (const l of lists) {
       for (const it of l.itens || []) {
         if (!norm(it.nome).includes(q)) continue;
-        const market = it.mercado || l.market || "—";
-        const price = Number(it.preco) || 0;
-        const current = bestByMarket[market];
-        if (!current || price < current.price) {
-          bestByMarket[market] = {
-            market,
-            price,
-            sourceKind: "lista",
-            sourceName: l.nome || "Lista",
-          };
-        }
+        rows.push({
+          market: it.mercado || l.market || "—",
+          price: Number(it.preco) || 0,
+          sourceKind: "lista",
+          sourceName: l.nome || "Lista",
+          nome: it.nome,
+          peso: it.peso,
+          unidade: it.unidade,
+        });
       }
     }
 
-    return Object.values(bestByMarket).sort((a, b) => a.price - b.price);
+    // agrupa por VARIANTE
+    const byVariant = new Map<string, Group>();
+    for (const r of rows) {
+      const k = variantKey(r.nome, r.peso, r.unidade);
+      const g = byVariant.get(k) || {
+        variant: { nome: r.nome, peso: r.peso, unidade: r.unidade },
+        rows: [],
+      };
+      // mantém apenas o melhor preço por mercado dentro da variante
+      const existing = g.rows.find((x) => x.market === r.market);
+      if (!existing || r.price < existing.price) {
+        if (existing) {
+          const i = g.rows.indexOf(existing);
+          g.rows.splice(i, 1, r);
+        } else g.rows.push(r);
+      }
+      byVariant.set(k, g);
+    }
+
+    return Array.from(byVariant.values()).map((g) => ({
+      ...g,
+      rows: g.rows.sort((a, b) => a.price - b.price),
+    }));
   }, [canSearch, query, lists, purchases]);
 
-  const menorPrecoGlobal = useMemo(
-    () => (produtoPorMercado.length ? Math.min(...produtoPorMercado.map((r) => r.price)) : null),
-    [produtoPorMercado]
-  );
-
-  /* ========================= COMPRAS ========================= */
+  /* ========================= COMPRAS (tabela por variante) ========================= */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const togglePurchase = (id: string) => {
     setSelectedIds((prev) => {
@@ -133,51 +145,41 @@ const Compare: React.FC = () => {
     });
   };
 
-  const selectedPurchases = useMemo(() => {
-    const arr = purchases.filter((p) => selectedIds.includes(p.id));
-    return arr.sort((a, b) => {
-      const na = (a.name || "").toLowerCase();
-      const nb = (b.name || "").toLowerCase();
-      if (na !== nb) return na.localeCompare(nb);
-      const ta =
-        typeof a.createdAt === "number"
-          ? a.createdAt
-          : a.createdAt?.seconds
-          ? a.createdAt.seconds * 1000
-          : Date.parse(a.createdAt || "");
-      const tb =
-        typeof b.createdAt === "number"
-          ? b.createdAt
-          : b.createdAt?.seconds
-          ? b.createdAt.seconds * 1000
-          : Date.parse(b.createdAt || "");
-      return ta - tb;
-    });
-  }, [purchases, selectedIds]);
+  const selectedPurchases = useMemo(
+    () => purchases.filter((p) => selectedIds.includes(p.id)),
+    [purchases, selectedIds]
+  );
 
-  const commonRows = useMemo(() => {
-    if (selectedPurchases.length !== 2) return [];
+  const compraComparacao = useMemo(() => {
+    if (selectedPurchases.length !== 2) return null;
     const [A, B] = selectedPurchases;
 
-    const mapA = new Map<string, { rotulo: string; preco: number }>();
-    for (const it of A.itens || []) {
-      const k = norm(it.nome);
-      if (!mapA.has(k)) mapA.set(k, { rotulo: it.nome, preco: Number(it.preco) || 0 });
-    }
-    const mapB = new Map<string, { rotulo: string; preco: number }>();
-    for (const it of B.itens || []) {
-      const k = norm(it.nome);
-      if (!mapB.has(k)) mapB.set(k, { rotulo: it.nome, preco: Number(it.preco) || 0 });
-    }
+    type V = { nome: string; peso?: number; unidade?: string; preco: number };
+    const map = new Map<
+      string,
+      { label: string; a?: V; b?: V }
+    >();
 
-    const commons: Array<{ nome: string; a: number; b: number }> = [];
-    for (const [k, va] of mapA.entries()) {
-      if (mapB.has(k)) {
-        const vb = mapB.get(k)!;
-        commons.push({ nome: va.rotulo || vb.rotulo, a: va.preco, b: vb.preco });
+    const fill = (side: "a" | "b", p: typeof A) => {
+      for (const it of p.itens || []) {
+        const k = variantKey(it.nome, it.peso, it.unidade);
+        const label = variantLabel(it.nome, it.peso, it.unidade);
+        const v: V = {
+          nome: it.nome,
+          peso: it.peso,
+          unidade: it.unidade,
+          preco: Number(it.preco) || 0,
+        };
+        if (!map.has(k)) map.set(k, { label });
+        (map.get(k) as any)[side] = v;
       }
-    }
-    return commons.sort((x, y) => norm(x.nome).localeCompare(norm(y.nome), "pt-BR", { sensitivity: "base" }));
+    };
+    fill("a", A);
+    fill("b", B);
+
+    const rows = Array.from(map.values()).sort((x, y) => norm(x.label).localeCompare(norm(y.label)));
+
+    return { A, B, rows };
   }, [selectedPurchases]);
 
   /* ========================= ESTATÍSTICAS ========================= */
@@ -193,14 +195,13 @@ const Compare: React.FC = () => {
       byMarket[market] = (byMarket[market] || 0) + total;
 
       for (const it of p.itens || []) {
-        const k = norm(it.nome);
-        if (!counts[k]) counts[k] = { nome: it.nome, c: 0 };
+        const k = variantKey(it.nome, it.peso, it.unidade); // conta por variante
+        if (!counts[k]) counts[k] = { nome: variantLabel(it.nome, it.peso, it.unidade), c: 0 };
         counts[k].c += 1;
       }
     }
     const topItems = Object.values(counts).sort((a, b) => b.c - a.c);
     const markets = Object.entries(byMarket).sort((a, b) => b[1] - a[1]);
-
     return { topItems, markets };
   }, [purchases]);
 
@@ -255,39 +256,47 @@ const Compare: React.FC = () => {
             <p className="px-1 text-center text-sm text-gray-500">
               Digite o nome de um produto para buscar.
             </p>
-          ) : produtoPorMercado.length === 0 ? (
+          ) : produtoGrupos.length === 0 ? (
             <p className="px-1 text-center text-sm text-gray-500">Nenhum resultado.</p>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              {/* Cabeçalho agora mostra o NOME DO ITEM */}
-              <div className="flex items-center justify-between border-b bg-gray-50 p-3">
-                <div className="text-base font-semibold text-gray-900">{matchedName}</div>
-                {menorPrecoGlobal !== null && (
-                  <div className="text-sm font-semibold text-green-600">
-                    Melhor preço: {brl(menorPrecoGlobal)}
-                  </div>
-                )}
-              </div>
-
-              {produtoPorMercado.map((r, i) => {
-                const isBest = menorPrecoGlobal !== null && r.price === menorPrecoGlobal;
+            <div className="space-y-4">
+              {produtoGrupos.map((g, gi) => {
+                const best = g.rows.length ? Math.min(...g.rows.map((r) => r.price)) : null;
                 return (
-                  <div key={i} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium text-gray-900">{r.market}</div>
-                      <div className={`font-semibold ${isBest ? "text-green-600" : "text-gray-900"}`}>
-                        {brl(r.price)}
+                  <div key={gi} className="overflow-hidden rounded-2xl border border-gray-200">
+                    <div className="flex items-center justify-between border-b bg-gray-50 p-3">
+                      <div className="text-base font-semibold text-gray-900">
+                        {variantLabel(g.variant.nome, g.variant.peso, g.variant.unidade)}
                       </div>
-                    </div>
-                    <div className="mt-1 text-sm text-gray-500">
-                      {r.sourceKind === "compra" ? "Compra: " : "Lista: "}
-                      {r.sourceName}
-                      {isBest && (
-                        <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                          melhor preço
-                        </span>
+                      {best !== null && (
+                        <div className="text-sm font-semibold text-green-600">
+                          Melhor preço: {brl(best)}
+                        </div>
                       )}
                     </div>
+
+                    {g.rows.map((r, i) => {
+                      const isBest = best !== null && r.price === best;
+                      return (
+                        <div key={i} className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium text-gray-900">{r.market}</div>
+                            <div className={`font-semibold ${isBest ? "text-green-600" : "text-gray-900"}`}>
+                              {brl(r.price)}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {r.sourceKind === "compra" ? "Compra: " : "Lista: "}
+                            {r.sourceName}
+                            {isBest && (
+                              <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                                melhor preço
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -300,7 +309,7 @@ const Compare: React.FC = () => {
       {tab === "compras" && (
         <>
           <p className="mb-3 px-1 text-sm text-gray-600">
-            Selecione <span className="font-semibold">duas</span> compras para comparar itens em comum.
+            Selecione <span className="font-semibold">duas</span> compras para comparar itens.
           </p>
 
           <div className="mb-4 space-y-3">
@@ -327,6 +336,7 @@ const Compare: React.FC = () => {
                 <div
                   key={p.id}
                   className={`flex items-start justify-between rounded-2xl border p-4 ${selected ? "border-yellow-400 ring-1 ring-yellow-200" : "border-gray-200"}`}
+                  onClick={() => togglePurchase(p.id)}
                 >
                   <div className="flex flex-1 items-start gap-3">
                     <RoundCheck checked={selected} onChange={() => togglePurchase(p.id)} />
@@ -345,31 +355,62 @@ const Compare: React.FC = () => {
             })}
           </div>
 
-          {selectedPurchases.length === 2 ? (
+          {compraComparacao ? (
             <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <div className="border-b bg-gray-50 p-3 text-sm font-semibold text-gray-800">
-                Itens em comum ({selectedPurchases[0].name} × {selectedPurchases[1].name})
+              <div className="grid grid-cols-[1fr,140px,140px] gap-2 border-b bg-gray-50 p-3 text-xs font-semibold text-gray-800">
+                <div>Item (variante)</div>
+                <div className="text-right">{compraComparacao.A.name}</div>
+                <div className="text-right">{compraComparacao.B.name}</div>
               </div>
 
-              <div className="grid grid-cols-[1fr,120px,120px] gap-2 border-b p-3 text-xs font-medium text-gray-500">
-                <div>Item</div>
-                <div className="text-right">{selectedPurchases[0].name}</div>
-                <div className="text-right">{selectedPurchases[1].name}</div>
-              </div>
-
-              {commonRows.length === 0 ? (
+              {compraComparacao.rows.length === 0 ? (
                 <div className="p-4 text-sm text-gray-500">Nenhum item em comum.</div>
               ) : (
-                commonRows.map((r, i) => {
-                  const min = Math.min(r.a, r.b);
+                compraComparacao.rows.map((r, i) => {
+                  const a = r.a;
+                  const b = r.b;
+                  const aHas = !!a;
+                  const bHas = !!b;
+                  const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
+
+                  // badge preço por unidade quando possível
+                  let aPer = "";
+                  let bPer = "";
+                  if (a && b && sameDimension(a.unidade, b.unidade) && a.peso && b.peso) {
+                    const au = toBase(a.peso, a.unidade!);
+                    const bu = toBase(b.peso, b.unidade!);
+                    if (au > 0) aPer = brl(a.preco / (au / 1000)) + "/kg";
+                    if (bu > 0) bPer = brl(b.preco / (bu / 1000)) + "/kg";
+                  }
+
                   return (
-                    <div key={i} className="grid grid-cols-[1fr,120px,120px] items-center gap-2 p-3">
-                      <div className="font-medium text-gray-900">{r.nome}</div>
-                      <div className={`text-right ${r.a <= min ? "font-semibold text-green-600" : "text-gray-700"}`}>
-                        {brl(r.a)}
+                    <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3">
+                      <div className="font-medium text-gray-900">{r.label}</div>
+
+                      <div className="text-right">
+                        {aHas ? (
+                          <>
+                            <div className={`${(a!.preco) <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
+                              {brl(a!.preco)}
+                            </div>
+                            {aPer && <div className="text-xs text-gray-500">{aPer}</div>}
+                          </>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </div>
-                      <div className={`text-right ${r.b <= min ? "font-semibold text-green-600" : "text-gray-700"}`}>
-                        {brl(r.b)}
+
+                      <div className="text-right">
+                        {bHas ? (
+                          <>
+                            <div className={`${(b!.preco) <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
+                              {brl(b!.preco)}
+                            </div>
+                            {bPer && <div className="text-xs text-gray-500">{bPer}</div>}
+                          </>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -393,7 +434,7 @@ const Compare: React.FC = () => {
             {stats.topItems.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">Sem dados ainda.</div>
             ) : (
-              stats.topItems.slice(0, 20).map((it, i) => (
+              stats.topItems.slice(0, 30).map((it, i) => (
                 <div key={i} className="flex items-center justify-between p-3">
                   <div className="text-gray-800">{it.nome}</div>
                   <div className="text-gray-700">{it.c}x</div>
@@ -408,27 +449,23 @@ const Compare: React.FC = () => {
               <div className="font-semibold text-gray-900">Gastos por supermercado</div>
             </div>
 
-            {stats.markets.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">Sem dados ainda.</div>
-            ) : (
-              <div className="p-3">
-                {stats.markets.map(([market, total], i) => {
-                  const max = stats.markets[0][1] || 1;
-                  const pct = Math.max(3, Math.round((total / max) * 100));
-                  return (
-                    <div key={i} className="mb-3">
-                      <div className="mb-1 flex items-center justify-between text-sm text-gray-700">
-                        <span>{market}</span>
-                        <span>{brl(total)}</span>
-                      </div>
-                      <div className="h-2 w-full rounded bg-gray-200">
-                        <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
-                      </div>
+            <div className="p-3">
+              {stats.markets.map(([market, total], i) => {
+                const max = stats.markets[0][1] || 1;
+                const pct = Math.max(3, Math.round((total / max) * 100));
+                return (
+                  <div key={i} className="mb-3">
+                    <div className="mb-1 flex items-center justify-between text-sm text-gray-700">
+                      <span>{market}</span>
+                      <span>{brl(total)}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <div className="h-2 w-full rounded bg-gray-200">
+                      <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
