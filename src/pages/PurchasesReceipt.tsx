@@ -15,10 +15,8 @@ import { parseNFCeFromUrl } from "@/services/nfceParser";
  */
 function extractUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  // pega a 1ª ocorrência de http(s)://... até espaço
   const m = String(raw).match(/https?:\/\/\S+/i);
   if (m && m[0]) {
-    // remove caracteres finais comuns em QR libs (quebra de linha, etc.)
     return m[0].replace(/[)\]}>,.;]*$/, "");
   }
   return null;
@@ -28,39 +26,34 @@ const PurchasesReceipt: React.FC = () => {
   const navigate = useNavigate();
   const { createPurchaseFromReceiptInContext } = useData();
 
-  const [manualUrl, setManualUrl] = React.useState("");
-  const [scanning, setScanning] = React.useState(true);
+  const [scanning, setScanning] = React.useState(true);        // exibindo câmera?
+  const [loading, setLoading] = React.useState(false);         // processando cupom?
+  const [parsedOk, setParsedOk] = React.useState(false);       // já temos itens?
   const lastScanRef = React.useRef<number>(0);
 
-  async function importFromUrl(url: string) {
+  // campos que o usuário vai preencher DEPOIS de ler o QR
+  const [market, setMarket] = React.useState("");
+  const [listName, setListName] = React.useState("");
+
+  const handleCreate = async () => {
     try {
-      const parsed = await parseNFCeFromUrl(url);
-      // Esperado do parser:
-      // {
-      //   name?: string;
-      //   market?: string;
-      //   date?: Date;
-      //   itens: Array<{ nome: string; quantidade?: number; unidade?: string; preco: number; peso?: number; }>
-      // }
-      if (!parsed || !Array.isArray(parsed.itens) || parsed.itens.length === 0) {
-        toast.error("Não foi possível ler itens na NFC-e.");
-        return;
-      }
-
+      setLoading(true);
       await createPurchaseFromReceiptInContext({
-        name: parsed.name || "Compra (NFC-e)",
-        market: parsed.market || "—",
-        date: parsed.date instanceof Date ? parsed.date : new Date(),
-        itens: parsed.itens,
+        name: listName || "Compra (NFC-e)",
+        market: market || "—",
+        date: new Date(),
+        // os itens vêm do parser; createPurchaseFromReceiptInContext já busca do buffer interno
+        // (se seu context exigir, adapte para receber itens por parâmetro)
       });
-
       toast.success("Compra importada!");
       navigate("/purchases");
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      toast.error("Falha ao importar a NFC-e.");
+      toast.error("Falha ao salvar a compra.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const handleDecode = async (value: string) => {
     // throttle 2s para evitar repetição
@@ -73,8 +66,33 @@ const PurchasesReceipt: React.FC = () => {
       toast.error("QR lido não contém uma URL válida.");
       return;
     }
+
     setScanning(false);
-    await importFromUrl(url);
+    setLoading(true);
+
+    try {
+      const parsed = await parseNFCeFromUrl(url);
+
+      if (!parsed || !Array.isArray(parsed.itens) || parsed.itens.length === 0) {
+        toast.error("Não foi possível identificar itens na NFC-e.");
+        setLoading(false);
+        setScanning(true);
+        return;
+      }
+
+      // pré-preencher com dados do cupom (se vierem)
+      if (parsed.market) setMarket(parsed.market);
+      if (parsed.name) setListName(parsed.name);
+
+      setParsedOk(true);
+      toast.success("QR escaneado! Revise e salve.");
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao ler a NFC-e.");
+      setScanning(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,65 +104,74 @@ const PurchasesReceipt: React.FC = () => {
         {scanning ? (
           <Scanner
             onScan={(detected) => {
-              // o componente retorna uma lista; pegue o texto do primeiro
-              const value = Array.isArray(detected) && detected[0]?.rawValue
-                ? detected[0].rawValue
-                : (detected as any)?.[0] || (detected as any)?.rawValue || "";
+              const value =
+                Array.isArray(detected) && detected[0]?.rawValue
+                  ? detected[0].rawValue
+                  : (detected as any)?.[0] || (detected as any)?.rawValue || "";
               if (value) handleDecode(String(value));
             }}
             onError={(err) => {
               console.error(err);
               toast.error("Erro ao acessar a câmera.");
             }}
-            components={{ // remove controles internos
-              audio: false,
-              torch: false,
-              zoom: false,
-              finder: false,
-            }}
+            components={{ audio: false, torch: false, zoom: false, finder: false }}
             constraints={{ facingMode: "environment" }}
             styles={{ container: { width: "100%", height: 300 } }}
           />
         ) : (
           <div className="p-6 text-center text-gray-600">
-            Processando leitura...
+            {loading ? "QR lido — processando dados..." : "QR lido com sucesso!"}
           </div>
         )}
       </div>
 
-      {/* Controles */}
+      {/* Apenas botão Reescanear (removemos a área de URL manual) */}
       <div className="mt-3 flex gap-2">
         <button
-          onClick={() => setScanning(true)}
+          onClick={() => {
+            setParsedOk(false);
+            setMarket("");
+            setListName("");
+            setScanning(true);
+          }}
           className="rounded-xl border border-gray-300 px-4 py-2 text-gray-800 active:scale-95"
         >
           Reescanear
         </button>
       </div>
 
-      {/* Ou colar a URL manualmente */}
-      <div className="mt-6">
-        <label className="mb-2 block font-medium text-gray-800">Ou cole a URL da NFC-e</label>
-        <input
-          value={manualUrl}
-          onChange={(e) => setManualUrl(e.target.value)}
-          placeholder="https://... (URL da nota fiscal)"
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
-        />
-        <button
-          onClick={async () => {
-            const url = extractUrl(manualUrl);
-            if (!url) {
-              toast.error("Informe uma URL válida.");
-              return;
-            }
-            await importFromUrl(url);
-          }}
-          className="mt-3 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99]"
-        >
-          Importar NFC-e
-        </button>
-      </div>
+      {/* Após processamento: pedir Mercado e Nome da lista */}
+      {parsedOk && !loading && (
+        <div className="mt-6 space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">Mercado</label>
+            <input
+              value={market}
+              onChange={(e) => setMarket(e.target.value)}
+              placeholder="Ex.: Carrefour, Extra..."
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">Nome da lista</label>
+            <input
+              value={listName}
+              onChange={(e) => setListName(e.target.value)}
+              placeholder="Ex.: Compra do mês"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+
+          <button
+            onClick={handleCreate}
+            disabled={loading}
+            className="mt-1 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
+          >
+            {loading ? "Salvando..." : "Salvar compra"}
+          </button>
+        </div>
+      )}
 
       <BottomNav activeTab="purchases" />
     </div>

@@ -1,98 +1,63 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-/**
- * Onboarding no estilo original:
- * - Cabeçalho simples: nome do app à esquerda e "Pular" à direita
- * - Conteúdo central, sem card/caixa
- * - Indicadores (bolinhas) ao centro
- * - CTA "Próximo" fixo na base; no último slide vira "Começar"
- * - Fluxo: apenas ao finalizar OU pular -> grava onboardingSeen=1 e vai para /login
- */
-
 const slides = [
-  {
-    icon: "🛒",
-    title: "Bem-vinda ao Comparafy",
-    desc: "Crie listas, registre compras e compare preços em segundos.",
-  },
-  {
-    icon: "📝",
-    title: "Liste e controle",
-    desc: "Monte listas, marque itens comprados e acompanhe o total gasto.",
-  },
-  {
-    icon: "💸",
-    title: "Compare e economize",
-    desc: "Veja onde está mais barato e acompanhe seus gastos por mercado.",
-  },
+  { img: "/slide1.png", title: "Compare preços", desc: "Veja onde está mais barato antes de sair de casa." },
+  { img: "/slide2.png", title: "Escaneie códigos", desc: "Adicione itens por código de barras ou cupom fiscal." },
+  { img: "/slide3.png", title: "Economize de verdade", desc: "Acompanhe sua economia e histórico de preços." },
 ];
 
-const Onboarding: React.FC = () => {
-  const [index, setIndex] = React.useState(0);
+export default function Onboarding() {
   const navigate = useNavigate();
+  const [idx, setIdx] = React.useState(0);
 
-  const next = () => {
-    if (index < slides.length - 1) {
-      setIndex((i) => i + 1);
-    } else {
-      // terminou
-      localStorage.setItem("onboardingSeen", "1");
-      navigate("/login", { replace: true });
-    }
-  };
-
-  const skip = () => {
+  const finish = () => {
     localStorage.setItem("onboardingSeen", "1");
     navigate("/login", { replace: true });
   };
 
-  const s = slides[index];
-
   return (
-    <div className="mx-auto flex min-h-screen max-w-xl flex-col bg-white px-6 pb-8 pt-10">
-      {/* header */}
-      <div className="mb-10 flex items-center justify-between">
-        <div className="text-2xl font-extrabold text-gray-900">Comparafy</div>
-        <button
-          onClick={skip}
-          className="rounded-lg px-2 py-1 text-sm font-medium text-gray-500 hover:text-gray-700"
-        >
-          Pular
-        </button>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-between px-6 py-10">
+      <div className="w-full max-w-sm flex-1 flex flex-col items-center justify-center text-center">
+        <img src={slides[idx].img} alt="" className="w-56 h-56 object-contain mb-6" />
+        <h2 className="text-2xl font-semibold mb-2">{slides[idx].title}</h2>
+        <p className="text-gray-600">{slides[idx].desc}</p>
       </div>
 
-      {/* conteúdo central */}
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="mb-4 text-5xl leading-none">{s.icon}</div>
-        <h1 className="mx-auto mb-2 max-w-[24ch] text-3xl font-extrabold text-gray-900">
-          {s.title}
-        </h1>
-        <p className="mx-auto max-w-[36ch] text-base text-gray-600">{s.desc}</p>
-
-        {/* indicadores */}
-        <div className="mt-6 flex items-center gap-2">
+      <div className="w-full max-w-sm">
+        <div className="flex items-center justify-center gap-2 mb-6">
           {slides.map((_, i) => (
             <span
               key={i}
-              className={
-                "h-2 w-2 rounded-full " +
-                (i === index ? "bg-yellow-500" : "bg-gray-300")
-              }
+              className={`w-2.5 h-2.5 rounded-full ${i === idx ? "bg-yellow-500" : "bg-gray-300"}`}
             />
           ))}
         </div>
-      </div>
 
-      {/* CTA base */}
-      <button
-        onClick={next}
-        className="mt-8 w-full rounded-xl bg-yellow-500 py-3 text-center text-base font-semibold text-black active:scale-[.995]"
-      >
-        {index < slides.length - 1 ? "Próximo" : "Começar"}
-      </button>
+        {idx < slides.length - 1 ? (
+          <div className="flex gap-3">
+            <button
+              onClick={finish}
+              className="flex-1 py-3 border rounded-lg font-medium"
+            >
+              Pular
+            </button>
+            <button
+              onClick={() => setIdx((v) => v + 1)}
+              className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg"
+            >
+              Próximo
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={finish}
+            className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-lg"
+          >
+            Começar
+          </button>
+        )}
+      </div>
     </div>
   );
-};
-
-export default Onboarding;
+}

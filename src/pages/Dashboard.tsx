@@ -20,9 +20,9 @@ const fmtDate = (any: any) => {
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { lists, purchases, savings } = useData();
+  const { lists, purchases } = useData();
 
-  // últimas 2 listas (mantém a estética antiga)
+  // últimas 2 listas
   const recentLists = useMemo(() => {
     const withDates = [...(lists || [])].sort((a, b) => {
       const ta = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : Date.parse(a.createdAt || "");
@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      {/* Cabeçalho no estilo antigo */}
+      {/* Cabeçalho */}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="text-2xl font-extrabold text-gray-900">Olá!</div>
@@ -53,18 +53,7 @@ const Dashboard: React.FC = () => {
         <img src="/LOGO_REDUZIDA.png" className="h-9" alt="Comparafy" />
       </div>
 
-      {/* Card Economia total */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-yellow-100">
-            <span className="text-lg">↗</span>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500">Economia total</div>
-            <div className="text-xl font-bold text-gray-900">{brl(savings)}</div>
-          </div>
-        </div>
-      </div>
+      {/* 👇 CARD DE ECONOMIA FOI REMOVIDO */}
 
       {/* Listas recentes */}
       <div className="mb-2 flex items-center justify-between">
@@ -126,7 +115,6 @@ const Dashboard: React.FC = () => {
         + Nova lista
       </Link>
 
-      {/* Linha divisória suave */}
       <div className="my-6 h-px w-full bg-gray-100" />
 
       {/* Compras recentes */}
