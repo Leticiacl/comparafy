@@ -1,3 +1,4 @@
+// src/pages/PurchasesReceipt.tsx
 import { useEffect, useRef, useState } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { useData } from "@/context/DataContext";
 import { parseNFCeFromUrl, ReceiptParseResult } from "@/services/nfceParser";
 
+/** Extrai a URL do QR em diferentes formatos que o componente pode retornar */
 function extractUrl(payload: unknown): string | null {
   const raw =
     typeof payload === "string"
@@ -30,9 +32,10 @@ export default function PurchasesReceipt() {
 
   const lastScan = useRef(0);
 
+  /** Lê o QR, busca a NFC-e via proxy e monta a prévia */
   const handleScan = async (detected: any) => {
     const now = Date.now();
-    if (now - lastScan.current < 1500) return;
+    if (now - lastScan.current < 1500) return; // evita múltipliplos disparos
     lastScan.current = now;
 
     const url = extractUrl(detected);
@@ -45,11 +48,11 @@ export default function PurchasesReceipt() {
       setParsed(data);
       setMarket(data.market || "");
       setListName(data.name || "");
-      toast.success(
-        data.itens?.length ? `QR lido! ${data.itens.length} item(ns) encontrado(s).` : "QR lido! Nenhum item detectado."
-      );
+      const count = data.itens?.length ?? 0;
+      console.info("[NFCe] itens lidos:", count);
+      toast.success(count ? `QR lido! ${count} item(ns).` : "QR lido! Nenhum item detectado.");
     } catch (e) {
-      console.error(e);
+      console.error("[NFCe] parse error", e);
       toast.error("Falha ao processar a NFC-e.");
       setScanning(true);
     } finally {
@@ -57,6 +60,7 @@ export default function PurchasesReceipt() {
     }
   };
 
+  /** Persiste a compra com os itens extraídos */
   const handleSave = async () => {
     if (!parsed) return;
     setLoading(true);
@@ -64,7 +68,7 @@ export default function PurchasesReceipt() {
       await createPurchaseFromReceiptInContext({
         name: listName || "Compra (NFC-e)",
         market: market || "—",
-        date: new Date(),
+        date: parsed.date instanceof Date ? parsed.date : new Date(),
         itens: parsed.itens || [],
       });
       toast.success("Compra importada!");
@@ -83,7 +87,7 @@ export default function PurchasesReceipt() {
     <div className="mx-auto max-w-xl bg-white p-4 pb-32">
       <PageHeader title="Importar por QR Code" />
 
-      {/* scanner */}
+      {/* Scanner */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200">
         {scanning ? (
           <Scanner
@@ -112,6 +116,7 @@ export default function PurchasesReceipt() {
             setMarket("");
             setListName("");
             setScanning(true);
+            lastScan.current = 0;
           }}
           className="rounded-xl border border-gray-300 px-4 py-2 text-gray-800 active:scale-95"
         >
@@ -119,7 +124,7 @@ export default function PurchasesReceipt() {
         </button>
       </div>
 
-      {/* prévia e formulário */}
+      {/* Prévia e formulário */}
       {parsed && !loading && (
         <div className="mt-6 space-y-4">
           <div className="rounded-xl border border-gray-200">
@@ -127,19 +132,33 @@ export default function PurchasesReceipt() {
               <div className="font-medium text-gray-800">Itens lidos</div>
               <div className="text-gray-600">{parsed.itens.length}</div>
             </div>
-            <ul className="max-h-40 overflow-auto p-3 text-sm text-gray-700">
-              {parsed.itens.slice(0, 10).map((it, i) => (
-                <li key={i} className="flex items-center justify-between py-1">
-                  <span className="truncate">{it.nome}</span>
-                  <span className="pl-3 font-medium">
-                    {Number(it.preco || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </span>
-                </li>
-              ))}
-              {parsed.itens.length > 10 && (
-                <li className="pt-1 text-center text-xs text-gray-500">… e mais {parsed.itens.length - 10}</li>
+
+            <div className="max-h-40 overflow-auto p-3 text-sm text-gray-700">
+              {parsed.itens.length === 0 ? (
+                <div className="text-center text-gray-500">
+                  Nenhum item detectado. Verifique o .env (VITE_NFCE_PROXY) e tente novamente.
+                </div>
+              ) : (
+                <ul>
+                  {parsed.itens.slice(0, 10).map((it, i) => (
+                    <li key={i} className="flex items-center justify-between py-1">
+                      <span className="truncate">{it.nome}</span>
+                      <span className="pl-3 font-medium">
+                        {Number(it.preco || 0).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                  {parsed.itens.length > 10 && (
+                    <li className="pt-1 text-center text-xs text-gray-500">
+                      … e mais {parsed.itens.length - 10}
+                    </li>
+                  )}
+                </ul>
               )}
-            </ul>
+            </div>
           </div>
 
           <div>
@@ -151,6 +170,7 @@ export default function PurchasesReceipt() {
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Nome da lista</label>
             <input

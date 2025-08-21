@@ -1,158 +1,170 @@
-import { useEffect, useMemo, useState } from "react";
+// src/components/ui/AddItemModal.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { Dialog } from "@headlessui/react";
+import { useData, Item } from "@/context/DataContext";
 
 type Props = {
   isOpen: boolean;
   onClose(): void;
   listId: string;
-  itemToEdit?: any | null;
-  onAdd?: (payload: {
-    nome: string;
-    quantidade: number;
-    unidade: string;      // un | kg | g | L | ml | pacote ...
-    peso?: number | null; // quando aplicável (kg/g/L/ml)
-    preco: number;
-    observacoes?: string;
-  }) => Promise<void> | void;
+  itemToEdit?: Item | null;
 };
 
-const defaultState = {
-  nome: "",
-  quantidade: 1,
-  unidade: "un",
-  peso: "" as number | "" | null,
-  preco: "" as number | "",
-  observacoes: "",
-};
+const UNITS = [
+  { value: "un", label: "Unidade" },
+  { value: "bd", label: "Bandeja" },
+  { value: "dz", label: "Dúzia" },
+  { value: "kg", label: "Quilo (kg)" },
+  { value: "g", label: "Grama (g)" },
+  { value: "l", label: "Litro (l)" },
+  { value: "ml", label: "Mililitro (ml)" },
+];
 
-const UNITS = ["un", "kg", "g", "L", "ml", "pacote", "cx", "dz"];
+export default function AddItemModal({ isOpen, onClose, listId, itemToEdit }: Props) {
+  const { addItem, updateItem } = useData();
 
-export default function AddItemModal({ isOpen, onClose, itemToEdit, onAdd }: Props) {
-  const [form, setForm] = useState(defaultState);
-  const [saving, setSaving] = useState(false);
+  const [nome, setNome] = useState("");
+  const [quantidade, setQuantidade] = useState<number | "">(1);
+  const [unidade, setUnidade] = useState("un");
+  const [peso, setPeso] = useState<number | "">("");
+  const [preco, setPreco] = useState<number | "">("");
+  const [observacoes, setObservacoes] = useState("");
 
   useEffect(() => {
     if (itemToEdit) {
-      setForm({
-        nome: itemToEdit.nome || "",
-        quantidade: itemToEdit.quantidade ?? 1,
-        unidade: itemToEdit.unidade || "un",
-        peso: itemToEdit.peso ?? "",
-        preco: itemToEdit.preco ?? "",
-        observacoes: itemToEdit.observacoes || "",
-      });
+      setNome(itemToEdit.nome || "");
+      setQuantidade(itemToEdit.quantidade ?? 1);
+      setUnidade(itemToEdit.unidade || "un");
+      setPeso(itemToEdit.peso ?? "");
+      setPreco(itemToEdit.preco ?? "");
+      setObservacoes(itemToEdit.observacoes || "");
     } else {
-      setForm(defaultState);
+      setNome("");
+      setQuantidade(1);
+      setUnidade("un");
+      setPeso("");
+      setPreco("");
+      setObservacoes("");
     }
   }, [itemToEdit, isOpen]);
 
-  const needsWeight = useMemo(() => ["kg", "g", "L", "ml"].includes(String(form.unidade)), [form.unidade]);
+  const canSave = useMemo(() => {
+    return nome.trim().length > 1 && Number(preco || 0) >= 0 && Number(quantidade || 0) > 0;
+  }, [nome, preco, quantidade]);
 
-  const handleAdd = async () => {
-    if (saving) return;
-    const payload = {
-      nome: form.nome.trim(),
-      quantidade: Number(form.quantidade || 1),
-      unidade: form.unidade || "un",
-      peso: needsWeight ? (form.peso === "" ? undefined : Number(form.peso)) : undefined,
-      preco: Number(form.preco || 0),
-      observacoes: form.observacoes?.trim() || "",
-    };
-    if (!payload.nome) return;
+  const handleSave = async () => {
+    if (!canSave) return;
 
-    setSaving(true);
-    try {
-      if (onAdd) await onAdd(payload);
-      setForm({
-        ...defaultState,
-        unidade: form.unidade, // mantém unidade preferida
-      });
-    } finally {
-      setSaving(false);
+    const data = {
+      nome: nome.trim(),
+      quantidade: Number(quantidade || 1),
+      unidade,
+      peso: peso === "" ? undefined : Number(peso),
+      preco: Number(preco || 0),
+      observacoes: observacoes.trim(),
+    } as Omit<Item, "id" | "comprado">;
+
+    if (itemToEdit?.id) {
+      await updateItem(listId, itemToEdit.id, data);
+    } else {
+      await addItem(listId, data);
     }
+    onClose();
   };
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30" />
-      <div className="fixed inset-0 grid place-items-center p-4">
-        <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-4">
-          <Dialog.Title className="mb-3 text-lg font-semibold">
+      <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-end justify-center sm:items-center p-4">
+        <Dialog.Panel className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl">
+          <Dialog.Title className="mb-2 text-lg font-semibold text-gray-900">
             {itemToEdit ? "Editar item" : "Adicionar item"}
           </Dialog.Title>
 
           <div className="space-y-3">
             <input
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder="Nome do item"
-              value={form.nome}
-              onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
+              className="w-full rounded-xl border px-3 py-2"
+              placeholder="Nome do produto"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
             />
 
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                className="rounded-lg border px-3 py-2"
-                type="number"
-                placeholder="Qtd"
-                value={form.quantidade}
-                onChange={(e) => setForm((s) => ({ ...s, quantidade: Number(e.target.value || 1) }))}
-              />
-
-              <select
-                className="rounded-lg border px-3 py-2 bg-white"
-                value={form.unidade}
-                onChange={(e) => setForm((s) => ({ ...s, unidade: e.target.value }))}
-              >
-                {UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-
-              {needsWeight ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm text-gray-700">Quantidade</label>
                 <input
-                  className="rounded-lg border px-3 py-2"
                   type="number"
-                  placeholder={`Peso (${form.unidade})`}
-                  value={form.peso}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, peso: e.target.value === "" ? "" : Number(e.target.value) }))
-                  }
+                  min={0}
+                  step="0.01"
+                  className="w-full rounded-xl border px-3 py-2"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value === "" ? "" : Number(e.target.value))}
                 />
-              ) : (
-                <input
-                  disabled
-                  className="rounded-lg border px-3 py-2 text-gray-400"
-                  placeholder="Peso — n/a"
-                />
-              )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-700">Unidade</label>
+                <select
+                  className="w-full rounded-xl border px-3 py-2 bg-white"
+                  value={unidade}
+                  onChange={(e) => setUnidade(e.target.value)}
+                >
+                  {UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <input
-              className="w-full rounded-lg border px-3 py-2"
-              type="number"
-              placeholder="Preço"
-              value={form.preco}
-              onChange={(e) => setForm((s) => ({ ...s, preco: e.target.value === "" ? "" : Number(e.target.value) }))}
-            />
+            {/* Peso opcional (útil para kg/l/ml) */}
+            <div>
+              <label className="mb-1 block text-sm text-gray-700">Peso (para kg/g/l/ml)</label>
+              <input
+                type="number"
+                min={0}
+                step="0.001"
+                className="w-full rounded-xl border px-3 py-2"
+                placeholder="Ex.: 0.580 (kg) | 500 (g) | 1.5 (l)"
+                value={peso}
+                onChange={(e) => setPeso(e.target.value === "" ? "" : Number(e.target.value))}
+              />
+            </div>
 
-            <textarea
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder="Observações"
-              value={form.observacoes}
-              onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
-            />
+            <div>
+              <label className="mb-1 block text-sm text-gray-700">Preço</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className="w-full rounded-xl border px-3 py-2"
+                placeholder="Ex.: 9,99"
+                value={preco}
+                onChange={(e) => setPreco(e.target.value === "" ? "" : Number(e.target.value))}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-700">Observações / Marca</label>
+              <textarea
+                className="w-full rounded-xl border px-3 py-2"
+                rows={3}
+                placeholder="Ex.: marca, promo, detalhes…"
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
-            <button className="rounded-lg bg-gray-100 px-4 py-2" onClick={onClose}>
+            <button className="rounded-xl border px-4 py-2" onClick={onClose}>
               Cancelar
             </button>
             <button
-              disabled={saving}
-              className="rounded-lg bg-yellow-500 px-4 py-2 font-semibold text-black disabled:opacity-60"
-              onClick={handleAdd}
+              disabled={!canSave}
+              onClick={handleSave}
+              className="rounded-xl bg-yellow-500 px-4 py-2 font-semibold text-black disabled:opacity-60"
             >
               {itemToEdit ? "Salvar" : "Adicionar"}
             </button>
