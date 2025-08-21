@@ -1,12 +1,13 @@
-// src/pages/Compare.tsx
 import React, { useMemo, useState } from "react";
-import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
+import { useLocation } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import RoundCheck from "@/components/RoundCheck";
 import { useData } from "@/context/DataContext";
+import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 
+/* ======================== helpers ======================== */
 const brl = (n: number) =>
-  (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function norm(s: string) {
   return (s || "")
@@ -17,13 +18,8 @@ function norm(s: string) {
     .toLowerCase()
     .trim();
 }
-const unitFactor: Record<string, number> = {
-  kg: 1000,
-  g: 1,
-  l: 1000,
-  ml: 1,
-  un: 1,
-};
+
+const unitFactor: Record<string, number> = { kg: 1000, g: 1, l: 1000, ml: 1, un: 1 };
 
 function variantKey(nome: string, peso?: number, unidade?: string) {
   const u = (unidade || "").toLowerCase();
@@ -49,9 +45,14 @@ function toBase(peso: number, unidade: string) {
 
 type Tab = "produtos" | "compras" | "estatisticas";
 
+/* ======================== component ======================== */
 const Compare: React.FC = () => {
-  const { lists, purchases } = useData();
-  const [tab, setTab] = useState<Tab>("compras");
+  const { lists = [], purchases = [] } = useData();
+
+  // inicia SEMPRE na aba "produtos" (ou usa ?tab=produtos)
+  const { search } = useLocation();
+  const qp = new URLSearchParams(search);
+  const [tab, setTab] = useState<Tab>((qp.get("tab") as Tab) || "produtos");
 
   /* ========================= PRODUTOS (por variante) ========================= */
   const [query, setQuery] = useState("");
@@ -76,7 +77,6 @@ const Compare: React.FC = () => {
     if (!canSearch) return [];
     const q = norm(query);
 
-    // coletas
     const rows: Row[] = [];
 
     // compras
@@ -94,12 +94,12 @@ const Compare: React.FC = () => {
         });
       }
     }
-    // listas (opcional)
+    // listas
     for (const l of lists) {
       for (const it of l.itens || []) {
         if (!norm(it.nome).includes(q)) continue;
         rows.push({
-          market: it.mercado || l.market || "—",
+          market: (it as any).mercado || (l as any).market || "—",
           price: Number(it.preco) || 0,
           sourceKind: "lista",
           sourceName: l.nome || "Lista",
@@ -110,7 +110,6 @@ const Compare: React.FC = () => {
       }
     }
 
-    // agrupa por VARIANTE
     const byVariant = new Map<string, Group>();
     for (const r of rows) {
       const k = variantKey(r.nome, r.peso, r.unidade);
@@ -155,10 +154,7 @@ const Compare: React.FC = () => {
     const [A, B] = selectedPurchases;
 
     type V = { nome: string; peso?: number; unidade?: string; preco: number };
-    const map = new Map<
-      string,
-      { label: string; a?: V; b?: V }
-    >();
+    const map = new Map<string, { label: string; a?: V; b?: V }>();
 
     const fill = (side: "a" | "b", p: typeof A) => {
       for (const it of p.itens || []) {
@@ -178,7 +174,6 @@ const Compare: React.FC = () => {
     fill("b", B);
 
     const rows = Array.from(map.values()).sort((x, y) => norm(x.label).localeCompare(norm(y.label)));
-
     return { A, B, rows };
   }, [selectedPurchases]);
 
@@ -195,7 +190,7 @@ const Compare: React.FC = () => {
       byMarket[market] = (byMarket[market] || 0) + total;
 
       for (const it of p.itens || []) {
-        const k = variantKey(it.nome, it.peso, it.unidade); // conta por variante
+        const k = variantKey(it.nome, it.peso, it.unidade);
         if (!counts[k]) counts[k] = { nome: variantLabel(it.nome, it.peso, it.unidade), c: 0 };
         counts[k].c += 1;
       }
@@ -205,6 +200,7 @@ const Compare: React.FC = () => {
     return { topItems, markets };
   }, [purchases]);
 
+  /* ========================= render ========================= */
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
       <div className="mb-4 flex items-center justify-between">
@@ -253,9 +249,7 @@ const Compare: React.FC = () => {
           </div>
 
           {!canSearch ? (
-            <p className="px-1 text-center text-sm text-gray-500">
-              Digite o nome de um produto para buscar.
-            </p>
+            <p className="px-1 text-center text-sm text-gray-500">Digite o nome de um produto para buscar.</p>
           ) : produtoGrupos.length === 0 ? (
             <p className="px-1 text-center text-sm text-gray-500">Nenhum resultado.</p>
           ) : (
@@ -269,9 +263,7 @@ const Compare: React.FC = () => {
                         {variantLabel(g.variant.nome, g.variant.peso, g.variant.unidade)}
                       </div>
                       {best !== null && (
-                        <div className="text-sm font-semibold text-green-600">
-                          Melhor preço: {brl(best)}
-                        </div>
+                        <div className="text-sm font-semibold text-green-600">Melhor preço: {brl(best)}</div>
                       )}
                     </div>
 
@@ -313,7 +305,7 @@ const Compare: React.FC = () => {
           </p>
 
           <div className="mb-4 space-y-3">
-            {purchases.map((p) => {
+            {(purchases || []).map((p) => {
               const selected = selectedIds.includes(p.id);
               const total =
                 typeof p.total === "number"
@@ -328,14 +320,14 @@ const Compare: React.FC = () => {
                   : p.createdAt?.seconds
                   ? p.createdAt.seconds * 1000
                   : Date.parse(p.createdAt || "");
-              const date = Number.isFinite(created)
-                ? new Date(created).toLocaleDateString("pt-BR")
-                : "";
+              const date = Number.isFinite(created) ? new Date(created).toLocaleDateString("pt-BR") : "";
 
               return (
                 <div
                   key={p.id}
-                  className={`flex items-start justify-between rounded-2xl border p-4 ${selected ? "border-yellow-400 ring-1 ring-yellow-200" : "border-gray-200"}`}
+                  className={`flex items-start justify-between rounded-2xl border p-4 ${
+                    selected ? "border-yellow-400 ring-1 ring-yellow-200" : "border-gray-200"
+                  }`}
                   onClick={() => togglePurchase(p.id)}
                 >
                   <div className="flex flex-1 items-start gap-3">
@@ -373,7 +365,6 @@ const Compare: React.FC = () => {
                   const bHas = !!b;
                   const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
 
-                  // badge preço por unidade quando possível
                   let aPer = "";
                   let bPer = "";
                   if (a && b && sameDimension(a.unidade, b.unidade) && a.peso && b.peso) {
@@ -390,7 +381,7 @@ const Compare: React.FC = () => {
                       <div className="text-right">
                         {aHas ? (
                           <>
-                            <div className={`${(a!.preco) <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
+                            <div className={`${a!.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
                               {brl(a!.preco)}
                             </div>
                             {aPer && <div className="text-xs text-gray-500">{aPer}</div>}
@@ -403,7 +394,7 @@ const Compare: React.FC = () => {
                       <div className="text-right">
                         {bHas ? (
                           <>
-                            <div className={`${(b!.preco) <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
+                            <div className={`${b!.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}`}>
                               {brl(b!.preco)}
                             </div>
                             {bPer && <div className="text-xs text-gray-500">{bPer}</div>}

@@ -1,5 +1,4 @@
-// src/components/ui/AddItemModal.tsx
-import React from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog } from "@headlessui/react";
 
 type Props = {
@@ -10,12 +9,11 @@ type Props = {
   onAdd?: (payload: {
     nome: string;
     quantidade: number;
-    unidade: string;
-    peso?: number | null;
+    unidade: string;      // un | kg | g | L | ml | pacote ...
+    peso?: number | null; // quando aplicável (kg/g/L/ml)
     preco: number;
-    mercado?: string;
     observacoes?: string;
-  }) => Promise<void> | void; // (opcional) para listas fora do contexto
+  }) => Promise<void> | void;
 };
 
 const defaultState = {
@@ -24,15 +22,16 @@ const defaultState = {
   unidade: "un",
   peso: "" as number | "" | null,
   preco: "" as number | "",
-  mercado: "",
   observacoes: "",
 };
 
-const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) => {
-  const [form, setForm] = React.useState(defaultState);
-  const [saving, setSaving] = React.useState(false);
+const UNITS = ["un", "kg", "g", "L", "ml", "pacote", "cx", "dz"];
 
-  React.useEffect(() => {
+export default function AddItemModal({ isOpen, onClose, itemToEdit, onAdd }: Props) {
+  const [form, setForm] = useState(defaultState);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
     if (itemToEdit) {
       setForm({
         nome: itemToEdit.nome || "",
@@ -40,7 +39,6 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
         unidade: itemToEdit.unidade || "un",
         peso: itemToEdit.peso ?? "",
         preco: itemToEdit.preco ?? "",
-        mercado: itemToEdit.mercado || "",
         observacoes: itemToEdit.observacoes || "",
       });
     } else {
@@ -48,15 +46,16 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
     }
   }, [itemToEdit, isOpen]);
 
+  const needsWeight = useMemo(() => ["kg", "g", "L", "ml"].includes(String(form.unidade)), [form.unidade]);
+
   const handleAdd = async () => {
     if (saving) return;
     const payload = {
       nome: form.nome.trim(),
       quantidade: Number(form.quantidade || 1),
       unidade: form.unidade || "un",
-      peso: form.peso === "" ? undefined : Number(form.peso),
+      peso: needsWeight ? (form.peso === "" ? undefined : Number(form.peso)) : undefined,
       preco: Number(form.preco || 0),
-      mercado: form.mercado?.trim() || "",
       observacoes: form.observacoes?.trim() || "",
     };
     if (!payload.nome) return;
@@ -64,10 +63,9 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
     setSaving(true);
     try {
       if (onAdd) await onAdd(payload);
-      // NÃO fecha – limpa para facilitar adicionar vários itens
       setForm({
         ...defaultState,
-        unidade: form.unidade, // mantém unidade mais usada
+        unidade: form.unidade, // mantém unidade preferida
       });
     } finally {
       setSaving(false);
@@ -76,7 +74,7 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/20" />
+      <div className="fixed inset-0 bg-black/30" />
       <div className="fixed inset-0 grid place-items-center p-4">
         <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-4">
           <Dialog.Title className="mb-3 text-lg font-semibold">
@@ -86,10 +84,11 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
           <div className="space-y-3">
             <input
               className="w-full rounded-lg border px-3 py-2"
-              placeholder="Nome"
+              placeholder="Nome do item"
               value={form.nome}
               onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
             />
+
             <div className="grid grid-cols-3 gap-2">
               <input
                 className="rounded-lg border px-3 py-2"
@@ -98,22 +97,38 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
                 value={form.quantidade}
                 onChange={(e) => setForm((s) => ({ ...s, quantidade: Number(e.target.value || 1) }))}
               />
-              <input
-                className="rounded-lg border px-3 py-2"
-                placeholder="Unidade (un, kg, g...)"
+
+              <select
+                className="rounded-lg border px-3 py-2 bg-white"
                 value={form.unidade}
                 onChange={(e) => setForm((s) => ({ ...s, unidade: e.target.value }))}
-              />
-              <input
-                className="rounded-lg border px-3 py-2"
-                type="number"
-                placeholder="Peso (opcional)"
-                value={form.peso}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, peso: e.target.value === "" ? "" : Number(e.target.value) }))
-                }
-              />
+              >
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+
+              {needsWeight ? (
+                <input
+                  className="rounded-lg border px-3 py-2"
+                  type="number"
+                  placeholder={`Peso (${form.unidade})`}
+                  value={form.peso}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, peso: e.target.value === "" ? "" : Number(e.target.value) }))
+                  }
+                />
+              ) : (
+                <input
+                  disabled
+                  className="rounded-lg border px-3 py-2 text-gray-400"
+                  placeholder="Peso — n/a"
+                />
+              )}
             </div>
+
             <input
               className="w-full rounded-lg border px-3 py-2"
               type="number"
@@ -121,12 +136,7 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
               value={form.preco}
               onChange={(e) => setForm((s) => ({ ...s, preco: e.target.value === "" ? "" : Number(e.target.value) }))}
             />
-            <input
-              className="w-full rounded-lg border px-3 py-2"
-              placeholder="Mercado (opcional)"
-              value={form.mercado}
-              onChange={(e) => setForm((s) => ({ ...s, mercado: e.target.value }))}
-            />
+
             <textarea
               className="w-full rounded-lg border px-3 py-2"
               placeholder="Observações"
@@ -151,6 +161,4 @@ const AddItemModal: React.FC<Props> = ({ isOpen, onClose, itemToEdit, onAdd }) =
       </div>
     </Dialog>
   );
-};
-
-export default AddItemModal;
+}

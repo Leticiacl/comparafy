@@ -1,52 +1,74 @@
-import React from "react";
+import { useEffect, useRef, useState } from "react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { Scanner } from "@yudiel/react-qr-scanner";
 import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/ui/PageHeader";
 import { useData } from "@/context/DataContext";
-import { parseNFCeFromUrl } from "@/services/nfceParser";
+import { parseNFCeFromUrl, ReceiptParseResult } from "@/services/nfceParser";
 
-/**
- * Aceita:
- * - URL completa do portal/SEFAZ
- * - URL curta da NFC-e
- * - strings com a URL dentro
- */
-function extractUrl(raw: string | null | undefined): string | null {
-  if (!raw) return null;
+function extractUrl(payload: unknown): string | null {
+  const raw =
+    typeof payload === "string"
+      ? payload
+      : Array.isArray(payload) && payload[0]?.rawValue
+      ? String(payload[0].rawValue)
+      : (payload as any)?.rawValue || String((payload as any)?.[0] || "");
   const m = String(raw).match(/https?:\/\/\S+/i);
-  if (m && m[0]) {
-    return m[0].replace(/[)\]}>,.;]*$/, "");
-  }
-  return null;
+  return m ? m[0].replace(/[)\]}>.,;]*$/, "") : null;
 }
 
-const PurchasesReceipt: React.FC = () => {
-  const navigate = useNavigate();
+export default function PurchasesReceipt() {
+  const nav = useNavigate();
   const { createPurchaseFromReceiptInContext } = useData();
 
-  const [scanning, setScanning] = React.useState(true);        // exibindo câmera?
-  const [loading, setLoading] = React.useState(false);         // processando cupom?
-  const [parsedOk, setParsedOk] = React.useState(false);       // já temos itens?
-  const lastScanRef = React.useRef<number>(0);
+  const [scanning, setScanning] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [parsed, setParsed] = useState<ReceiptParseResult | null>(null);
+  const [market, setMarket] = useState("");
+  const [listName, setListName] = useState("");
 
-  // campos que o usuário vai preencher DEPOIS de ler o QR
-  const [market, setMarket] = React.useState("");
-  const [listName, setListName] = React.useState("");
+  const lastScan = useRef(0);
 
-  const handleCreate = async () => {
+  const handleScan = async (detected: any) => {
+    const now = Date.now();
+    if (now - lastScan.current < 1500) return;
+    lastScan.current = now;
+
+    const url = extractUrl(detected);
+    if (!url) return;
+
+    setScanning(false);
+    setLoading(true);
     try {
-      setLoading(true);
+      const data = await parseNFCeFromUrl(url);
+      setParsed(data);
+      setMarket(data.market || "");
+      setListName(data.name || "");
+      toast.success(
+        data.itens?.length ? `QR lido! ${data.itens.length} item(ns) encontrado(s).` : "QR lido! Nenhum item detectado."
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao processar a NFC-e.");
+      setScanning(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!parsed) return;
+    setLoading(true);
+    try {
       await createPurchaseFromReceiptInContext({
         name: listName || "Compra (NFC-e)",
         market: market || "—",
         date: new Date(),
-        // os itens vêm do parser; createPurchaseFromReceiptInContext já busca do buffer interno
-        // (se seu context exigir, adapte para receber itens por parâmetro)
+        itens: parsed.itens || [],
       });
       toast.success("Compra importada!");
-      navigate("/purchases");
+      nav("/purchases");
     } catch (e) {
       console.error(e);
       toast.error("Falha ao salvar a compra.");
@@ -55,81 +77,38 @@ const PurchasesReceipt: React.FC = () => {
     }
   };
 
-  const handleDecode = async (value: string) => {
-    // throttle 2s para evitar repetição
-    const now = Date.now();
-    if (now - lastScanRef.current < 2000) return;
-    lastScanRef.current = now;
-
-    const url = extractUrl(value);
-    if (!url) {
-      toast.error("QR lido não contém uma URL válida.");
-      return;
-    }
-
-    setScanning(false);
-    setLoading(true);
-
-    try {
-      const parsed = await parseNFCeFromUrl(url);
-
-      if (!parsed || !Array.isArray(parsed.itens) || parsed.itens.length === 0) {
-        toast.error("Não foi possível identificar itens na NFC-e.");
-        setLoading(false);
-        setScanning(true);
-        return;
-      }
-
-      // pré-preencher com dados do cupom (se vierem)
-      if (parsed.market) setMarket(parsed.market);
-      if (parsed.name) setListName(parsed.name);
-
-      setParsedOk(true);
-      toast.success("QR escaneado! Revise e salve.");
-    } catch (e) {
-      console.error(e);
-      toast.error("Falha ao ler a NFC-e.");
-      setScanning(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => setScanning(true), []);
 
   return (
-    <div className="p-4 pb-32 max-w-xl mx-auto bg-white">
+    <div className="mx-auto max-w-xl bg-white p-4 pb-32">
       <PageHeader title="Importar por QR Code" />
 
-      {/* Scanner */}
-      <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
+      {/* scanner */}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200">
         {scanning ? (
           <Scanner
-            onScan={(detected) => {
-              const value =
-                Array.isArray(detected) && detected[0]?.rawValue
-                  ? detected[0].rawValue
-                  : (detected as any)?.[0] || (detected as any)?.rawValue || "";
-              if (value) handleDecode(String(value));
-            }}
+            onScan={handleScan}
             onError={(err) => {
               console.error(err);
               toast.error("Erro ao acessar a câmera.");
             }}
-            components={{ audio: false, torch: false, zoom: false, finder: false }}
+            components={{ audio: true, torch: false, zoom: false, finder: false }}
             constraints={{ facingMode: "environment" }}
-            styles={{ container: { width: "100%", height: 300 } }}
+            styles={{ container: { width: "100%", height: 320 } }}
           />
         ) : (
-          <div className="p-6 text-center text-gray-600">
-            {loading ? "QR lido — processando dados..." : "QR lido com sucesso!"}
+          <div className="flex h-80 items-center justify-center bg-gray-50">
+            <span className="text-gray-600">
+              {loading ? "Processando leitura..." : parsed ? "QR lido" : "Pronto para reescanear"}
+            </span>
           </div>
         )}
       </div>
 
-      {/* Apenas botão Reescanear (removemos a área de URL manual) */}
       <div className="mt-3 flex gap-2">
         <button
           onClick={() => {
-            setParsedOk(false);
+            setParsed(null);
             setMarket("");
             setListName("");
             setScanning(true);
@@ -140,19 +119,38 @@ const PurchasesReceipt: React.FC = () => {
         </button>
       </div>
 
-      {/* Após processamento: pedir Mercado e Nome da lista */}
-      {parsedOk && !loading && (
-        <div className="mt-6 space-y-3">
+      {/* prévia e formulário */}
+      {parsed && !loading && (
+        <div className="mt-6 space-y-4">
+          <div className="rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between border-b bg-gray-50 p-3 text-sm">
+              <div className="font-medium text-gray-800">Itens lidos</div>
+              <div className="text-gray-600">{parsed.itens.length}</div>
+            </div>
+            <ul className="max-h-40 overflow-auto p-3 text-sm text-gray-700">
+              {parsed.itens.slice(0, 10).map((it, i) => (
+                <li key={i} className="flex items-center justify-between py-1">
+                  <span className="truncate">{it.nome}</span>
+                  <span className="pl-3 font-medium">
+                    {Number(it.preco || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </span>
+                </li>
+              ))}
+              {parsed.itens.length > 10 && (
+                <li className="pt-1 text-center text-xs text-gray-500">… e mais {parsed.itens.length - 10}</li>
+              )}
+            </ul>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Mercado</label>
             <input
               value={market}
               onChange={(e) => setMarket(e.target.value)}
-              placeholder="Ex.: Carrefour, Extra..."
+              placeholder="Ex.: Carrefour"
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Nome da lista</label>
             <input
@@ -164,9 +162,9 @@ const PurchasesReceipt: React.FC = () => {
           </div>
 
           <button
-            onClick={handleCreate}
+            onClick={handleSave}
             disabled={loading}
-            className="mt-1 w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
+            className="w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
           >
             {loading ? "Salvando..." : "Salvar compra"}
           </button>
@@ -176,6 +174,4 @@ const PurchasesReceipt: React.FC = () => {
       <BottomNav activeTab="purchases" />
     </div>
   );
-};
-
-export default PurchasesReceipt;
+}
