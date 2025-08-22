@@ -1,51 +1,38 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Props = {
-  /** Título grande (igual ao do Dashboard) */
-  title: string;
-  /** Linha de apoio pequena (opcional) */
-  subtitle?: React.ReactNode;
-  /** Conteúdo à esquerda do título (ex.: botão de voltar) */
-  leftSlot?: React.ReactNode;
-  /** Ações no topo à direita (ex.: menu ⋮) */
+  title?: string;
+  subtitle?: string;
+  back?: boolean;
   rightSlot?: React.ReactNode;
-  /** Mostra a logo no canto direito (default: true) */
-  showLogo?: boolean;
+  className?: string;
 };
 
-/**
- * Cabeçalho padrão do app.
- * Mantém título, tamanho de fonte e logo idênticos ao Dashboard.
- */
-const PageHeader: React.FC<Props> = ({
-  title,
-  subtitle,
-  leftSlot,
-  rightSlot,
-  showLogo = true,
-}) => {
+const PageHeader: React.FC<Props> = ({ title, subtitle, back, rightSlot, className }) => {
+  const navigate = useNavigate();
+
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className={`mb-4 flex items-center justify-between ${className || ""}`}>
       <div className="flex flex-1 items-start">
-        {leftSlot ? <div className="mr-2">{leftSlot}</div> : null}
+        {back ? (
+          <button onClick={() => navigate(-1)} className="mr-2 p-1" aria-label="Voltar">
+            <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
+          </button>
+        ) : null}
+
         <div className="flex-1">
-          <h1 className="text-2xl font-extrabold text-gray-900">{title}</h1>
-          {subtitle ? (
-            <div className="-mt-0.5 text-sm text-gray-500">{subtitle}</div>
-          ) : null}
+          {title ? <h1 className="text-2xl font-bold text-gray-900">{title}</h1> : null}
+          {subtitle ? <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p> : null}
         </div>
       </div>
 
-      <div className="ml-2 flex items-center gap-2">
-        {rightSlot}
-        {showLogo && (
-          <img
-            src="/LOGO_REDUZIDA.png"
-            alt="Comparafy"
-            className="h-9 w-auto"
-          />
-        )}
-      </div>
+      {rightSlot ? (
+        <div className="ml-2">{rightSlot}</div>
+      ) : (
+        <img src="/LOGO_REDUZIDA.png" alt="Comparafy" className="ml-2 h-9 w-9" />
+      )}
     </div>
   );
 };

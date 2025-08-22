@@ -1,166 +1,93 @@
 // src/pages/Dashboard.tsx
-import React, { useMemo } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import BottomNav from "@/components/BottomNav";
-import { useData } from "@/context/DataContext";
-
-/* helpers */
-const brl = (n: number) =>
-  Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-const fmtDate = (any: any) => {
-  const ms =
-    typeof any === "number"
-      ? any
-      : any?.seconds
-      ? any.seconds * 1000
-      : Date.parse(any || "");
-  if (!Number.isFinite(ms)) return "-";
-  return new Date(ms).toLocaleDateString("pt-BR");
-};
+import PageHeader from "../components/ui/PageHeader";
+import BottomNav from "../components/BottomNav";
+import ListaCard from "../components/ListaCard";
+import { useData } from "../context/DataContext";
+import LogoMark from "../components/ui/LogoMark";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { lists, purchases } = useData();
+  const { lists = [], purchases = [] } = useData();
 
-  // últimas 2 listas
-  const recentLists = useMemo(() => {
-    const withDates = [...(lists || [])].sort((a, b) => {
-      const ta = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : Date.parse(a.createdAt || "");
-      const tb = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : Date.parse(b.createdAt || "");
-      return (tb || 0) - (ta || 0);
-    });
-    return withDates.slice(0, 2);
-  }, [lists]);
-
-  // últimas 2 compras
-  const recentPurchases = useMemo(() => {
-    const ps = [...(purchases || [])].sort((a, b) => {
-      const ta = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : Number(a.createdAt || 0);
-      const tb = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : Number(b.createdAt || 0);
-      return (tb || 0) - (ta || 0);
-    });
-    return ps.slice(0, 2);
-  }, [purchases]);
+  const latestLists = lists.slice(0, 3);
+  const latestPurchases = purchases.slice(0, 3);
 
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      {/* Cabeçalho */}
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="text-2xl font-bold text-gray-900">Olá!</div>
-          <div className="text-sm text-gray-500 -mt-0.5">Bem-vindo ao Comparafy</div>
-        </div>
-        <img src="/LOGO_REDUZIDA.png" className="h-9" alt="Comparafy" />
-      </div>
+      {/* Cabeçalho com logo à ESQUERDA do título */}
+      <PageHeader title="Início" showLogo={false} leftSlot={<LogoMark />} />
 
-      {/* Listas recentes */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-700">Listas recentes</div>
+      {/* ===== Últimas listas ===== */}
+      <section className="mt-2">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Últimas listas</h2>
+          <Link to="/lists" className="text-sm text-yellow-600 hover:underline">ver todas</Link>
+        </div>
+
+        {/* CTA grande (card width) */}
         <button
           onClick={() => navigate("/lists")}
-          className="text-xs font-medium text-yellow-600 hover:underline"
+          className="mb-3 w-full rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-black shadow hover:brightness-95"
         >
-          Ver todas
+          + Nova lista
         </button>
-      </div>
 
-      <div className="space-y-3">
-        {recentLists.length === 0 && (
-          <div className="rounded-2xl border border-gray-200 p-4 text-sm text-gray-500">
+        {latestLists.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-gray-600">
             Você ainda não criou listas.
           </div>
-        )}
-
-        {recentLists.map((l) => {
-          const itens = l.itens || [];
-          const done = itens.filter((i) => i.comprado).length;
-          const total = itens.reduce(
-            (s, i) => s + Number(i.preco || 0) * Number(i.quantidade || 1),
-            0
-          );
-
-          return (
-            <button
-              key={l.id}
-              onClick={() => navigate(`/lists/${l.id}`)}
-              className="block w-full rounded-2xl border border-gray-200 bg-white p-4 text-left active:scale-[.995]"
-            >
-              {/* título agora em text-base para igualar aos cards de compras */}
-              <div className="mb-2 text-base font-semibold text-gray-900">{l.nome}</div>
-
-              {/* meta em text-xs como nos cards de compras */}
-              <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
-                <span>
-                  {done}/{itens.length} itens
-                </span>
-                <span>Total: {brl(total)}</span>
-              </div>
-
-              <div className="h-2 w-full rounded bg-gray-200">
-                <div
-                  className="h-2 rounded bg-yellow-400 transition-all"
-                  style={{ width: `${(done / Math.max(1, itens.length)) * 100}%` }}
-                />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Botão Nova lista */}
-      <Link
-        to="/lists"
-        className="mt-3 block rounded-2xl bg-yellow-500 py-3 text-center font-semibold text-black active:scale-[.995]"
-      >
-        + Nova lista
-      </Link>
-
-      <div className="my-6 h-px w-full bg-gray-100" />
-
-      {/* Compras recentes */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-700">Minhas compras</div>
-        <button
-          onClick={() => navigate("/purchases")}
-          className="text-xs font-medium text-yellow-600 hover:underline"
-        >
-          Ver todas
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {recentPurchases.length === 0 && (
-          <div className="rounded-2xl border border-gray-200 p-4 text-sm text-gray-500">
-            Você ainda não registrou compras.
+        ) : (
+          <div className="space-y-3">
+            {latestLists.map((l) => (
+              <ListaCard key={l.id} list={l} onClick={() => navigate(`/lists/${l.id}`)} />
+            ))}
           </div>
         )}
+      </section>
 
-        {recentPurchases.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => navigate(`/purchases/${p.id}`)}
-            className="block w-full rounded-2xl border border-gray-200 bg-white p-4 text-left active:scale-[.995]"
-          >
-            <div className="flex items-center justify-between">
-              {/* mantém text-base nos dois cards */}
-              <div className="text-base font-semibold text-gray-900">{p.name || "Compra"}</div>
-              <div className="text-sm font-semibold text-gray-900">{brl(p.total)}</div>
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {fmtDate(p.createdAt)} · {p.market || "—"} · {p.itemCount ?? p.itens?.length ?? 0} itens
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* ===== Últimas compras ===== */}
+      <section className="mt-8">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Últimas compras</h2>
+          <Link to="/purchases" className="text-sm text-yellow-600 hover:underline">ver todas</Link>
+        </div>
 
-      {/* Botão Nova compra */}
-      <Link
-        to="/purchases/new"
-        className="mt-3 block rounded-2xl bg-yellow-500 py-3 text-center font-semibold text-black active:scale-[.995]"
-      >
-        + Nova compra
-      </Link>
+        {/* CTA grande (card width) */}
+        <button
+          onClick={() => navigate("/purchase-new")}
+          className="mb-3 w-full rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-black shadow hover:brightness-95"
+        >
+          Nova compra
+        </button>
+
+        {latestPurchases.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-gray-600">
+            Nenhuma compra cadastrada ainda.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {latestPurchases.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/purchases/${p.id}`)}
+                className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
+              >
+                <div>
+                  <div className="font-medium text-gray-900">{p.name || "Compra"}</div>
+                  <div className="text-sm text-gray-500">
+                    {p.market || "—"} · {(p.itens || []).length} itens
+                  </div>
+                </div>
+                <div className="text-right font-semibold text-gray-900">
+                  {(Number(p.total) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       <BottomNav activeTab="home" />
     </div>

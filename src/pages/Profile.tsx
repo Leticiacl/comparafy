@@ -1,15 +1,11 @@
 // src/pages/Profile.tsx
-import React, {
-  useState,
-  useEffect,
-  ChangeEvent,
-  useRef
-} from "react";
+import React, { useState, useEffect, ChangeEvent, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth } from "../services/firebase";
 import { updateProfile, signOut } from "firebase/auth";
 import { CameraIcon } from "@heroicons/react/24/outline";
 import BottomNav from "../components/BottomNav";
+import PageHeader from "../components/ui/PageHeader";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -19,18 +15,13 @@ const Profile: React.FC = () => {
   const [name, setName] = useState(user.displayName || "");
   const [editingName, setEditingName] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  // photoURL vazio para visitante
-  const [photoURL, setPhotoURL] = useState<string>(
-    () => user.photoURL || ""
-  );
+  const [photoURL, setPhotoURL] = useState<string>(() => user.photoURL || "");
 
   useEffect(() => {
     setName(user.displayName || "");
     setPhotoURL(user.photoURL || "");
   }, [user]);
 
-  // somente atualiza profile auth, sem storage externo
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,7 +50,7 @@ const Profile: React.FC = () => {
 
   return (
     <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      <h1 className="text-2xl font-bold">Perfil</h1>
+      <PageHeader title="Perfil" />
 
       {/* Card de avatar + nome */}
       <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
@@ -73,14 +64,13 @@ const Profile: React.FC = () => {
                   alt="Avatar"
                   className="h-full w-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    // se der erro, esvazia
+                    (e.currentTarget as HTMLImageElement).onerror = null;
                     setPhotoURL("");
                   }}
                 />
               )}
             </div>
-            {/* Botão de câmera (sempre visível) */}
+            {/* Botão de câmera */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-0 right-0 bg-yellow-400 rounded-full p-1 shadow"
@@ -106,51 +96,51 @@ const Profile: React.FC = () => {
                   autoFocus
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="border px-3 py-1 rounded-lg w-40"
+                  className="w-full rounded border px-2 py-1"
                 />
                 <button
+                  className="text-sm font-semibold text-yellow-600"
                   onClick={handleNameSave}
-                  className="text-yellow-600 font-medium"
                 >
                   Salvar
                 </button>
               </div>
             ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-semibold">
-                  {user.displayName || "—"}
-                </span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {name || "Visitante"}
+                </h2>
                 <button
+                  className="text-sm text-yellow-600 underline"
                   onClick={() => setEditingName(true)}
-                  className="text-sm text-yellow-600 hover:underline"
                 >
                   Editar
                 </button>
               </div>
             )}
-            <div className="text-sm text-gray-500">{user.email}</div>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">E-mail:</span>{" "}
+              {user.email || "—"}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Termos de uso */}
-      <div className="bg-white rounded-xl shadow divide-y">
+      {/* Links */}
+      <div className="space-y-3">
         <Link
           to="/terms"
-          className="w-full text-left px-4 py-3 flex justify-between items-center hover:bg-gray-50"
+          className="block rounded-xl border border-gray-200 p-4 hover:bg-gray-50"
         >
-          <span>Termos de uso</span>
-          <span className="text-gray-400">&gt;</span>
+          Termos de Uso
         </Link>
+        <button
+          onClick={handleLogout}
+          className="w-full rounded-2xl bg-gray-100 hover:bg-gray-200 text-black py-3"
+        >
+          Sair
+        </button>
       </div>
-
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-lg hover:bg-red-100 transition"
-      >
-        Sair da conta
-      </button>
 
       <BottomNav activeTab="profile" />
     </div>
