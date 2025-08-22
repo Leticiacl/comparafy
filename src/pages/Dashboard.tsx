@@ -5,7 +5,6 @@ import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "../components/BottomNav";
 import ListaCard from "../components/ListaCard";
 import { useData } from "../context/DataContext";
-import LogoMark from "../components/ui/LogoMark";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -16,8 +15,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      {/* Cabeçalho com logo à ESQUERDA do título */}
-      <PageHeader title="Início" showLogo={false} leftSlot={<LogoMark />} />
+      <PageHeader title="Início" />
 
       {/* ===== Últimas listas ===== */}
       <section className="mt-2">
@@ -26,13 +24,13 @@ const Dashboard: React.FC = () => {
           <Link to="/lists" className="text-sm text-yellow-600 hover:underline">ver todas</Link>
         </div>
 
-        {/* CTA grande (card width) */}
-        <button
-          onClick={() => navigate("/lists")}
-          className="mb-3 w-full rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-black shadow hover:brightness-95"
+        {/* CTA grande (navega para /lists e abre o modal automaticamente) */}
+        <Link
+          to="/lists?new=1"
+          className="mb-3 block w-full rounded-2xl bg-yellow-500 px-4 py-3 text-center font-semibold text-black shadow hover:brightness-95"
         >
           + Nova lista
-        </button>
+        </Link>
 
         {latestLists.length === 0 ? (
           <div className="rounded-xl border border-dashed p-6 text-center text-gray-600">
@@ -41,7 +39,18 @@ const Dashboard: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {latestLists.map((l) => (
-              <ListaCard key={l.id} list={l} onClick={() => navigate(`/lists/${l.id}`)} />
+              <button
+                key={l.id}
+                onClick={() => navigate(`/lists/${l.id}`)}
+                className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
+              >
+                <div>
+                  <div className="font-medium text-gray-900">{l.nome || "Lista"}</div>
+                  <div className="text-sm text-gray-500">
+                    {(l.itens?.filter(i => i.comprado).length || 0)}/{(l.itens?.length || 0)} itens
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
         )}
@@ -54,13 +63,13 @@ const Dashboard: React.FC = () => {
           <Link to="/purchases" className="text-sm text-yellow-600 hover:underline">ver todas</Link>
         </div>
 
-        {/* CTA grande (card width) */}
-        <button
-          onClick={() => navigate("/purchase-new")}
-          className="mb-3 w-full rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-black shadow hover:brightness-95"
+        {/* CTA grande (rota correta) */}
+        <Link
+          to="/purchases/new"
+          className="mb-3 block w-full rounded-2xl bg-yellow-500 px-4 py-3 text-center font-semibold text-black shadow hover:brightness-95"
         >
-          Nova compra
-        </button>
+          + Nova compra
+        </Link>
 
         {latestPurchases.length === 0 ? (
           <div className="rounded-xl border border-dashed p-6 text-center text-gray-600">

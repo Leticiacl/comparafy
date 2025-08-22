@@ -1,6 +1,6 @@
 // src/pages/Lists.tsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "../components/BottomNav";
 import ListaCard from "../components/ListaCard";
@@ -11,13 +11,30 @@ const Lists: React.FC = () => {
   const navigate = useNavigate();
   const { lists = [], createList } = useData();
   const [open, setOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Abre modal automaticamente quando vier de /lists?new=1
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setOpen(true);
+      // Remove o parâmetro para evitar reabrir ao voltar
+      const params = new URLSearchParams(searchParams);
+      params.delete("new");
+      setSearchParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const totalItens = useMemo(
+    () => lists.reduce((acc, l) => acc + (l.itens?.length || 0), 0),
+    [lists]
+  );
 
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      {/* Header IDENTICO ao das outras telas (sem subtítulo) para alinhar a logo */}
       <PageHeader title="Listas" />
 
-      {/* CTA grande */}
+      {/* Botão NOVA LISTA */}
       <button
         onClick={() => setOpen(true)}
         className="mb-3 w-full rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-black shadow hover:brightness-95"
