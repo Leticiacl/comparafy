@@ -1,74 +1,99 @@
-import React, { useState } from "react";
-import { useData } from "../../context/DataContext";
+// src/components/ui/NewListModal.tsx
+import React, { useEffect, useRef, useState } from "react";
+import clsx from "clsx";
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
+  /** compat: pode usar onCreated OU onCreate */
+  onCreated?: (name: string) => void | Promise<any>;
+  onCreate?: (name: string) => void | Promise<any>;
 };
 
-const NewListModalComp: React.FC<Props> = ({ isOpen, onClose }) => {
-  const { createList } = useData();
+export default function NewListModal({
+  isOpen,
+  onClose,
+  onCreated,
+  onCreate,
+}: Props) {
   const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const canCreate = name.trim().length > 0 && !loading;
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  // trava o scroll quando abrir
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // limpa e foca
+    setName("");
+    setTimeout(() => inputRef.current?.focus(), 50);
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
 
-  const handleCreate = async () => {
+  const canCreate = name.trim().length > 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!canCreate) return;
-    try {
-      setLoading(true);
-      const created = await createList(name.trim());
-      if (!created) {
-        alert("Você precisa estar logado para criar listas.");
-        return;
-      }
-      setName("");
-      onClose();
-    } catch (e) {
-      console.error(e);
-      alert("Não foi possível criar a lista.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (e.key === "Enter") handleCreate();
+    const cb = onCreated ?? onCreate;
+    if (cb) await cb(name.trim());
+    // não fecho aqui porque o fluxo atual fecha no pai (handleCreateList)
+    // se quiser que feche aqui também, descomente:
+    // onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-2xl font-bold mb-4">Nova Lista</h2>
+    <div
+      className={clsx(
+        "fixed inset-0 z-[120] flex items-center justify-center transition",
+        isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+      )}
+      aria-hidden={!isOpen}
+    >
+      {/* overlay com blur leve, cobrindo inclusive a bottom bar */}
+      <div
+        className="absolute inset-0 bg-black/25 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-[121] w-[92%] max-w-md rounded-2xl bg-white p-5 shadow-xl"
+      >
+        <h2 className="text-xl font-semibold text-slate-900">Nova Lista</h2>
 
-        <label className="block text-sm font-medium mb-1">Nome da lista</label>
+        <label className="mt-4 mb-1 block text-sm text-slate-700">
+          Nome da lista
+        </label>
         <input
-          className="w-full border rounded-lg px-3 py-2 mb-5"
-          placeholder="Ex.: Mensal"
+          ref={inputRef}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={onKeyDown}
-          autoFocus
+          placeholder="Ex.: Mensal"
+          className="w-full rounded-xl border px-4 py-3 outline-none focus:ring-2 focus:ring-yellow-400"
         />
 
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-lg">
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 hover:bg-slate-200"
+          >
             Cancelar
           </button>
           <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-yellow-500 rounded-lg text-black disabled:opacity-60"
+            type="submit"
             disabled={!canCreate}
+            className={clsx(
+              "rounded-xl bg-yellow-500 px-4 py-2 font-semibold text-black hover:bg-yellow-500/90",
+              !canCreate && "opacity-60"
+            )}
           >
-            {loading ? "Criando..." : "Criar"}
+            Criar
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
-};
-
-// Exporta dos dois jeitos p/ evitar mismatch de import
-export const NewListModal = NewListModalComp;
-export default NewListModalComp;
+}

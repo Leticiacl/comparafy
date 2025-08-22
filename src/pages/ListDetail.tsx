@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, Item } from "../context/DataContext";
 import BottomNav from "../components/BottomNav";
-import AddItemModal from "../components/ui/AddItemModal";
+import AddItemModal, { ListItemInput } from "../components/ui/AddItemModal";
 import { Menu } from "@headlessui/react";
 import {
   EllipsisVerticalIcon,
@@ -19,6 +19,8 @@ const ListDetail: React.FC = () => {
   const {
     lists,
     fetchItems,
+    addItem,
+    updateItem,
     toggleItem,
     deleteItem,
     updateListNameInContext,
@@ -31,19 +33,25 @@ const ListDetail: React.FC = () => {
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState(false);
 
+  // carrega itens ao entrar
   useEffect(() => {
     if (id) fetchItems(id);
   }, [id, fetchItems]);
 
+  // pega a lista atual do contexto
   const lista = useMemo(() => lists.find((l) => l.id === id), [lists, id]);
 
+  // se a lista não existir (foi excluída), redireciona
+  useEffect(() => {
+    if (!id) return;
+    if (lists.length && !lista) {
+      navigate("/lists", { replace: true });
+    }
+  }, [id, lists, lista, navigate]);
+
   if (!lista) {
-    return (
-      <div className="p-4 text-center">
-        <p className="text-gray-500">Lista não encontrada.</p>
-        <BottomNav activeTab="lists" />
-      </div>
-    );
+    // evita flicker de "Lista não encontrada" enquanto redireciona
+    return null;
   }
 
   const itens = lista.itens || [];
@@ -67,6 +75,15 @@ const ListDetail: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setItemToEdit(null);
+  };
+
+  // 🔧 SALVAR do modal (diferencia ADIÇÃO x EDIÇÃO)
+  const handleSaveItem = async (listId: string, data: ListItemInput) => {
+    if (itemToEdit?.id) {
+      await updateItem(listId, itemToEdit.id, data as any);
+    } else {
+      await addItem(listId, data as any);
+    }
   };
 
   return (
@@ -94,7 +111,6 @@ const ListDetail: React.FC = () => {
             ) : (
               <>
                 <h1 className="text-2xl font-bold">{lista.nome}</h1>
-                {/* Removido subtítulo de mercado/data para manter Listas como antes */}
               </>
             )}
           </div>
@@ -112,9 +128,7 @@ const ListDetail: React.FC = () => {
                     setNewName(lista.nome);
                     setEditing(true);
                   }}
-                  className={`flex w-full items-center gap-2 px-4 py-2 text-left ${
-                    active ? "bg-gray-100" : ""
-                  }`}
+                  className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
                 >
                   <PencilSquareIcon className="w-5 h-5 text-gray-600" />
                   Renomear
@@ -129,9 +143,7 @@ const ListDetail: React.FC = () => {
                   onClick={async () => {
                     await duplicateListInContext(lista.id);
                   }}
-                  className={`flex w-full items-center gap-2 px-4 py-2 text-left ${
-                    active ? "bg-gray-100" : ""
-                  }`}
+                  className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
                 >
                   <DocumentDuplicateIcon className="w-5 h-5 text-gray-600" />
                   Duplicar
@@ -146,7 +158,7 @@ const ListDetail: React.FC = () => {
                 <button
                   onClick={async () => {
                     await deleteList(lista.id);
-                    navigate(-1);
+                    navigate("/lists", { replace: true });
                   }}
                   className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${
                     active ? "bg-gray-100" : ""
@@ -216,7 +228,8 @@ const ListDetail: React.FC = () => {
                     {item.nome}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {item.quantidade}x • {item.peso} {item.unidade}
+                    {item.quantidade}x
+                    {item.peso ? ` • ${item.peso} ${item.unidade}` : ` • ${item.unidade}`}
                     {(item as any).mercado ? ` • ${(item as any).mercado}` : ""}
                   </p>
                 </div>
@@ -252,7 +265,9 @@ const ListDetail: React.FC = () => {
         isOpen={isModalOpen}
         onClose={closeModal}
         listId={lista.id}
-        itemToEdit={itemToEdit}
+        itemToEdit={itemToEdit || undefined}
+        onSave={handleSaveItem}
+        keepOpen={!itemToEdit} // editar: fecha; novo: mantém aberto
       />
 
       <BottomNav activeTab="lists" />

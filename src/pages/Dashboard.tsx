@@ -1,3 +1,4 @@
+// src/pages/Dashboard.tsx
 import React, { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
@@ -5,7 +6,7 @@ import { useData } from "@/context/DataContext";
 
 /* helpers */
 const brl = (n: number) =>
-  (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const fmtDate = (any: any) => {
   const ms =
@@ -47,13 +48,11 @@ const Dashboard: React.FC = () => {
       {/* Cabeçalho */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <div className="text-2xl font-extrabold text-gray-900">Olá!</div>
+          <div className="text-2xl font-bold text-gray-900">Olá!</div>
           <div className="text-sm text-gray-500 -mt-0.5">Bem-vindo ao Comparafy</div>
         </div>
         <img src="/LOGO_REDUZIDA.png" className="h-9" alt="Comparafy" />
       </div>
-
-      {/* 👇 CARD DE ECONOMIA FOI REMOVIDO */}
 
       {/* Listas recentes */}
       <div className="mb-2 flex items-center justify-between">
@@ -77,7 +76,7 @@ const Dashboard: React.FC = () => {
           const itens = l.itens || [];
           const done = itens.filter((i) => i.comprado).length;
           const total = itens.reduce(
-            (s, i) => s + (Number(i.preco || 0) * Number(i.quantidade || 1)),
+            (s, i) => s + Number(i.preco || 0) * Number(i.quantidade || 1),
             0
           );
 
@@ -87,19 +86,21 @@ const Dashboard: React.FC = () => {
               onClick={() => navigate(`/lists/${l.id}`)}
               className="block w-full rounded-2xl border border-gray-200 bg-white p-4 text-left active:scale-[.995]"
             >
-              <div className="mb-2 text-sm font-medium text-gray-800">{l.nome}</div>
+              {/* título agora em text-base para igualar aos cards de compras */}
+              <div className="mb-2 text-base font-semibold text-gray-900">{l.nome}</div>
+
+              {/* meta em text-xs como nos cards de compras */}
               <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
                 <span>
                   {done}/{itens.length} itens
                 </span>
                 <span>Total: {brl(total)}</span>
               </div>
+
               <div className="h-2 w-full rounded bg-gray-200">
                 <div
                   className="h-2 rounded bg-yellow-400 transition-all"
-                  style={{
-                    width: `${(done / Math.max(1, itens.length)) * 100}%`,
-                  }}
+                  style={{ width: `${(done / Math.max(1, itens.length)) * 100}%` }}
                 />
               </div>
             </button>
@@ -142,6 +143,7 @@ const Dashboard: React.FC = () => {
             className="block w-full rounded-2xl border border-gray-200 bg-white p-4 text-left active:scale-[.995]"
           >
             <div className="flex items-center justify-between">
+              {/* mantém text-base nos dois cards */}
               <div className="text-base font-semibold text-gray-900">{p.name || "Compra"}</div>
               <div className="text-sm font-semibold text-gray-900">{brl(p.total)}</div>
             </div>

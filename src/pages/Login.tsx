@@ -1,4 +1,3 @@
-// src/pages/Login.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -27,9 +26,8 @@ const Login: React.FC = () => {
       sessionStorage.setItem("authType", "email");
       toast.success("Login realizado com sucesso!");
       goHome();
-    } catch (e: any) {
+    } catch {
       toast.error("Erro ao fazer login.");
-      // console.error(e);
     } finally {
       setLoading(false);
     }
@@ -68,70 +66,76 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo e título */}
-        <div className="flex flex-col items-center mb-6">
-          <img src="/LOGO_REDUZIDA.png" alt="Comparafy" className="w-12 h-12 mb-2" />
-          <h1 className="text-2xl font-bold text-gray-800">COMPARAFY</h1>
-          <p className="text-gray-500 text-sm">Entre com sua conta</p>
+    <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <img
+            src="/LOGO_REDUZIDA.png"
+            alt="Comparafy"
+            className="h-14 w-14 select-none"
+            draggable={false}
+          />
+          <h1 className="mt-4 text-[28px] font-semibold tracking-tight text-slate-900">
+            COMPARAFY
+          </h1>
+          <p className="mt-1 text-slate-500">Entre com sua conta</p>
         </div>
 
-        {/* Formulário */}
         <input
           type="email"
           placeholder="E-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-3 px-4 py-3 border rounded-lg focus:outline-none focus:ring focus:border-yellow-400"
+          className="w-full mb-3 px-4 py-3 border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-yellow-400"
+          autoComplete="email"
+          inputMode="email"
         />
         <input
           type="password"
           placeholder="Senha"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
-          className="w-full mb-4 px-4 py-3 border rounded-lg focus:outline-none focus:ring focus:border-yellow-400"
+          className="w-full mb-4 px-4 py-3 border border-slate-300 rounded-2xl outline-none focus:ring-2 focus:ring-yellow-400"
+          autoComplete="current-password"
         />
 
-        {/* Botão Entrar */}
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-60 text-black font-semibold py-3 rounded-lg mb-4 transition duration-200"
+          className="w-full rounded-2xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
         >
           Entrar
         </button>
 
-        {/* Divider */}
         <div className="flex items-center my-4">
-          <hr className="flex-grow border-gray-300" />
-          <span className="mx-2 text-gray-400 text-sm">ou</span>
-          <hr className="flex-grow border-gray-300" />
+          <hr className="flex-grow border-slate-300" />
+          <span className="mx-2 text-slate-400 text-sm">ou</span>
+          <hr className="flex-grow border-slate-300" />
         </div>
 
-        {/* Google */}
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="w-full border text-gray-800 font-medium py-3 rounded-lg mb-3 hover:bg-gray-50 transition flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full border border-slate-300 text-slate-800 font-medium py-3 rounded-2xl mb-3 hover:bg-slate-50 transition flex items-center justify-center gap-2 disabled:opacity-60"
         >
           <img src="/google-icon.png" alt="Google" className="w-5 h-5" />
           Continuar com Google
         </button>
 
-        {/* Visitante */}
         <button
           onClick={handleAnonymousLogin}
           disabled={loading}
-          className="w-full bg-gray-100 hover:bg-gray-200 text-black font-medium py-3 rounded-lg disabled:opacity-60"
+          className="w-full bg-slate-100 hover:bg-slate-200 text-black font-medium py-3 rounded-2xl disabled:opacity-60"
         >
           Continuar como visitante
         </button>
 
-        {/* Link para cadastro */}
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-6 text-center text-sm text-slate-600">
           Não tem uma conta?{" "}
-          <a href="/register" className="text-yellow-600 font-semibold hover:underline">
+          <a
+            href="/register"
+            className="text-yellow-700 font-semibold hover:underline"
+          >
             Cadastre-se
           </a>
         </p>

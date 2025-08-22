@@ -9,7 +9,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "@/services/firebase";
 
 /* =========================================================
  * TIPOS
@@ -37,6 +37,16 @@ export type Purchase = {
   source: "list" | "receipt";
   sourceRefId?: string;
   sourceRefName?: string;
+};
+
+/* ====== tipo do novo item (usado no AddItemModal) ====== */
+export type NewItem = {
+  nome: string;
+  quantidade: number;
+  peso?: number | "";
+  unidade: string;
+  preco?: number | "";
+  observacoes?: string;
 };
 
 /* =========================================================
@@ -126,7 +136,7 @@ export async function fetchItemsFromList(userId: string, listId: string) {
       preco: data.preco,
       mercado: data.mercado,
       observacoes: data.observacoes,
-      comprado: data.purchased ?? false,
+      comprado: data.purchased ?? data.comprado ?? false,
       peso: data.peso, // pode ser undefined
     };
   });
@@ -140,7 +150,7 @@ export async function toggleItemPurchased(
   const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   const itemSnap = await getDoc(itemRef);
   const current = itemSnap.exists()
-    ? (itemSnap.data() as any).purchased
+    ? (itemSnap.data() as any).purchased ?? (itemSnap.data() as any).comprado
     : false;
   await updateDoc(itemRef, { purchased: !current });
   return { comprado: !current };
@@ -155,21 +165,39 @@ export async function deleteItem(
   await deleteDoc(itemRef);
 }
 
+/* ====== NOVO: addItemToList (subcoleção 'items' + retorno id) ====== */
 export async function addItemToList(
-  userId: string,
+  uid: string,
   listId: string,
-  item: any
-) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const docRef = await addDoc(itemsRef, {
-    ...stripUndefined(item),
-    purchased: false,
+  item: NewItem
+): Promise<string> {
+  if (!uid) throw new Error("Sem usuário autenticado");
+  if (!listId || typeof listId !== "string") {
+    throw new Error("listId inválido");
+  }
+
+  const listRef = doc(db, "users", uid, "lists", listId);
+  const itemsCol = collection(listRef, "items");
+
+  const toNumber = (v: number | string | "" | undefined) => {
+    if (v === "" || v === undefined || v === null) return null;
+    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+    };
+
+  const payload = stripUndefined({
+    nome: item.nome.trim(),
+    quantidade: toNumber(item.quantidade) ?? 1,
+    peso: toNumber(item.peso),
+    unidade: item.unidade || "kg",
+    preco: toNumber(item.preco),
+    observacoes: (item.observacoes || "").trim(),
+    purchased: false, // campo usado nas regras existentes
+    createdAt: serverTimestamp(),
   });
-  return {
-    id: docRef.id,
-    ...item,
-    comprado: false,
-  };
+
+  const docRef = await addDoc(itemsCol, payload);
+  return docRef.id;
 }
 
 export async function updateItem(
@@ -189,7 +217,7 @@ export async function updateItem(
   const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
   const snap = await getDoc(itemRef);
   const existingPurchased = snap.exists()
-    ? (snap.data() as any).purchased
+    ? (snap.data() as any).purchased ?? (snap.data() as any).comprado
     : false;
   await setDoc(
     itemRef,
@@ -308,10 +336,6 @@ export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]>
   return out.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
 }
 
-/**
- * Criar compra a partir de LISTA.
- * Considera preço unitário e soma quantidades para os totais.
- */
 export async function createPurchaseFromList(params: {
   userId: string;
   listId: string;
@@ -323,7 +347,6 @@ export async function createPurchaseFromList(params: {
 }): Promise<Purchase> {
   const { userId, listId, name, market, date, selectedItemIds = [], extras = [] } = params;
 
-  // Carrega lista + itens
   const listRef = doc(db, "users", userId, "lists", listId);
   const listSnap = await getDoc(listRef);
   const listData = (listSnap.data() || {}) as any;
@@ -335,7 +358,6 @@ export async function createPurchaseFromList(params: {
     listItems = listItems.filter((it) => allow.has(it.id));
   }
 
-  // Normaliza itens (unit price + quantidade)
   const itens: PurchaseItem[] = [
     ...listItems.map(({ id, comprado, ...rest }) =>
       stripUndefined({
@@ -397,7 +419,6 @@ export async function createPurchaseFromList(params: {
   };
 }
 
-/** Criar compra a partir de CUPOM (scanner + parser) */
 export async function createPurchaseFromReceipt(params: {
   userId: string;
   name: string;
@@ -452,7 +473,7 @@ export async function createPurchaseFromReceipt(params: {
   };
 }
 
-/* ====== AÇÕES SOBRE A COMPRA (inline no doc) ====== */
+/* ===== AÇÕES SOBRE A COMPRA (inline no doc) ===== */
 
 export async function updatePurchaseMeta(
   userId: string,

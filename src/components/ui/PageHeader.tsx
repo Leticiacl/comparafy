@@ -1,34 +1,51 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import LogoMark from "./LogoMark";
 
 type Props = {
-  subtitle?: string;
-  divider?: boolean;
-  subtitle?: string;
+  /** Título grande (igual ao do Dashboard) */
   title: string;
-  showBack?: boolean;
-  right?: React.ReactNode;
+  /** Linha de apoio pequena (opcional) */
+  subtitle?: React.ReactNode;
+  /** Conteúdo à esquerda do título (ex.: botão de voltar) */
+  leftSlot?: React.ReactNode;
+  /** Ações no topo à direita (ex.: menu ⋮) */
+  rightSlot?: React.ReactNode;
+  /** Mostra a logo no canto direito (default: true) */
+  showLogo?: boolean;
 };
 
-/** Cabeçalho padrão das páginas: título à esquerda e logo à direita */
-const PageHeader: React.FC<Props> = ({ title, subtitle, divider, showBack = false, right }) => {
-  const navigate = useNavigate();
+/**
+ * Cabeçalho padrão do app.
+ * Mantém título, tamanho de fonte e logo idênticos ao Dashboard.
+ */
+const PageHeader: React.FC<Props> = ({
+  title,
+  subtitle,
+  leftSlot,
+  rightSlot,
+  showLogo = true,
+}) => {
   return (
-    <div>
-      <div className="flex justify-between items-center p-4">
-      <div className="flex items-center gap-2">
-        {showBack && (
-          <button onClick={() => navigate(-1)} className="text-gray-500 text-xl leading-none">←</button>
-        )}
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800">{title}</h1>
-          {subtitle ? <p className="text-sm text-gray-500 -mt-1">{subtitle}</p> : null}
+    <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-1 items-start">
+        {leftSlot ? <div className="mr-2">{leftSlot}</div> : null}
+        <div className="flex-1">
+          <h1 className="text-2xl font-extrabold text-gray-900">{title}</h1>
+          {subtitle ? (
+            <div className="-mt-0.5 text-sm text-gray-500">{subtitle}</div>
+          ) : null}
         </div>
       </div>
-      {right ?? <LogoMark />}
+
+      <div className="ml-2 flex items-center gap-2">
+        {rightSlot}
+        {showLogo && (
+          <img
+            src="/LOGO_REDUZIDA.png"
+            alt="Comparafy"
+            className="h-9 w-auto"
+          />
+        )}
       </div>
-      {divider ? <div className="px-4"><div className="border-b border-gray-200" /></div> : null}
     </div>
   );
 };
