@@ -1,10 +1,9 @@
-// src/main.tsx
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { DataProvider } from "./context/DataContext";
-import "./index.css"; // <- importante
+import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -15,3 +14,6 @@ createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// registra o Service Worker do PWA (public/sw.js) – seguro rodar mesmo em dev
+import "./pwa";
