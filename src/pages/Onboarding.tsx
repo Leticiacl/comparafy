@@ -18,26 +18,22 @@ const Onboarding: React.FC = () => {
   const nav = useNavigate();
   const [idx, setIdx] = React.useState(0);
 
-  const goFinish = React.useCallback(() => {
-    try {
-      localStorage.setItem("onboardingSeen", "1");
-      // limpa qualquer sessão antiga (inclui visitante)
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("userId");
-      sessionStorage.removeItem("authType");
-    } catch {}
+  const finish = React.useCallback(() => {
+    try { localStorage.setItem("onboardingSeen", "1"); } catch {}
     nav("/login", { replace: true });
   }, [nav]);
 
-  const next = () => (idx < slides.length - 1 ? setIdx((i) => i + 1) : goFinish());
-  const skip = goFinish;
+  const next = () => (idx < slides.length - 1 ? setIdx(i => i + 1) : finish());
+  const skip = finish;
 
   const { title, subtitle, Icon } = slides[idx];
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center bg-white px-6 pb-12 pt-8">
+    <div className="onboarding-shell mx-auto flex min-h-screen max-w-xl flex-col items-center bg-white px-6">
+      {/* logo */}
       <img src="/COMPARAFY.png" alt="Comparafy" className="mx-auto h-7 w-auto" draggable={false} />
 
+      {/* conteúdo */}
       <div className="flex w-full flex-1 flex-col items-center justify-center text-center">
         <div className="mb-6 rounded-full bg-yellow-100 p-5">
           <Icon className="h-9 w-9 text-yellow-600" />
@@ -53,17 +49,14 @@ const Onboarding: React.FC = () => {
         </div>
       </div>
 
+      {/* CTAs */}
       <button
         onClick={next}
         className="mt-4 w-full rounded-2xl bg-yellow-500 py-3 text-center text-base font-semibold text-black active:scale-[0.99]"
       >
         {idx < slides.length - 1 ? "Próximo" : "Começar"}
       </button>
-
-      <button
-        onClick={skip}
-        className="mt-3 text-sm font-medium text-gray-500 underline-offset-4 hover:underline"
-      >
+      <button onClick={skip} className="mt-3 text-sm font-medium text-gray-500 underline-offset-4 hover:underline">
         Pular
       </button>
     </div>

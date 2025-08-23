@@ -1,1 +1,15 @@
-node_modules
+# dependências / build
+node_modules/
+dist/
+.vite/
+coverage/
+
+# ambiente / segredos
+.env
+.env.*
+secrets/
+*service-account*.json
+
+# SO / editor
+.DS_Store
+.vscode/

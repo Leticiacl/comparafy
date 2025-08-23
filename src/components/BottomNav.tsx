@@ -2,65 +2,26 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
-  HomeIcon,
-  Bars3Icon,
-  ArrowsRightLeftIcon,
-  ShoppingCartIcon,
-  UserIcon,
+  HomeIcon, ListBulletIcon, ArrowsRightLeftIcon,
+  ShoppingCartIcon, UserIcon
 } from "@heroicons/react/24/outline";
 
-type Props = {
-  activeTab?: "home" | "lists" | "compare" | "purchases" | "profile";
-};
-
-const Item: React.FC<{
-  to: string;
-  label: string;
-  active?: boolean;
-  icon: React.ReactNode;
-}> = ({ to, label, active, icon }) => (
-  <Link
-    to={to}
-    className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-3 py-3
-      ${active ? "text-yellow-600" : "text-gray-500 hover:text-gray-700"}`}
-    aria-current={active ? "page" : undefined}
-  >
-    <div className="h-6 w-6">{icon}</div>
-    <span className="text-xs">{label}</span>
+const Item: React.FC<{ to: string; label: string; icon: React.ReactNode; active?: boolean }> = ({ to, label, icon, active }) => (
+  <Link to={to} className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 ${active ? "text-yellow-600" : "text-gray-500"}`}>
+    {icon}
+    <span className="text-sm">{label}</span>
   </Link>
 );
 
-const BottomNav: React.FC<Props> = ({ activeTab }) => {
+const BottomNav: React.FC<{ activeTab?: "home"|"lists"|"compare"|"purchases"|"profile" }> = ({ activeTab }) => {
   return (
-    <nav
-      data-bottom-nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80"
-      style={{
-        // Safe area iOS + folga mínima de 10px
-        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 10px)",
-      }}
-    >
-      <div className="mx-auto flex max-w-xl items-stretch gap-1 px-3 pt-2">
-        <Item to="/" label="Início" active={activeTab === "home"} icon={<HomeIcon className="h-6 w-6" />} />
-        <Item to="/lists" label="Listas" active={activeTab === "lists"} icon={<Bars3Icon className="h-6 w-6" />} />
-        <Item
-          to="/compare"
-          label="Comparar"
-          active={activeTab === "compare"}
-          icon={<ArrowsRightLeftIcon className="h-6 w-6" />}
-        />
-        <Item
-          to="/purchases"
-          label="Compras"
-          active={activeTab === "purchases"}
-          icon={<ShoppingCartIcon className="h-6 w-6" />}
-        />
-        <Item
-          to="/profile"
-          label="Perfil"
-          active={activeTab === "profile"}
-          icon={<UserIcon className="h-6 w-6" />}
-        />
+    <nav data-bottom-nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-white">
+      <div className="mx-auto flex max-w-xl">
+        <Item to="/"        label="Início"     icon={<HomeIcon className="h-6 w-6" />}          active={activeTab==="home"} />
+        <Item to="/lists"   label="Listas"     icon={<ListBulletIcon className="h-6 w-6" />}     active={activeTab==="lists"} />
+        <Item to="/compare" label="Comparar"   icon={<ArrowsRightLeftIcon className="h-6 w-6" />} active={activeTab==="compare"} />
+        <Item to="/purchases" label="Compras"  icon={<ShoppingCartIcon className="h-6 w-6" />}   active={activeTab==="purchases"} />
+        <Item to="/profile" label="Perfil"     icon={<UserIcon className="h-6 w-6" />}           active={activeTab==="profile"} />
       </div>
     </nav>
   );

@@ -9,19 +9,24 @@
   img { max-width: 100%; height: auto; display: block; }
 }
 
-/* Área segura e toque maior do BottomNav */
-:root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
-
-[data-bottom-nav] {
-  padding-bottom: calc(max(var(--safe-bottom), 22px));
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
+/* -------- Safe-area iOS (topo e rodapé) -------- */
+:root{
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-[data-bottom-nav] a,
-[data-bottom-nav] button {
-  min-height: 56px;
-}
+/* utilitários */
+.safe-top{ padding-top: calc(var(--safe-top) + 16px); }
+.safe-bottom{ padding-bottom: calc(var(--safe-bottom) + 16px); }
 
-/* Evita flash ao tocar em iOS */
-button, a { -webkit-tap-highlight-color: transparent; }
+/* BottomNav – mais alto e respeitando a área segura */
+[data-bottom-nav]{
+  padding-bottom: calc(var(--safe-bottom) + 22px);
+}
+[data-bottom-nav] a{ min-height: 54px; }
+
+/* Onboarding: garante espaço no topo e no “home bar” do iPhone */
+.onboarding-shell{
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-bottom: calc(var(--safe-bottom) + 28px);
+}
