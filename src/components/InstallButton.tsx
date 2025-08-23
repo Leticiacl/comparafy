@@ -1,110 +1,53 @@
 import React from "react";
 
 /**
- * InstallButton
- * - Se o navegador suportar beforeinstallprompt, mostra "Instalar app"
- * - Caso contrário, abre um pequeno guia "Como instalar"
- * Uso: colocar em qualquer página. Ideal no Perfil acima de "Termos de uso".
+ * Mostra um botão "Instalar" apenas quando o navegador
+ * dispara o evento `beforeinstallprompt` (PWA instalável).
+ * Em iOS/Safari esse evento não existe → o botão some.
  */
-const InstallButton: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
-  const [openGuide, setOpenGuide] = React.useState(false);
-  const canInstall = !!deferredPrompt;
+export default function InstallButton({
+  className = "",
+  label = "Instalar",
+}: {
+  className?: string;
+  label?: string;
+}) {
+  const [deferred, setDeferred] = React.useState<any>(null);
 
   React.useEffect(() => {
-    const handler = (e: any) => {
-      // impede o browser de mostrar o banner nativo
-      e.preventDefault();
-      setDeferredPrompt(e);
+    const onBeforeInstall = (e: Event) => {
+      // cancela o banner nativo e guarda para disparar sob-demanda
+      (e as any).preventDefault?.();
+      setDeferred(e);
     };
-    window.addEventListener("beforeinstallprompt", handler as any);
-    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+    const onInstalled = () => setDeferred(null);
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstall as any);
+    window.addEventListener("appinstalled", onInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall as any);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
-  const onClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      try {
-        await deferredPrompt.userChoice;
-      } catch {}
-      setDeferredPrompt(null); // só pode usar 1x
-    } else {
-      setOpenGuide(true);
-    }
+  const handleClick = async () => {
+    if (!deferred) return;
+    (deferred as any).prompt?.();
+    try {
+      await (deferred as any).userChoice;
+    } catch {}
+    setDeferred(null);
   };
 
+  if (!deferred) return null;
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={onClick}
-        className="w-full rounded-xl border border-gray-200 bg-white p-3 text-left hover:bg-gray-50"
-        aria-haspopup="dialog"
-        aria-expanded={openGuide}
-      >
-        <div className="flex items-center justify-between">
-          <div className="font-medium text-gray-900">Instalar aplicativo</div>
-          <div className="text-sm text-gray-600">{canInstall ? "Instalar" : "Como instalar"}</div>
-        </div>
-        <div className="mt-1 text-sm text-gray-500">
-          Adicione o Comparafy à tela inicial para uma experiência melhor.
-        </div>
-      </button>
-
-      {openGuide && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50"
-        >
-          <div
-            className="absolute inset-0 bg-black/30"
-            onClick={() => setOpenGuide(false)}
-          />
-          <div className="absolute inset-x-4 top-16 rounded-2xl bg-white p-4 shadow-lg md:mx-auto md:max-w-lg">
-            <div className="mb-2 text-lg font-semibold">Como instalar o Comparafy</div>
-
-            <div className="space-y-4 text-sm text-gray-700">
-              <div>
-                <div className="font-semibold">iPhone/iPad (Safari)</div>
-                <ol className="list-decimal pl-5">
-                  <li>Toque no botão <b>Compartilhar</b> (quadrado com seta).</li>
-                  <li>Escolha <b>Adicionar à Tela de Início</b>.</li>
-                  <li>Confirme o nome e toque em <b>Adicionar</b>.</li>
-                </ol>
-              </div>
-
-              <div>
-                <div className="font-semibold">Android (Chrome/Edge/Brave)</div>
-                <ol className="list-decimal pl-5">
-                  <li>Procure pelo ícone ou opção <b>Instalar</b> na barra de endereço.</li>
-                  <li>Ou menu ⋮ → <b>Instalar aplicativo</b>.</li>
-                </ol>
-              </div>
-
-              <div>
-                <div className="font-semibold">Desktop (Chrome/Edge)</div>
-                <ol className="list-decimal pl-5">
-                  <li>Clique no ícone de <b>Instalar</b> na barra de endereço.</li>
-                  <li>Ou menu → <b>Instalar “Comparafy”</b>.</li>
-                </ol>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setOpenGuide(false)}
-                className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <button
+      onClick={handleClick}
+      className={`rounded-xl bg-yellow-500 px-3 py-2 text-sm font-medium text-black hover:brightness-95 ${className}`}
+    >
+      {label}
+    </button>
   );
-};
-
-export default InstallButton;
+}

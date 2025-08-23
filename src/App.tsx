@@ -1,5 +1,12 @@
+// src/App.tsx
 import { ReactElement, ReactNode, useEffect, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  Outlet,
+} from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./services/firebase";
 
@@ -80,10 +87,19 @@ const ProtectedRoute = ({ children }: { children: ReactElement }) => {
   return children;
 };
 
+/** Layout-guard: exige que o onboarding tenha sido visto. */
+const RequireOnboardingLayout = () => {
+  const seen =
+    typeof window !== "undefined" &&
+    localStorage.getItem("onboardingSeen") === "1";
+  const loc = useLocation();
+  if (!seen) return <Navigate to="/onboarding" replace state={{ from: loc }} />;
+  return <Outlet />;
+};
+
+/** Páginas públicas que só devem aparecer se NÃO logado (sem checar onboarding aqui — o layout já checa). */
 const PublicOnlyRoute = ({ children }: { children: ReactElement }) => {
   const uid = getStoredUserId();
-  const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
-  if (!seen) return <Navigate to="/onboarding" replace />;
   if (uid) return <Navigate to="/" replace />;
   return children;
 };
@@ -95,25 +111,9 @@ const ScrollToTop = () => {
   return null;
 };
 
-/* ✅ Portão global do Onboarding */
-const OnboardingGate = ({ children }: { children: ReactNode }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    const seen = localStorage.getItem("onboardingSeen") === "1";
-    const isOnboarding = location.pathname === "/onboarding";
-    if (!seen && !isOnboarding) navigate("/onboarding", { replace: true });
-  }, [location.pathname, navigate]);
-
-  return <>{children}</>;
-};
-
-/* Index: depois de ver onboarding, decide entre login e dashboard */
+/* Index: com onboarding já visto (o layout garante), decide entre dashboard e login */
 const RootIndex = () => {
   const uid = getStoredUserId();
-  const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
-  if (!seen) return <Navigate to="/onboarding" replace />;
   return uid ? <Dashboard /> : <Navigate to="/login" replace />;
 };
 
@@ -122,10 +122,16 @@ export default function App() {
   return (
     <AuthBootstrap>
       <ScrollToTop />
-      <OnboardingGate>
-        <Routes>
-          {/* pré-login */}
-          <Route path="/onboarding" element={<Onboarding />} />
+      <Routes>
+        {/* 1) Onboarding sempre acessível e fora do guard */}
+        <Route path="/onboarding" element={<Onboarding />} />
+
+        {/* 2) Rota pública liberada (fora do guard) */}
+        <Route path="/terms" element={<Terms />} />
+
+        {/* 3) Todas as outras rotas exigem ter visto o onboarding */}
+        <Route element={<RequireOnboardingLayout />}>
+          {/* pré-login (atrás do guard) */}
           <Route
             path="/login"
             element={
@@ -150,9 +156,6 @@ export default function App() {
               </PublicOnlyRoute>
             }
           />
-
-          {/* público livre */}
-          <Route path="/terms" element={<Terms />} />
 
           {/* index decide */}
           <Route path="/" element={<RootIndex />} />
@@ -239,10 +242,10 @@ export default function App() {
             }
           />
 
-          {/* fallback */}
+          {/* fallback dentro do guard */}
           <Route path="*" element={<RootIndex />} />
-        </Routes>
-      </OnboardingGate>
+        </Route>
+      </Routes>
     </AuthBootstrap>
   );
 }

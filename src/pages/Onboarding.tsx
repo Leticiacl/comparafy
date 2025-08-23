@@ -1,12 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-
-// Heroicons (já usamos no projeto)
-import {
-  ClipboardDocumentListIcon,
-  QrCodeIcon,
-  BanknotesIcon,
-} from "@heroicons/react/24/outline";
+import { ClipboardDocumentListIcon, QrCodeIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 
 type Slide = {
   title: string;
@@ -37,56 +31,34 @@ const Onboarding: React.FC = () => {
   const [idx, setIdx] = React.useState(0);
 
   const goFinish = React.useCallback(() => {
-    try {
-      localStorage.setItem("onboardingSeen", "1");
-    } catch {}
+    try { localStorage.setItem("onboardingSeen", "1"); } catch {}
     nav("/login", { replace: true });
   }, [nav]);
 
-  const next = () => {
-    if (idx < slides.length - 1) setIdx((i) => i + 1);
-    else goFinish();
-  };
-
+  const next = () => (idx < slides.length - 1 ? setIdx((i) => i + 1) : goFinish());
   const skip = goFinish;
 
   const { title, subtitle, Icon } = slides[idx];
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center bg-white px-6 pb-12 pt-8">
-      {/* logo centralizada no topo */}
-      <img
-        src="/COMPARAFY.png"
-        alt="Comparafy"
-        className="mx-auto h-7 w-auto"
-        draggable={false}
-      />
+      <img src="/COMPARAFY.png" alt="Comparafy" className="mx-auto h-7 w-auto" draggable={false} />
 
-      {/* conteúdo do slide */}
       <div className="flex w-full flex-1 flex-col items-center justify-center text-center">
         <div className="mb-6 rounded-full bg-yellow-100 p-5">
           <Icon className="h-9 w-9 text-yellow-600" />
         </div>
 
-        <h1 className="mb-3 px-4 text-3xl font-extrabold text-gray-900">
-          {title}
-        </h1>
+        <h1 className="mb-3 px-4 text-3xl font-extrabold text-gray-900">{title}</h1>
         <p className="px-6 text-base leading-relaxed text-gray-600">{subtitle}</p>
 
-        {/* indicadores */}
         <div className="mt-5 flex items-center gap-2">
           {slides.map((_, i) => (
-            <span
-              key={i}
-              className={`h-2 w-2 rounded-full ${
-                i === idx ? "bg-yellow-500" : "bg-gray-300"
-              }`}
-            />
+            <span key={i} className={`h-2 w-2 rounded-full ${i === idx ? "bg-yellow-500" : "bg-gray-300"}`} />
           ))}
         </div>
       </div>
 
-      {/* CTA principal */}
       <button
         onClick={next}
         className="mt-4 w-full rounded-2xl bg-yellow-500 py-3 text-center text-base font-semibold text-black active:scale-[0.99]"
@@ -94,7 +66,6 @@ const Onboarding: React.FC = () => {
         {idx < slides.length - 1 ? "Próximo" : "Começar"}
       </button>
 
-      {/* “Pular” embaixo do botão */}
       <button
         onClick={skip}
         className="mt-3 text-sm font-medium text-gray-500 underline-offset-4 hover:underline"

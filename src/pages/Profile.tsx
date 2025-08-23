@@ -1,8 +1,8 @@
-// src/pages/Profile.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/ui/PageHeader";
 import BottomNav from "@/components/BottomNav";
+import InstallButton from "@/components/InstallButton";
 import { auth } from "@/services/firebase";
 import {
   updateProfile,
@@ -14,12 +14,46 @@ import {
   PencilSquareIcon,
   ArrowTopRightOnSquareIcon,
   PowerIcon,
-  DevicePhoneMobileIcon,
   DocumentTextIcon,
   ComputerDesktopIcon,
 } from "@heroicons/react/24/outline";
-import { Dialog } from "@headlessui/react";
-import InstallHowToModal from "@/components/ui/InstallHowToModal";
+import { Dialog as HeadlessDialog } from "@headlessui/react";
+
+/* ---- Ícones customizados do modal ---- */
+const IconIOS: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={`${className} text-yellow-600`}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {/* corpo com notch/pílula */}
+    <rect x="5.5" y="2.5" width="13" height="19" rx="3.2" />
+    <rect x="9" y="3.5" width="6" height="1.7" rx="0.8" />
+  </svg>
+);
+
+const IconAndroid: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={`${className} text-yellow-600`}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {/* “mais gordinho”: raio maior e corpo mais cheio */}
+    <rect x="4.3" y="2.6" width="15.4" height="18.8" rx="4.2" />
+    {/* barrinha inferior larga (nav) */}
+    <rect x="8.5" y="19.2" width="7" height="1.2" rx="0.6" fill="currentColor" stroke="none" />
+  </svg>
+);
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -101,7 +135,7 @@ const Profile: React.FC = () => {
               </div>
             )}
 
-            {/* Câmera pequena (não altera o tamanho da foto) */}
+            {/* Botão câmera (tamanho fixo, não altera a foto) */}
             <button
               type="button"
               onClick={triggerFile}
@@ -172,17 +206,25 @@ const Profile: React.FC = () => {
       {/* Instalar aplicativo */}
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
-          <DevicePhoneMobileIcon className="mt-0.5 h-5 w-5 text-yellow-600" />
+          {/* ícone “telefone” meramente ilustrativo no card */}
+          <IconIOS className="mt-0.5 h-5 w-5" />
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900">Instalar aplicativo</h3>
-              <button
-                className="rounded p-1 text-gray-500 hover:bg-gray-100"
-                onClick={() => setInstallOpen(true)}
-                title="Como instalar"
-              >
-                <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-              </button>
+              <h3 className="text-base font-semibold text-gray-900">
+                Instalar aplicativo
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Botão extra: só aparece quando pode instalar de fato */}
+                <InstallButton />
+                {/* Ação “Como instalar” padronizada (ícone seta) */}
+                <button
+                  className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                  onClick={() => setInstallOpen(true)}
+                  title="Como instalar"
+                >
+                  <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <p className="mt-1 text-sm text-gray-600">
               Adicione o Comparafy à tela inicial para uma experiência melhor.
@@ -195,21 +237,21 @@ const Profile: React.FC = () => {
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
           <DocumentTextIcon className="mt-0.5 h-5 w-5 text-yellow-600" />
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900">Termos de uso</h3>
-              <button
-                className="rounded p-1 text-gray-500 hover:bg-gray-100"
-                onClick={() => setTermsOpen(true)}
-                title="Abrir termos"
-              >
-                <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="mt-1 text-sm text-gray-600">
-              Leia os termos e como tratamos seus dados.
-            </p>
+        </div>
+        <div className="-mt-6 ml-8">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-gray-900">Termos de uso</h3>
+            <button
+              className="rounded p-1 text-gray-500 hover:bg-gray-100"
+              onClick={() => setTermsOpen(true)}
+              title="Abrir termos"
+            >
+              <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+            </button>
           </div>
+          <p className="mt-1 text-sm text-gray-600">
+            Leia os termos e como tratamos seus dados.
+          </p>
         </div>
       </section>
 
@@ -227,16 +269,72 @@ const Profile: React.FC = () => {
 
       <BottomNav activeTab="profile" />
 
-      {/* Modal: Como instalar (usa o componente padronizado com ícones corretos) */}
-      <InstallHowToModal open={installOpen} onClose={() => setInstallOpen(false)} />
+      {/* Modal: Como instalar (tamanho padrão de outros modais: max-w-md) */}
+      <HeadlessDialog open={installOpen} onClose={() => setInstallOpen(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+        <div className="fixed inset-0 grid place-items-center p-4">
+          <HeadlessDialog.Panel className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <HeadlessDialog.Title className="text-lg font-semibold">
+                Como instalar o Comparafy
+              </HeadlessDialog.Title>
+              <button
+                className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                onClick={() => setInstallOpen(false)}
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* iPhone/iPad (iOS) */}
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <IconIOS className="h-5 w-5" />
+                  <span className="font-medium">iPhone / iPad (Safari)</span>
+                </div>
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-700">
+                  <li>Toque em <strong>Compartilhar</strong> (quadrado com seta).</li>
+                  <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+                  <li>Confirme o nome e toque em <strong>Adicionar</strong>.</li>
+                </ol>
+              </div>
+
+              {/* Android */}
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <IconAndroid className="h-5 w-5" />
+                  <span className="font-medium">Android (Chrome / Edge / Brave)</span>
+                </div>
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-700">
+                  <li>Procure o ícone <strong>Instalar</strong> na barra do navegador.</li>
+                  <li>Ou abra o menu ⋮ → <strong>Instalar aplicativo</strong>.</li>
+                </ol>
+              </div>
+
+              {/* Desktop */}
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <ComputerDesktopIcon className="h-5 w-5 text-yellow-600" />
+                  <span className="font-medium">Desktop (Chrome / Edge)</span>
+                </div>
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-700">
+                  <li>Clique no ícone de <strong>Instalar</strong> na barra de endereço.</li>
+                  <li>Ou menu: ≡ → <strong>Instalar “Comparafy”</strong>.</li>
+                </ol>
+              </div>
+            </div>
+          </HeadlessDialog.Panel>
+        </div>
+      </HeadlessDialog>
 
       {/* Modal: Termos */}
-      <Dialog open={termsOpen} onClose={() => setTermsOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+      <HeadlessDialog open={termsOpen} onClose={() => setTermsOpen(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         <div className="fixed inset-0 grid place-items-center p-4">
-          <Dialog.Panel className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+          <HeadlessDialog.Panel className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
-              <Dialog.Title className="text-lg font-semibold">Termos de uso</Dialog.Title>
+              <HeadlessDialog.Title className="text-lg font-semibold">Termos de uso</HeadlessDialog.Title>
               <button
                 className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
                 onClick={() => setTermsOpen(false)}
@@ -264,9 +362,9 @@ const Profile: React.FC = () => {
               <h3>6. Contato</h3>
               <p>Dúvidas? Envie um e-mail para contato@comparafy.app.</p>
             </div>
-          </Dialog.Panel>
+          </HeadlessDialog.Panel>
         </div>
-      </Dialog>
+      </HeadlessDialog>
     </div>
   );
 };
