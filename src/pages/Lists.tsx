@@ -31,7 +31,7 @@ const Lists: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto max-w-xl bg-white p-4 pb-28">
+    <main className="mx-auto w-full max-w-screen-md px-4 sm:px-6 lg:px-8 pt-safe pb-safe pt-6 sm:pt-8 pb-36">
       <PageHeader title="Listas" />
 
       {/* Botão NOVA LISTA */}
@@ -65,8 +65,8 @@ const Lists: React.FC = () => {
         }}
       />
 
-      <BottomNav activeTab="lists" />
-    </div>
+      <BottomNav />
+    </main>
   );
 };
 

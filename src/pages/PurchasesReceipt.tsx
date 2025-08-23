@@ -1,4 +1,3 @@
-// src/pages/PurchasesReceipt.tsx
 import { useEffect, useRef, useState } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useNavigate } from "react-router-dom";
@@ -22,18 +21,31 @@ function extractUrl(payload: unknown): string | null {
   return m ? m[0].replace(/[)\]}>.,;]*$/, "") : null;
 }
 
+function toISODate(d?: Date | null) {
+  if (!d) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function PurchasesReceipt() {
   const nav = useNavigate();
   const { createPurchaseFromReceiptInContext } = useData();
 
-  const [scanning, setScanning] = useState(true);
+  // Start with permission overlay
+  const [ready, setReady] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [parsed, setParsed] = useState<ReceiptParseResult | null>(null);
   const [market, setMarket] = useState("");
   const [listName, setListName] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [dateISO, setDateISO] = useState("");
 
   const lastScan = useRef(0);
+
+  const startScanner = () => { setReady(true); setScanning(true); };
 
   const handleScan = async (detected: any) => {
     const now = Date.now();
@@ -50,6 +62,7 @@ export default function PurchasesReceipt() {
       setParsed(data);
       setMarket(data.market || "");
       setListName(data.name || "");
+      setDateISO(toISODate(data.date || new Date())); // pega a data da NFC-e quando disponível
       const n = data.totalItems ?? data.itens.length;
       toast.success(n ? `QR lido! ${n} item(ns) detectado(s).` : "QR lido!");
     } catch (e) {
@@ -65,10 +78,11 @@ export default function PurchasesReceipt() {
     if (!parsed) return;
     setLoading(true);
     try {
+      const dateObj = dateISO ? new Date(`${dateISO}T00:00:00`) : new Date();
       await createPurchaseFromReceiptInContext({
         name: listName || "Compra (NFC-e)",
         market: market || "—",
-        date: parsed.date || new Date(),
+        date: dateObj,
         itens: parsed.itens || [],
       });
       toast.success("Compra importada!");
@@ -81,11 +95,9 @@ export default function PurchasesReceipt() {
     }
   };
 
-  useEffect(() => setScanning(true), []);
+  useEffect(() => {}, []);
 
   const previewCount = parsed?.totalItems ?? parsed?.itens?.length ?? 0;
-
-  // >>> NOVO: total do card com fallback calculado pelos itens
   const computedTotal =
     parsed?.grandTotal ??
     +(parsed?.itens?.reduce((acc, it) => {
@@ -95,41 +107,54 @@ export default function PurchasesReceipt() {
       return acc + totalLinha;
     }, 0) ?? 0).toFixed(2);
 
+  const containerClass =
+    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pb-32";
+
   return (
-    <div className="mx-auto max-w-xl bg-white p-4 pb-32">
+    <div className={containerClass}>
       <PageHeader title="Importar por QR Code" />
 
-      {/* scanner */}
-      {scanning ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200">
-          <Scanner
-            onScan={handleScan}
-            onError={(err) => {
-              console.error(err);
-              toast.error("Erro ao acessar a câmera.");
-            }}
-            components={{ audio: true, torch: false, zoom: false, finder: false }}
-            constraints={{ facingMode: "environment" }}
-            styles={{ container: { width: "100%", height: 320 } }}
-          />
-        </div>
-      ) : (
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2">
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <span>✅ QR code lido</span>
-          </div>
+      {/* Permission overlay (mais bonito que o prompt "cru") */}
+      {!ready && (
+        <div className="mt-4 rounded-2xl border border-gray-200 p-5 bg-white">
+          <h2 className="text-lg font-semibold text-gray-900">Permitir acesso à câmera</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Para ler o QR da nota fiscal, o Comparafy precisa de acesso à sua câmera.
+          </p>
           <button
-            onClick={() => {
-              setParsed(null);
-              setMarket("");
-              setListName("");
-              setShowAll(false);
-              setScanning(true);
-            }}
-            className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-800 active:scale-95"
+            className="mt-3 rounded-xl bg-yellow-500 px-4 py-2 font-semibold text-black active:scale-95"
+            onClick={startScanner}
           >
-            Reescanear
+            Permitir
           </button>
+          <p className="mt-2 text-xs text-gray-500">
+            Observação: em seguida o sistema mostrará um pedido de permissão do navegador.
+          </p>
+        </div>
+      )}
+
+      {/* scanner */}
+      {ready && (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200">
+          {scanning ? (
+            <Scanner
+              onScan={handleScan}
+              onError={(err) => { console.error(err); toast.error("Erro ao acessar a câmera."); }}
+              components={{ audio: true, torch: false, zoom: false, finder: false }}
+              constraints={{ facingMode: "environment" }}
+              styles={{ container: { width: "100%", height: 320 } }}
+            />
+          ) : (
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="text-sm text-gray-700">✅ QR code lido</div>
+              <button
+                onClick={() => { setParsed(null); setMarket(""); setListName(""); setShowAll(false); setScanning(true); }}
+                className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-800 active:scale-95"
+              >
+                Reescanear
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -147,7 +172,7 @@ export default function PurchasesReceipt() {
         </div>
       )}
 
-      {/* prévia de itens */}
+      {/* prévia de itens (a lista real depende de CORS; mostramos estrutura) */}
       {parsed && (
         <div className="mt-4 rounded-xl border border-gray-200">
           <div className="flex items-center justify-between border-b bg-gray-50 p-3 text-sm">
@@ -178,9 +203,9 @@ export default function PurchasesReceipt() {
         </div>
       )}
 
-      {/* formulário */}
+      {/* formulário: mercado, nome e data (da NFC-e ou editável) */}
       {parsed && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">Mercado</label>
             <input
@@ -199,14 +224,26 @@ export default function PurchasesReceipt() {
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">Data da compra</label>
+            <input
+              type="date"
+              value={dateISO}
+              onChange={(e) => setDateISO(e.target.value)}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
+            />
+            <p className="mt-1 text-xs text-gray-500">Ajuste se necessário. Usamos a data lida da NFC‑e quando disponível.</p>
+          </div>
 
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
-          >
-            {loading ? "Salvando..." : "Salvar compra"}
-          </button>
+          <div className="md:row-start-3 md:col-span-2">
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="w-full rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
+            >
+              {loading ? "Salvando..." : "Salvar compra"}
+            </button>
+          </div>
         </div>
       )}
 

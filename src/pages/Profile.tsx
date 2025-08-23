@@ -5,17 +5,9 @@ import BottomNav from "@/components/BottomNav";
 import InstallButton from "@/components/InstallButton";
 import { auth } from "@/services/firebase";
 import { updateProfile, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
-import {
-  CameraIcon,
-  PencilSquareIcon,
-  ArrowTopRightOnSquareIcon,
-  PowerIcon,
-  DocumentTextIcon,
-  ComputerDesktopIcon
-} from "@heroicons/react/24/outline";
+import { CameraIcon, PencilSquareIcon, ArrowTopRightOnSquareIcon, PowerIcon, DocumentTextIcon, ComputerDesktopIcon } from "@heroicons/react/24/outline";
 import { Dialog as HeadlessDialog } from "@headlessui/react";
 
-/* Ícones do modal (iOS com notch, Android mais "gordinho") */
 const IconIOS: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
   <svg viewBox="0 0 24 24" className={`${className} text-yellow-600`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <rect x="5.5" y="2.5" width="13" height="19" rx="3.2" />
@@ -31,17 +23,13 @@ const IconAndroid: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-
   const [displayName, setDisplayName] = useState<string>("");
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
-
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
   const [installOpen, setInstallOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
-
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -81,14 +69,14 @@ const Profile: React.FC = () => {
     navigate("/login");
   };
 
-  return (
-    <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      <PageHeader title="Perfil" />
+  const containerClass =
+    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pb-28";
 
-      {/* Card do perfil */}
+  return (
+    <div className={containerClass}>
+      <PageHeader title="Perfil" />
       <section className="mt-3 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-center gap-3">
-          {/* Avatar */}
           <div className="relative h-16 w-16 shrink-0">
             {photoURL ? (
               <img src={photoURL} alt="Foto do perfil" className="h-16 w-16 rounded-full object-cover" />
@@ -97,15 +85,12 @@ const Profile: React.FC = () => {
                 {avatarLetter}
               </div>
             )}
-
-            {/* Câmera (não altera tamanho da foto) */}
             <button type="button" onClick={triggerFile} title="Alterar foto" className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-yellow-500 text-black shadow hover:brightness-95">
               <CameraIcon className="h-3 w-3" />
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
           </div>
 
-          {/* Nome + lápis */}
           <div className="min-w-0 flex-1">
             {!editing ? (
               <div className="flex items-center gap-2">
@@ -131,7 +116,6 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
-      {/* Instalar aplicativo */}
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
           <IconIOS className="mt-0.5 h-5 w-5" />
@@ -150,7 +134,6 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
-      {/* Termos de uso */}
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
           <DocumentTextIcon className="mt-0.5 h-5 w-5 text-yellow-600" />
@@ -166,7 +149,6 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
-      {/* Sair */}
       <div className="mt-6">
         <button type="button" onClick={handleSignOut} className="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:underline">
           <PowerIcon className="h-4 w-4" />
@@ -201,7 +183,7 @@ const Profile: React.FC = () => {
 
               <div className="rounded-xl border border-gray-200 p-4">
                 <div className="mb-1 flex items-center gap-2">
-                  <IconAndroid className="h-5 w-5" />
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4.3" y="2.6" width="15.4" height="18.8" rx="4.2" /></svg>
                   <span className="font-medium">Android (Chrome / Edge / Brave)</span>
                 </div>
                 <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-700">
@@ -234,23 +216,17 @@ const Profile: React.FC = () => {
               <HeadlessDialog.Title className="text-lg font-semibold">Termos de uso</HeadlessDialog.Title>
               <button className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100" onClick={() => setTermsOpen(false)}>Fechar</button>
             </div>
-
             <div className="prose prose-sm max-w-none text-gray-700">
               <h3>1. Introdução</h3>
               <p>Bem-vindo ao Comparafy! Estes Termos regem o uso do aplicativo.</p>
-
               <h3>2. Privacidade</h3>
               <p>Tratamos seus dados conforme nossa Política de Privacidade.</p>
-
               <h3>3. Uso do aplicativo</h3>
               <p>Use o Comparafy apenas para fins legais e pessoais.</p>
-
               <h3>4. Limitações de responsabilidade</h3>
               <p>Não garantimos a exatidão de preços informados por terceiros.</p>
-
               <h3>5. Alterações</h3>
               <p>Podemos atualizar estes Termos; notificaremos mudanças relevantes.</p>
-
               <h3>6. Contato</h3>
               <p>Dúvidas? Envie um e-mail para contato@comparafy.app.</p>
             </div>

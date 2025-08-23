@@ -1,4 +1,3 @@
-// src/pages/Compare.tsx
 import React, { useMemo, useState } from "react";
 import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "../components/BottomNav";
@@ -10,7 +9,6 @@ import { BuildingStorefrontIcon, CalendarDaysIcon, TagIcon } from "@heroicons/re
 type CtxPurchase = { kind: "purchase"; purchaseName: string; market?: string; price: number };
 type ProductRow = { name: string; contexts: CtxPurchase[]; bestPrice: number };
 
-// Helpers
 const currency = (n: number) => formatCurrency(Number(n || 0));
 const parseDate = (any: any) => {
   const ms = typeof any === "number" ? any : any?.seconds ? any.seconds * 1000 : Date.parse(any || "");
@@ -24,7 +22,6 @@ const dateOnly = (any: any) => {
 const ymLabel = (d: Date) =>
   d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^./, (s) => s.toUpperCase());
 
-// ---------- Extração resiliente de itens de uma compra (NFC-e/variações) ----------
 type AnyItem = Record<string, any>;
 const getItems = (p: any): AnyItem[] => {
   const list = (p?.itens || p?.items || p?.produtos || p?.products || []) as AnyItem[];
@@ -37,7 +34,6 @@ const getUnit = (it: AnyItem): string =>
 const getPrice = (it: AnyItem): number =>
   Number(it?.preco ?? it?.price ?? it?.vUnCom ?? it?.vProd ?? 0) || 0;
 
-// ---------- Regra: pelo menos 1 sequência de 4 letras em comum entre NOME (ignora unidade) ----------
 const lettersOnly = (s: string) => normalizeString(s).replace(/[^a-z]/g, "");
 const seqN = (s: string, n: number) => {
   const t = lettersOnly(s);
@@ -57,17 +53,18 @@ const Compare: React.FC = () => {
   const [active, setActive] = useState<"produtos" | "compras" | "stats">("produtos");
   const [query, setQuery] = useState("");
 
-  // ---------------- TAB: PRODUTOS (somente COMPRAS) ----------------
+  // -------- Responsividade: container maior em telas médias/grandes --------
+  const containerClass =
+    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pb-28";
+
   const products: ProductRow[] = useMemo(() => {
     const map = new Map<string, ProductRow>();
-
     for (const p of (purchases as any[]) || []) {
       for (const it of getItems(p)) {
         const rawName = getName(it);
         if (!rawName) continue;
         const key = normalizeString(rawName);
         const price = getPrice(it);
-
         const row = map.get(key) || { name: rawName, contexts: [], bestPrice: Infinity };
         row.name = row.name.length >= rawName.length ? row.name : rawName;
         row.contexts.push({
@@ -80,13 +77,11 @@ const Compare: React.FC = () => {
         map.set(key, row);
       }
     }
-
     const q = normalizeString(query);
     const arr = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     return q ? arr.filter((r) => normalizeString(r.name).includes(q)) : arr;
   }, [purchases, query]);
 
-  // ---------------- TAB: COMPRAS (comparar 2 compras) ----------------
   type Row = {
     key: string;
     display: string;
@@ -110,40 +105,31 @@ const Compare: React.FC = () => {
   const commonPurchRows: Row[] = useMemo(() => {
     if (selectedPurchases.length !== 2) return [];
     const [A, B] = selectedPurchases as any[];
-
     const itemsA = getItems(A).map((it) => {
       const name = getName(it);
       const unit = getUnit(it);
       const display = unit ? `${name} — ${unit}` : name;
       return { name, full: `${name} ${unit}`.trim(), display, price: getPrice(it) };
     });
-
     const itemsB = getItems(B).map((it) => {
       const name = getName(it);
       const unit = getUnit(it);
       const display = unit ? `${name} — ${unit}` : name;
       return { name, full: `${name} ${unit}`.trim(), display, price: getPrice(it) };
     });
-
     const usedB = new Set<number>();
     const rows: Row[] = [];
-
     for (let i = 0; i < itemsA.length; i++) {
       const a = itemsA[i];
       let bestJ = -1;
       let matched = false;
-
-      // procura um par pelo critério da sequência de 4 letras
       for (let j = 0; j < itemsB.length; j++) {
         if (usedB.has(j)) continue;
         const b = itemsB[j];
         if (hasCommonSeq(a.name, b.name, 4)) {
-          bestJ = j;
-          matched = true;
-          break;
+          bestJ = j; matched = true; break;
         }
       }
-
       if (matched && bestJ >= 0) {
         const b = itemsB[bestJ];
         usedB.add(bestJ);
@@ -160,12 +146,10 @@ const Compare: React.FC = () => {
         });
       }
     }
-
     rows.sort((x, y) => x.display.localeCompare(y.display));
     return rows;
   }, [selectedPurchases]);
 
-  // ---------------- TAB: ESTATÍSTICAS ----------------
   const stats = useMemo(() => {
     const itemCount = new Map<string, { name: string; count: number }>();
     for (const p of (purchases as any[]) || []) {
@@ -206,7 +190,7 @@ const Compare: React.FC = () => {
   }, [purchases]);
 
   return (
-    <div className="mx-auto max-w-xl bg-white p-4 pb-28">
+    <div className={containerClass}>
       <PageHeader title="Comparar" />
 
       {/* Tabs */}
@@ -231,7 +215,7 @@ const Compare: React.FC = () => {
         </button>
       </div>
 
-      {/* ---------------- PRODUTOS ---------------- */}
+      {/* PRODUTOS */}
       {active === "produtos" && (
         <div className="mt-3">
           <input
@@ -240,15 +224,13 @@ const Compare: React.FC = () => {
             placeholder="Buscar por nome..."
             className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-yellow-400"
           />
-
           {products.length === 0 ? (
             <p className="mt-4 text-sm text-gray-500">Digite o nome do produto para buscar.</p>
           ) : (
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {products.map((prod) => (
                 <div key={prod.name} className="rounded-2xl border border-gray-200 p-3">
                   <div className="mb-2 font-semibold text-gray-900">{prod.name}</div>
-
                   <div className="space-y-2">
                     {prod.contexts.map((ctx, idx) => {
                       const price = ctx.price || 0;
@@ -272,13 +254,11 @@ const Compare: React.FC = () => {
         </div>
       )}
 
-      {/* ---------------- COMPRAS (comparar 2 compras) ---------------- */}
+      {/* COMPRAS */}
       {active === "compras" && (
         <div className="mt-3">
           <div className="mb-3 text-sm text-gray-600">Selecione <b>2 compras</b> para comparar.</div>
-
-          {/* COLUNA ÚNICA: cards ocupam toda a largura */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {(purchases as any[]).map((p) => {
               const selected = selPurch.includes(p.id);
               return (
@@ -297,20 +277,18 @@ const Compare: React.FC = () => {
               );
             })}
           </div>
-
           {selectedPurchases.length === 2 && (
             <div className="mt-4">
               <div className="mb-2 text-sm text-gray-600">
                 Comparando: <b>{String(selectedPurchases[0]?.name ?? "Compra A")}</b> ×{" "}
                 <b>{String(selectedPurchases[1]?.name ?? "Compra B")}</b>
               </div>
-
               {commonPurchRows.length === 0 ? (
                 <div className="rounded-2xl border border-gray-200 p-4 text-sm text-gray-500">
                   Estas compras não possuem itens em comum.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {commonPurchRows.map((r) => {
                     const cheaper = r.a < r.b ? "a" : r.b < r.a ? "b" : "eq";
                     const baseRow = "flex items-center justify-between rounded-lg border px-3 py-2";
@@ -319,8 +297,6 @@ const Compare: React.FC = () => {
                     return (
                       <div key={r.key} className="rounded-2xl border border-gray-200 p-3">
                         <div className="mb-2 font-medium text-gray-900">{r.display}</div>
-
-                        {/* linha A */}
                         <div className={cheaper === "a" ? cheapRow : normRow}>
                           <div className="text-sm text-gray-600">{r.aPurchaseName} · {r.aMarket || "—"}</div>
                           <div className={`text-sm font-semibold ${cheaper === "a" ? "text-green-700" : "text-gray-900"}`}>
@@ -332,8 +308,6 @@ const Compare: React.FC = () => {
                             )}
                           </div>
                         </div>
-
-                        {/* linha B */}
                         <div className="mt-2"></div>
                         <div className={cheaper === "b" ? cheapRow : normRow}>
                           <div className="text-sm text-gray-600">{r.bPurchaseName} · {r.bMarket || "—"}</div>
@@ -356,10 +330,9 @@ const Compare: React.FC = () => {
         </div>
       )}
 
-      {/* ---------------- ESTATÍSTICAS ---------------- */}
+      {/* ESTATÍSTICAS */}
       {active === "stats" && (
         <div className="mt-3 space-y-6">
-          {/* Gasto por mercado */}
           <section>
             <h3 className="mb-2 text-base font-semibold text-gray-900">Gasto por mercado</h3>
             {(stats.spendByMarket.length === 0) ? (
@@ -381,7 +354,6 @@ const Compare: React.FC = () => {
             )}
           </section>
 
-          {/* Gasto por mês */}
           <section>
             <h3 className="mb-2 text-base font-semibold text-gray-900">Gasto por mês</h3>
             {(stats.spendByMonth.length === 0) ? (
@@ -403,7 +375,6 @@ const Compare: React.FC = () => {
             )}
           </section>
 
-          {/* Itens mais comprados */}
           <section>
             <h3 className="mb-2 text-base font-semibold text-gray-900">Itens mais comprados</h3>
             {stats.topItems.length === 0 ? (

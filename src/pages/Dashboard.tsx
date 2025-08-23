@@ -3,7 +3,6 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "../components/BottomNav";
-import ListaCard from "../components/ListaCard";
 import { useData } from "../context/DataContext";
 
 const Dashboard: React.FC = () => {
@@ -14,11 +13,11 @@ const Dashboard: React.FC = () => {
   const latestPurchases = purchases.slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-xl bg-white p-4 pb-28">
+    <main className="mx-auto w-full max-w-screen-md px-4 sm:px-6 lg:px-8 pt-safe pb-safe pt-6 sm:pt-8 pb-36">
       <PageHeader title="Início" />
 
       {/* ===== Últimas listas ===== */}
-      <section className="mt-2">
+      <section className="mt-3 sm:mt-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Últimas listas</h2>
           <Link to="/lists" className="text-sm text-yellow-600 hover:underline">ver todas</Link>
@@ -44,8 +43,8 @@ const Dashboard: React.FC = () => {
                 onClick={() => navigate(`/lists/${l.id}`)}
                 className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
               >
-                <div>
-                  <div className="font-medium text-gray-900">{l.nome || "Lista"}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-gray-900">{l.nome || "Lista"}</div>
                   <div className="text-sm text-gray-500">
                     {(l.itens?.filter(i => i.comprado).length || 0)}/{(l.itens?.length || 0)} itens
                   </div>
@@ -83,13 +82,13 @@ const Dashboard: React.FC = () => {
                 onClick={() => navigate(`/purchases/${p.id}`)}
                 className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left hover:bg-gray-50"
               >
-                <div>
-                  <div className="font-medium text-gray-900">{p.name || "Compra"}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-gray-900">{p.name || "Compra"}</div>
                   <div className="text-sm text-gray-500">
                     {p.market || "—"} · {(p.itens || []).length} itens
                   </div>
                 </div>
-                <div className="text-right font-semibold text-gray-900">
+                <div className="shrink-0 text-right font-semibold text-gray-900">
                   {(Number(p.total) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                 </div>
               </button>
@@ -98,8 +97,8 @@ const Dashboard: React.FC = () => {
         )}
       </section>
 
-      <BottomNav activeTab="home" />
-    </div>
+      <BottomNav />
+    </main>
   );
 };
 

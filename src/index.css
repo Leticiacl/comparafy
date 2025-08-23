@@ -1,32 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Base global */
-@layer base {
-  html, body, #root { height: 100%; }
-  body { @apply font-sans bg-white text-gray-900; }
-  img { max-width: 100%; height: auto; display: block; }
-}
-
-/* -------- Safe-area iOS (topo e rodapé) -------- */
-:root{
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* utilitários */
-.safe-top{ padding-top: calc(var(--safe-top) + 16px); }
-.safe-bottom{ padding-bottom: calc(var(--safe-bottom) + 16px); }
-
-/* BottomNav – mais alto e respeitando a área segura */
-[data-bottom-nav]{
-  padding-bottom: calc(var(--safe-bottom) + 22px);
-}
-[data-bottom-nav] a{ min-height: 54px; }
-
-/* Onboarding: garante espaço no topo e no “home bar” do iPhone */
-.onboarding-shell{
-  padding-top: calc(var(--safe-top) + 12px);
-  padding-bottom: calc(var(--safe-bottom) + 28px);
-}
+@layer base { html, body, #root { height: 100%; } body { @apply font-sans bg-white text-gray-900; } img { max-width: 100%; height: auto; display: block; } }
+:root{ --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top: max(var(--safe-top), 12px); }
+.pb-safe { padding-bottom: max(var(--safe-bottom), 18px); }
+.container-app { @apply mx-auto w-full px-4 sm:px-6 lg:px-8; @apply max-w-screen-md sm:max-w-screen-lg lg:max-w-screen-xl xl:max-w-[1200px]; }
+.grid-cards-1-3 { @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3; }
+.card { @apply rounded-2xl border border-gray-200 bg-white; }
+.card-hover { @apply transition hover:bg-gray-50; }
+.card-pad { @apply p-4; }
+.h1-page { @apply text-2xl font-bold text-gray-900 sm:text-3xl; }
