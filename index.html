@@ -2,13 +2,22 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/LOGO_REDUZIDA.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit para respeitar área segura no iPhone -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
     <title>Comparafy</title>
+
+    <!-- Ícone/base -->
+    <link rel="icon" type="image/png" href="/LOGO_REDUZIDA.png" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#F0B90B" />
+
+    <!-- iOS: instalar como app e usar o mesmo ícone -->
+    <link rel="apple-touch-icon" href="/LOGO_REDUZIDA.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Fonte Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

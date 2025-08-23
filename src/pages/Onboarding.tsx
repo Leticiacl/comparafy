@@ -9,21 +9,9 @@ type Slide = {
 };
 
 const slides: Slide[] = [
-  {
-    title: "Crie suas listas de compras",
-    subtitle: "Organize o que precisa e acompanhe tudo em um só lugar.",
-    Icon: ClipboardDocumentListIcon,
-  },
-  {
-    title: "Escaneie suas compras",
-    subtitle: "Adicione suas compras apenas escaneando sua notinha.",
-    Icon: QrCodeIcon,
-  },
-  {
-    title: "Economize de verdade",
-    subtitle: "Acompanhe histórico e planeje suas compras.",
-    Icon: BanknotesIcon,
-  },
+  { title: "Crie suas listas de compras", subtitle: "Organize o que precisa e acompanhe tudo em um só lugar.", Icon: ClipboardDocumentListIcon },
+  { title: "Escaneie suas compras", subtitle: "Adicione suas compras apenas escaneando sua notinha.", Icon: QrCodeIcon },
+  { title: "Economize de verdade", subtitle: "Acompanhe histórico e planeje suas compras.", Icon: BanknotesIcon }
 ];
 
 const Onboarding: React.FC = () => {
@@ -31,7 +19,13 @@ const Onboarding: React.FC = () => {
   const [idx, setIdx] = React.useState(0);
 
   const goFinish = React.useCallback(() => {
-    try { localStorage.setItem("onboardingSeen", "1"); } catch {}
+    try {
+      localStorage.setItem("onboardingSeen", "1");
+      // limpa qualquer sessão antiga (inclui visitante)
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("authType");
+    } catch {}
     nav("/login", { replace: true });
   }, [nav]);
 

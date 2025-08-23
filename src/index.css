@@ -2,9 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base global para manter a cara do app */
+/* Base global */
 @layer base {
   html, body, #root { height: 100%; }
   body { @apply font-sans bg-white text-gray-900; }
   img { max-width: 100%; height: auto; display: block; }
 }
+
+/* Área segura e toque maior do BottomNav */
+:root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+
+[data-bottom-nav] {
+  padding-bottom: calc(max(var(--safe-bottom), 22px));
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+[data-bottom-nav] a,
+[data-bottom-nav] button {
+  min-height: 56px;
+}
+
+/* Evita flash ao tocar em iOS */
+button, a { -webkit-tap-highlight-color: transparent; }

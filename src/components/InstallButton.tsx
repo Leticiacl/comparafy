@@ -1,53 +1,48 @@
 import React from "react";
 
 /**
- * Mostra um botão "Instalar" apenas quando o navegador
- * dispara o evento `beforeinstallprompt` (PWA instalável).
- * Em iOS/Safari esse evento não existe → o botão some.
+ * Mostra "Instalar" quando o navegador dispara `beforeinstallprompt`.
+ * Em iOS (Safari) não aparece (Apple não suporta) — use o guia "Como instalar".
  */
-export default function InstallButton({
-  className = "",
-  label = "Instalar",
-}: {
-  className?: string;
-  label?: string;
-}) {
-  const [deferred, setDeferred] = React.useState<any>(null);
+const InstallButton: React.FC = () => {
+  const [promptEvent, setPromptEvent] = React.useState<any>(null);
+  const [canInstall, setCanInstall] = React.useState(false);
 
   React.useEffect(() => {
-    const onBeforeInstall = (e: Event) => {
-      // cancela o banner nativo e guarda para disparar sob-demanda
-      (e as any).preventDefault?.();
-      setDeferred(e);
-    };
-    const onInstalled = () => setDeferred(null);
+    // Oculta se já estiver instalado
+    const isStandalone =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone;
+    if (isStandalone) return;
 
-    window.addEventListener("beforeinstallprompt", onBeforeInstall as any);
-    window.addEventListener("appinstalled", onInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall as any);
-      window.removeEventListener("appinstalled", onInstalled);
+    const onBIP = (e: any) => {
+      e.preventDefault();
+      setPromptEvent(e);
+      setCanInstall(true);
     };
+    window.addEventListener("beforeinstallprompt", onBIP);
+    return () => window.removeEventListener("beforeinstallprompt", onBIP);
   }, []);
 
-  const handleClick = async () => {
-    if (!deferred) return;
-    (deferred as any).prompt?.();
-    try {
-      await (deferred as any).userChoice;
-    } catch {}
-    setDeferred(null);
-  };
+  if (!canInstall) return null;
 
-  if (!deferred) return null;
+  const onClick = async () => {
+    try {
+      await promptEvent.prompt();
+      await promptEvent.userChoice;
+    } catch {}
+    setCanInstall(false);
+    setPromptEvent(null);
+  };
 
   return (
     <button
-      onClick={handleClick}
-      className={`rounded-xl bg-yellow-500 px-3 py-2 text-sm font-medium text-black hover:brightness-95 ${className}`}
+      onClick={onClick}
+      className="rounded-xl bg-yellow-500 px-3 py-2 text-sm font-medium text-black hover:brightness-95"
     >
-      {label}
+      Instalar
     </button>
   );
-}
+};
+
+export default InstallButton;
