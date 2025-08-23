@@ -8,20 +8,15 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { useData } from "@/context/DataContext";
 import BottomNav from "@/components/BottomNav";
-import PageHeader from "@/components/ui/PageHeader";
 import PurchaseItemModal, { PurchaseExtraItem as PurchaseItem } from "@/components/PurchaseItemModal";
+import { useData } from "@/context/DataContext";
 
 const brl = (n: number) =>
   (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 const dateOnly = (any: any) => {
-  const ms =
-    typeof any === "number"
-      ? any
-      : any?.seconds
-      ? any.seconds * 1000
-      : Date.parse(any || "");
+  const ms = typeof any === "number" ? any : any?.seconds ? any.seconds * 1000 : Date.parse(any || "");
   if (!Number.isFinite(ms)) return "";
   return new Date(ms).toLocaleDateString("pt-BR");
 };
@@ -29,31 +24,28 @@ const dateOnly = (any: any) => {
 export default function PurchaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const {
-    purchases,
+    purchases = [],
     renamePurchaseInContext,
     deletePurchaseInContext,
     updatePurchaseItemInContext,
     deletePurchaseItemInContext,
     appendItemsToPurchaseById,
-  } = useData();
+  } = useData() as any;
 
-  const p = useMemo(() => purchases.find((x) => x.id === id), [purchases, id]);
+  const p = useMemo(() => purchases.find((x: any) => x.id === id), [purchases, id]);
 
+  // UI state
   const [editingTitle, setEditingTitle] = useState(false);
   const [newName, setNewName] = useState(p?.name || "");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // add-item modal state
   const [addOpen, setAddOpen] = useState(false);
 
-  // editar item
-  type EditState = {
-    index: number;
-    nome: string;
-    quantidade: number;
-    unidade: string;
-    preco: number;
-    peso?: number;
-  };
+  // edit-item dialog
+  type EditState = { index: number; nome: string; quantidade: number; unidade: string; preco: number };
   const [edit, setEdit] = useState<EditState | null>(null);
 
   if (!p) {
@@ -65,172 +57,256 @@ export default function PurchaseDetail() {
     );
   }
 
-  const total =
-    p.itens?.reduce(
-      (acc, it) =>
-        acc +
-        (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-      0
-    ) || 0;
+  const canAddItems = p?.source !== "receipt"; // bloquear adição para NFC-e importada
 
-  const headerRight = (
-    <Menu as="div" className="relative">
-      <Menu.Button className="rounded p-2 hover:bg-gray-50">
-        <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
-      </Menu.Button>
-      <Menu.Items className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5">
-        <Menu.Item>
-          {({ active }) => (
-            <button
-              onClick={() => {
-                setEditingTitle(true);
-                setNewName(p.name || "");
-              }}
-              className={`flex w-full items-center gap-2 px-4 py-2 text-left ${
-                active ? "bg-gray-100" : ""
-              }`}
-            >
-              <PencilSquareIcon className="h-5 w-5 text-gray-700" />
-              Renomear
-            </button>
-          )}
-        </Menu.Item>
-        <div className="h-px bg-gray-100" />
-        <Menu.Item>
-          {({ active }) => (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${
-                active ? "bg-gray-100" : ""
-              }`}
-            >
-              <TrashIcon className="h-5 w-5" />
-              Excluir
-            </button>
-          )}
-        </Menu.Item>
-      </Menu.Items>
-    </Menu>
-  );
+  const total =
+    p.itens?.reduce((acc: number, it: any) => acc + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0) || 0;
 
   return (
     <div className="mx-auto max-w-xl bg-white p-4 pb-28">
-      <PageHeader
-        title={p.name || "Compra"}
-        subtitle={`${dateOnly(p.createdAt)} · ${p.market || "—"} · ${(p.itens || []).length} itens`}
-        leftSlot={
-          <button onClick={() => navigate(-1)} className="p-1" aria-label="Voltar">
-            <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
-          </button>
-        }
-        rightSlot={headerRight}
-      />
+      {/* Header */}
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => navigate(-1)} className="rounded p-2 hover:bg-gray-50">
+          <ArrowLeftIcon className="h-6 w-6 text-gray-700" />
+        </button>
 
-      {/* edição de nome */}
-      {editingTitle && (
-        <div className="mb-3 flex items-center gap-2">
-          <input
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2"
-          />
-          <button
-            className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
-            onClick={async () => {
-              if (newName.trim()) {
-                await renamePurchaseInContext(p.id, newName.trim());
-                setEditingTitle(false);
-              }
-            }}
-          >
-            Salvar
-          </button>
-          <button onClick={() => setEditingTitle(false)} className="text-sm text-gray-600">
-            Cancelar
-          </button>
+        <div className="min-w-0 flex-1 px-2">
+          {!editingTitle ? (
+            <div className="truncate text-2xl font-bold text-gray-900">{p.name || "Compra"}</div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="flex-1 rounded-xl border px-3 py-2"
+              />
+              <button
+                className="rounded-xl bg-yellow-500 px-4 py-2 font-medium text-black"
+                onClick={async () => {
+                  const v = newName.trim();
+                  if (v && v !== p.name) await renamePurchaseInContext(p.id, v);
+                  setEditingTitle(false);
+                }}
+              >
+                Salvar
+              </button>
+            </div>
+          )}
+
+          <div className="truncate text-sm text-gray-500">
+            {dateOnly(p.createdAt)} · {p.market || "—"} · {(p.itens || []).length} itens
+          </div>
         </div>
+
+        <Menu as="div" className="relative">
+          <Menu.Button className="rounded p-2 hover:bg-gray-50">
+            <EllipsisVerticalIcon className="h-6 w-6 text-gray-600" />
+          </Menu.Button>
+          <Menu.Items className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5">
+            <Menu.Item>
+              {({ active }) => (
+                <button
+                  onClick={() => {
+                    setNewName(p.name || "");
+                    setEditingTitle(true);
+                  }}
+                  className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
+                >
+                  <PencilSquareIcon className="h-5 w-5 text-gray-600" />
+                  Renomear
+                </button>
+              )}
+            </Menu.Item>
+            <div className="h-px bg-gray-100" />
+            <Menu.Item>
+              {({ active }) => (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${
+                    active ? "bg-gray-100" : ""
+                  }`}
+                >
+                  <TrashIcon className="h-5 w-5" />
+                  Excluir
+                </button>
+              )}
+            </Menu.Item>
+          </Menu.Items>
+        </Menu>
+
+        <img src="/LOGO_REDUZIDA.png" alt="Logo" className="ml-2 h-8" />
+      </div>
+
+      {/* Adicionar item – só para compras criadas por lista */}
+      {canAddItems && (
+        <button
+          onClick={() => setAddOpen(true)}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 py-3 font-medium text-black shadow active:scale-[0.99]"
+        >
+          <span className="text-2xl leading-none">+</span> Adicionar item
+        </button>
       )}
 
-      {/* Botão adicionar item */}
-      <button
-        onClick={() => setAddOpen(true)}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 py-3 text-black shadow active:scale-[0.99]"
-      >
-        <span className="text-2xl leading-none">+</span> Adicionar item
-      </button>
-
-      {/* Itens da compra */}
+      {/* Lista de itens */}
       <div className="overflow-hidden rounded-2xl border border-gray-200">
-        {p.itens?.map((it, i) => {
+        {p.itens?.map((it: any, i: number) => {
           const totalItem = (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
           return (
-            <div key={i} className="flex items-start justify-between p-4">
+            <div key={i} className="flex items-start justify-between border-b border-gray-100 p-4 last:border-b-0">
               <div>
-                <p className="font-medium text-gray-900">{it.nome}</p>
-                <p className="text-sm text-gray-500">
-                  {it.quantidade ?? 1}x{" "}
-                  {it.peso ? `• ${it.peso} ${it.unidade || ""}` : it.unidade ? `• ${it.unidade}` : ""}
-                </p>
-
-                <div className="mt-2 flex gap-4 text-sm">
-                  <button
-                    onClick={() =>
-                      setEdit({
-                        index: i,
-                        nome: it.nome,
-                        quantidade: it.quantidade ?? 1,
-                        unidade: it.unidade || "un",
-                        preco: Number(it.preco) || 0,
-                        peso: it.peso,
-                      })
-                    }
-                    className="flex items-center gap-1 text-gray-700"
-                  >
-                    <PencilSquareIcon className="h-4 w-4" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => deletePurchaseItemInContext(p.id, i)}
-                    className="flex items-center gap-1 text-red-600"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Excluir
-                  </button>
+                <div className="font-medium text-gray-900">{it.nome || it.name}</div>
+                <div className="text-sm text-gray-500">
+                  {Number(it.quantidade) || 1}× · {it.unidade || "un"} {it.peso ? `· ${it.peso}` : ""}
                 </div>
+                <div className="text-sm text-gray-500">UN. {brl(it.preco)}</div>
+
+                {/* Ações de item */}
+                {canAddItems && (
+                  <div className="mt-2 flex items-center gap-4 text-sm">
+                    <button
+                      className="flex items-center gap-1 text-gray-700 hover:underline"
+                      onClick={() =>
+                        setEdit({
+                          index: i,
+                          nome: it.nome,
+                          quantidade: Number(it.quantidade) || 1,
+                          unidade: it.unidade || "un",
+                          preco: Number(it.preco) || 0,
+                        })
+                      }
+                    >
+                      <PencilSquareIcon className="h-4 w-4" /> Editar
+                    </button>
+                    <button
+                      className="flex items-center gap-1 text-red-600 hover:underline"
+                      onClick={() => deletePurchaseItemInContext(p.id, i)}
+                    >
+                      <TrashIcon className="h-4 w-4" /> Excluir
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="text-right">
-                <div className="font-semibold text-gray-900">{brl(totalItem)}</div>
-                <div className="text-sm text-gray-500">UN. {brl(Number(it.preco) || 0)}</div>
-              </div>
+              <div className="text-right font-semibold text-gray-900">{brl(totalItem)}</div>
             </div>
           );
         })}
       </div>
 
-      {/* Total */}
-      <div className="mt-6 flex items-center justify-between">
+      {/* total */}
+      <div className="mt-4 flex items-center justify-between">
         <span className="text-lg font-bold">Total</span>
         <span className="text-lg font-extrabold">{brl(total)}</span>
       </div>
 
       <BottomNav activeTab="purchases" />
 
-      {/* Diálogo excluir */}
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold mb-2">Excluir compra?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Esta ação não poderá ser desfeita.
-            </p>
+      {/* Modal adicionar item */}
+      <PurchaseItemModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onConfirm={async (item) => {
+          const payload: PurchaseItem = {
+            nome: item.nome,
+            quantidade: item.quantidade ?? 1,
+            unidade: item.unidade ?? "un",
+            preco: Number(item.preco || 0),
+            mercado: item.mercado ?? "",
+            observacoes: item.observacoes ?? "",
+            peso: item.peso,
+          };
+          await appendItemsToPurchaseById(p.id, [payload]);
+          setAddOpen(false);
+        }}
+        title="Adicionar Item"
+      />
+
+      {/* Editar item */}
+      <Dialog open={!!edit} onClose={() => setEdit(null)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/20" />
+        <div className="fixed inset-0 grid place-items-center p-4">
+          <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
+            <Dialog.Title className="mb-3 text-lg font-semibold">Editar item</Dialog.Title>
+            {edit && (
+              <div className="space-y-3">
+                <div>
+                  <div className="mb-1 text-sm font-medium">Nome</div>
+                  <input
+                    className="w-full rounded-lg border px-3 py-2"
+                    value={edit.nome}
+                    onChange={(e) => setEdit({ ...edit, nome: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <div className="mb-1 text-sm font-medium">Qtd.</div>
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={edit.quantidade}
+                      onChange={(e) => setEdit({ ...edit, quantidade: Math.max(1, Number(e.target.value || 1)) })}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-sm font-medium">Unidade</div>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={edit.unidade}
+                      onChange={(e) => setEdit({ ...edit, unidade: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-sm font-medium">Preço</div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={edit.preco}
+                      onChange={(e) => setEdit({ ...edit, preco: Number(e.target.value || 0) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-2 flex justify-end gap-2">
+                  <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setEdit(null)}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
+                    onClick={async () => {
+                      if (!edit) return;
+                      await updatePurchaseItemInContext(p.id, edit.index, {
+                        nome: edit.nome,
+                        quantidade: edit.quantidade,
+                        unidade: edit.unidade,
+                        preco: edit.preco,
+                      });
+                      setEdit(null);
+                    }}
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            )}
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Confirmar exclusão da compra */}
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} className="relative z-50">
+        <div className="fixed inset-0 bg-black/20" />
+        <div className="fixed inset-0 grid place-items-center p-4">
+          <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
+            <Dialog.Title className="mb-4 text-lg font-semibold">Deseja excluir esta compra?</Dialog.Title>
             <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 rounded-lg border" onClick={() => setConfirmDelete(false)}>
+              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setConfirmDelete(false)}>
                 Cancelar
               </button>
               <button
-                className="px-3 py-2 rounded-lg bg-red-600 text-white"
+                className="rounded-lg bg-red-500 px-3 py-2 text-white"
                 onClick={async () => {
                   await deletePurchaseInContext(p.id);
                   setConfirmDelete(false);
@@ -240,27 +316,9 @@ export default function PurchaseDetail() {
                 Excluir
               </button>
             </div>
-          </div>
+          </Dialog.Panel>
         </div>
       </Dialog>
-
-      {/* Modal de edição de item */}
-      <PurchaseItemModal
-        open={!!edit}
-        onClose={() => setEdit(null)}
-        onConfirm={(next) => {
-          if (!edit) return;
-          updatePurchaseItemInContext(p.id, edit.index, {
-            nome: next.nome,
-            unidade: next.unidade,
-            quantidade: next.quantidade,
-            preco: next.preco,
-            peso: next.peso,
-          } as any);
-        }}
-        initial={edit || undefined as any}
-        title="Editar item"
-      />
     </div>
   );
 }

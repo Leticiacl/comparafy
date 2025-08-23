@@ -183,6 +183,7 @@ const AddItemModal: React.FC<Props> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium">Unidade</label>
+                
                 <select
                   className="mt-1 w-full rounded-lg border p-2"
                   value={form.unidade}
@@ -192,8 +193,10 @@ const AddItemModal: React.FC<Props> = ({
                 >
                   <option value="kg">kg</option>
                   <option value="g">g</option>
-                  <option value="un">un</option>
                   <option value="l">l</option>
+                  <option value="ml">ml</option>
+                  <option value="dúzia">dúzia</option>
+                  <option value="un">un</option>
                 </select>
               </div>
             </div>

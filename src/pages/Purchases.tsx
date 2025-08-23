@@ -1,3 +1,4 @@
+// src/pages/Purchases.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
@@ -37,69 +38,87 @@ const Purchases: React.FC = () => {
     createdAt?: any;
     total: number;
     count: number;
-  }> = ({ id, name, market, createdAt, total, count }) => (
-    <div className="relative rounded-2xl border border-gray-200 bg-white p-4">
-      {/* Header: título + menu no topo (preço NÃO conflita) */}
-      <div className="flex items-start justify-between">
-        <button
-          onClick={() => id && navigate(`/purchases/${id}`)}
-          className="text-left"
-          style={{ maxWidth: "calc(100% - 44px)" }}
-        >
-          <div className="text-lg font-semibold text-gray-900 line-clamp-1">{name || "Compra"}</div>
-        </button>
-
-        {id && (
-          <Menu as="div" className="absolute right-1 top-1">
-            <Menu.Button className="rounded p-2 hover:bg-gray-50">
-              <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
-            </Menu.Button>
-            <Menu.Items className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5">
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => {
-                      setRenameId(id);
-                      setRenameValue(name || "");
-                    }}
-                    className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
-                  >
-                    <PencilSquareIcon className="h-5 w-5 text-gray-600" />
-                    Renomear
-                  </button>
-                )}
-              </Menu.Item>
-              <div className="h-px bg-gray-100" />
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => setDeleteId(id)}
-                    className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${
-                      active ? "bg-gray-100" : ""
-                    }`}
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                    Excluir
-                  </button>
-                )}
-              </Menu.Item>
-            </Menu.Items>
-          </Menu>
-        )}
-      </div>
-
-      {/* Linha inferior: data/mercado/itens (esq) e preço (dir) */}
-      <button
-        onClick={() => id && navigate(`/purchases/${id}`)}
-        className="mt-1 flex w-full items-center justify-between text-left"
+  }> = ({ id, name, market, createdAt, total, count }) => {
+    const handleOpen = () => {
+      if (id) navigate(`/purchases/${id}`);
+    };
+    const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleOpen();
+      }
+    };
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={handleKeyDown}
+        className="relative cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
       >
-        <div className="text-sm text-gray-500">
-          {dateOnly(createdAt)} · {market || "—"} · {count} itens
+        {/* Header: título + menu no topo (preço NÃO conflita) */}
+        <div className="flex items-start justify-between">
+          <div className="text-left" style={{ maxWidth: "calc(100% - 44px)" }}>
+            <div className="text-lg font-semibold text-gray-900 line-clamp-1">{name || "Compra"}</div>
+          </div>
+
+          {id && (
+            <Menu as="div" className="absolute right-1 top-1">
+              <Menu.Button
+                className="rounded p-2 hover:bg-gray-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
+              </Menu.Button>
+              <Menu.Items
+                className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenameId(id);
+                        setRenameValue(name || "");
+                      }}
+                      className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
+                    >
+                      <PencilSquareIcon className="h-5 w-5 text-gray-600" />
+                      Renomear
+                    </button>
+                  )}
+                </Menu.Item>
+                <div className="h-px bg-gray-100" />
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(id);
+                      }}
+                      className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${active ? "bg-gray-100" : ""}`}
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                      Excluir
+                    </button>
+                  )}
+                </Menu.Item>
+              </Menu.Items>
+            </Menu>
+          )}
         </div>
-        <div className="font-semibold text-gray-900">{currency(total)}</div>
-      </button>
-    </div>
-  );
+
+        {/* Linha inferior: data/mercado/itens (esq) e preço (dir) */}
+        <div className="mt-1 flex w-full items-center justify-between text-left">
+          <div className="text-sm text-gray-500">
+            {dateOnly(createdAt)} · {market || "—"} · {count} itens
+          </div>
+          <div className="font-semibold text-gray-900">{currency(total)}</div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 pb-28 max-w-xl mx-auto bg-white">
