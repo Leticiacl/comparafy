@@ -14,12 +14,6 @@ const IconIOS: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) =>
     <rect x="9" y="3.5" width="6" height="1.7" rx="0.8" />
   </svg>
 );
-const IconAndroid: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
-  <svg viewBox="0 0 24 24" className={`${className} text-yellow-600`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="4.3" y="2.6" width="15.4" height="18.8" rx="4.2" />
-    <rect x="8.5" y="19.2" width="7" height="1.2" rx="0.6" fill="currentColor" stroke="none" />
-  </svg>
-);
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -65,16 +59,24 @@ const Profile: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await firebaseSignOut(auth);
-    navigate("/login");
+    try { await firebaseSignOut(auth); } catch {}
+    try {
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("authType");
+    } catch {}
+    navigate("/login", { replace: true });
   };
 
+  // container responsivo + safe-area topo + espaço p/ BottomNav
   const containerClass =
-    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pb-28";
+    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg=max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]";
 
   return (
     <div className={containerClass}>
       <PageHeader title="Perfil" />
+
+      {/* cartão do usuário */}
       <section className="mt-3 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-center gap-3">
           <div className="relative h-16 w-16 shrink-0">
@@ -116,6 +118,7 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
+      {/* instalar */}
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
           <IconIOS className="mt-0.5 h-5 w-5" />
@@ -134,6 +137,7 @@ const Profile: React.FC = () => {
         </div>
       </section>
 
+      {/* termos */}
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
         <div className="flex items-start gap-3">
           <DocumentTextIcon className="mt-0.5 h-5 w-5 text-yellow-600" />
@@ -178,17 +182,6 @@ const Profile: React.FC = () => {
                   <li>Toque em <strong>Compartilhar</strong> (quadrado com seta).</li>
                   <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
                   <li>Confirme o nome e toque em <strong>Adicionar</strong>.</li>
-                </ol>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4.3" y="2.6" width="15.4" height="18.8" rx="4.2" /></svg>
-                  <span className="font-medium">Android (Chrome / Edge / Brave)</span>
-                </div>
-                <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-700">
-                  <li>Procure o ícone <strong>Instalar</strong> na barra do navegador.</li>
-                  <li>Ou abra o menu ⋮ → <strong>Instalar aplicativo</strong>.</li>
                 </ol>
               </div>
 

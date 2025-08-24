@@ -1,4 +1,3 @@
-// src/components/BottomNav.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import {
@@ -43,7 +42,11 @@ export default function BottomNav({ activeTab }: { activeTab: Tab }) {
       data-bottom-nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70"
     >
-      <nav className="mx-auto w-full max-w-3xl px-2 sm:px-4 pt-2 pb-safe">
+      {/* paddingBottom mais enxuto + safe area explícita */}
+      <nav
+        className="mx-auto w-full max-w-3xl px-2 sm:px-4 pt-1"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}
+      >
         <ul className="grid grid-cols-5 gap-1 sm:gap-2">
           {tabs.map((t) => {
             const Icon = icons[t];

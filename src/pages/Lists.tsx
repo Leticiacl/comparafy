@@ -1,4 +1,3 @@
-// src/pages/Lists.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
@@ -17,7 +16,6 @@ const Lists: React.FC = () => {
   useEffect(() => {
     if (searchParams.get("new") === "1") {
       setOpen(true);
-      // Remove o parâmetro para evitar reabrir ao voltar
       const params = new URLSearchParams(searchParams);
       params.delete("new");
       setSearchParams(params, { replace: true });
@@ -31,7 +29,7 @@ const Lists: React.FC = () => {
   );
 
   return (
-    <main className="mx-auto w-full max-w-screen-md px-4 sm:px-6 lg:px-8 pt-safe pb-safe pt-6 sm:pt-8 pb-36">
+    <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Listas" />
 
       {/* Botão NOVA LISTA */}
@@ -65,7 +63,7 @@ const Lists: React.FC = () => {
         }}
       />
 
-      <BottomNav />
+      <BottomNav activeTab="lists" />
     </main>
   );
 };

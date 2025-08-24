@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
@@ -13,7 +12,7 @@ const Dashboard: React.FC = () => {
   const latestPurchases = purchases.slice(0, 3);
 
   return (
-    <main className="mx-auto w-full max-w-screen-md px-4 sm:px-6 lg:px-8 pt-safe pb-safe pt-6 sm:pt-8 pb-36">
+    <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Início" />
 
       {/* ===== Últimas listas ===== */}
@@ -97,7 +96,7 @@ const Dashboard: React.FC = () => {
         )}
       </section>
 
-      <BottomNav />
+      <BottomNav activeTab="home" />
     </main>
   );
 };
