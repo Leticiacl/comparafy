@@ -17,7 +17,7 @@
 .pt-safe { padding-top: max(var(--safe-top), 12px); }
 /* antes: 18px; agora criamos um “tight” para o bottom-nav */
 .pb-safe { padding-bottom: max(var(--safe-bottom), 18px); }
-.pb-safe-tight { padding-bottom: max(var(--safe-bottom), 8px); }
+.pb-safe-tight { padding-bottom: max(var(--safe-bottom), 2px); }
 
 .container-app {
   @apply mx-auto w-full px-4 sm:px-6 lg:px-8;

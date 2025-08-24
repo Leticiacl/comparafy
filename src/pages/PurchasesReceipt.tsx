@@ -49,13 +49,10 @@ function anyToISODate(val: unknown): string {
     return toISODate(new Date(ms));
   }
   if (typeof val === "string") {
-    // tenta dd/mm/aaaa (com ou sem hora)
     const br = brToISODate(val);
     if (br) return br;
-    // tenta aaaa-mm-dd (com ou sem hora)
     const iso = isoLikeToISO(val);
     if (iso) return iso;
-    // último recurso: Date.parse
     const d = new Date(val);
     return toISODate(isNaN(d.getTime()) ? undefined : d);
   }
@@ -68,11 +65,9 @@ function extractFooterDateISO(from: unknown): string {
   const scan = (v: any) => {
     if (!v) return;
     if (typeof v === "string") {
-      // captura todas as dd/mm/aaaa e aaaa-mm-dd que aparecerem na string
-      const allBR = [...v.matchAll(/([0-3]?\d)[/|-]([01]?\d)[/|-](\d{4})/g)].map(m => m[0]);
-      const allISO = [...v.matchAll(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/g)].map(m => m[0]);
-
-      [...allBR, ...allISO].forEach(s => {
+      const allBR = [...v.matchAll(/([0-3]?\d)[/|-]([01]?\d)[/|-](\d{4})/g)].map((m) => m[0]);
+      const allISO = [...v.matchAll(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/g)].map((m) => m[0]);
+      [...allBR, ...allISO].forEach((s) => {
         const iso = anyToISODate(s);
         if (iso) found.push(iso);
       });
@@ -109,7 +104,7 @@ export default function PurchasesReceipt() {
   const [parsed, setParsed] = useState<ReceiptParseResult | null>(null);
   const [market, setMarket] = useState("");
   const [listName, setListName] = useState("");
-  const [dateISO, setDateISO] = useState("");   // <- campo do input
+  const [dateISO, setDateISO] = useState("");
   const [showAll, setShowAll] = useState(false);
 
   const lastScan = useRef(0);
@@ -194,7 +189,9 @@ export default function PurchasesReceipt() {
     }
   };
 
-  const previewCount = (parsed as any)?.totalItems ?? (parsed as any)?.itens?.length ?? 0;
+  const previewCount =
+    (parsed as any)?.totalItems ?? (parsed as any)?.itens?.length ?? 0;
+
   const computedTotal =
     (parsed as any)?.grandTotal ??
     +(((parsed as any)?.itens ?? []).reduce((acc: number, it: any) => {
@@ -212,15 +209,22 @@ export default function PurchasesReceipt() {
       {!ready && (
         <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-5">
           <h2 className="text-lg font-semibold text-gray-900">Permitir acesso à câmera</h2>
-          <p className="mt-1 text-sm text-gray-600">Para ler o QR da nota fiscal, o Comparafy precisa de acesso à sua câmera.</p>
-          <button className="mt-3 rounded-xl bg-yellow-500 px-4 py-2 font-semibold text-black active:scale-95" onClick={startScanner}>
+          <p className="mt-1 text-sm text-gray-600">
+            Para ler o QR da nota fiscal, o Comparafy precisa de acesso à sua câmera.
+          </p>
+          <button
+            className="mt-3 rounded-xl bg-yellow-500 px-4 py-2 font-semibold text-black active:scale-95"
+            onClick={startScanner}
+          >
             Permitir
           </button>
-          <p className="mt-2 text-xs text-gray-500">O navegador mostrará o pedido de permissão.</p>
+          <p className="mt-2 text-xs text-gray-500">
+            O navegador mostrará o pedido de permissão.
+          </p>
         </div>
       )}
 
-      {/* scanner quadrado */}
+      {/* scanner QUADRADO */}
       {ready && scanning && (
         <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3">
           <div className="relative w-full overflow-hidden rounded-xl" style={{ aspectRatio: "1 / 1" }}>
@@ -285,12 +289,17 @@ export default function PurchasesReceipt() {
             {((parsed as any)?.itens ?? []).slice(0, showAll ? undefined : 10).map((it: any, i: number) => (
               <li key={i} className="flex items-center justify-between py-1.5">
                 <span className="pr-3">{it.nome}</span>
-                <span className="font-medium">{brl(typeof it.total === "number" ? it.total : it.preco)}</span>
+                <span className="font-medium">
+                  {brl(typeof it.total === "number" ? it.total : it.preco)}
+                </span>
               </li>
             ))}
             {((parsed as any)?.itens ?? []).length > 10 && !showAll && (
               <li className="pt-2 text-center">
-                <button onClick={() => setShowAll(true)} className="text-xs font-medium text-yellow-600 underline">
+                <button
+                  onClick={() => setShowAll(true)}
+                  className="text-xs font-medium text-yellow-600 underline"
+                >
                   … ver mais {((parsed as any)?.itens ?? []).length - 10} itens
                 </button>
               </li>
@@ -328,7 +337,9 @@ export default function PurchasesReceipt() {
               onChange={(e) => setDateISO(e.target.value)}
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
             />
-            <p className="mt-1 text-xs text-gray-500">Usamos a data exibida no rodapé da página de itens (ajuste se necessário).</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Usamos a data exibida no rodapé da página de itens (ajuste se necessário).
+            </p>
           </div>
 
           <div className="md:row-start-3 md:col-span-2">
