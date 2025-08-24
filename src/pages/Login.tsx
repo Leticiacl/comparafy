@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
   signInAnonymously,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
 } from "firebase/auth";
@@ -35,6 +38,10 @@ function friendlyError(code?: string) {
       return "Popup fechado antes de concluir. Tente novamente.";
     case "auth/cancelled-popup-request":
       return "Outra tentativa em andamento. Aguarde e tente de novo.";
+    case "auth/popup-blocked":
+      return "Popup bloqueado pelo navegador. Vamos redirecionar…";
+    case "auth/unauthorized-domain":
+      return "Domínio não autorizado no Firebase (adicione seu domínio em Authentication › Settings › Authorized domains).";
     default:
       return "Falha ao entrar. Tente novamente.";
   }
@@ -49,18 +56,26 @@ export default function Login() {
 
   const goHome = () => nav("/", { replace: true });
 
+  // Se voltar de redirect (iOS/Safari), garante navegação
+  useEffect(() => {
+    // Se já estiver logado, manda para a home
+    const unsub = onAuthStateChanged(auth, (user) => { if (user) goHome(); });
+    // E também consome o resultado do redirect (não usado, mas previne warnings)
+    getRedirectResult(auth).catch(() => {});
+    return () => unsub();
+  }, []);
+
   const loginEmailSenha = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
     setLoading(true);
     try {
-      // ✅ obrigatório
       sessionStorage.setItem("authType", "email");
       await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, email.trim(), senha);
       goHome();
     } catch (e: any) {
-      sessionStorage.removeItem("authType"); // limpa se falhar
+      sessionStorage.removeItem("authType");
       setErr(friendlyError(e?.code));
     } finally {
       setLoading(false);
@@ -70,17 +85,30 @@ export default function Login() {
   const loginGoogle = async () => {
     setErr(null);
     setLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
     try {
-      // ✅ obrigatório
       sessionStorage.setItem("authType", "google");
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
       await setPersistence(auth, browserLocalPersistence);
+      // 1) Tenta popup
       await signInWithPopup(auth, provider);
       goHome();
     } catch (e: any) {
-      sessionStorage.removeItem("authType"); // limpa se falhar
-      setErr(friendlyError(e?.code));
+      // 2) Se popup for bloqueado/fechado, cai para redirect (melhor em iOS/Safari)
+      if (e?.code === "auth/popup-blocked" || e?.code === "auth/popup-closed-by-user") {
+        try {
+          setErr("Popup bloqueado. Redirecionando…");
+          await signInWithRedirect(auth, provider);
+          return; // a navegação acontece no retorno do redirect
+        } catch (e2: any) {
+          sessionStorage.removeItem("authType");
+          setErr(friendlyError(e2?.code));
+        }
+      } else {
+        sessionStorage.removeItem("authType");
+        setErr(friendlyError(e?.code));
+      }
     } finally {
       setLoading(false);
     }
@@ -90,13 +118,12 @@ export default function Login() {
     setErr(null);
     setLoading(true);
     try {
-      // ✅ obrigatório
       sessionStorage.setItem("authType", "anonymous");
       await setPersistence(auth, browserLocalPersistence);
-      await signInAnonymously(auth); // precisa estar habilitado no Console
+      await signInAnonymously(auth);
       goHome();
     } catch (e: any) {
-      sessionStorage.removeItem("authType"); // limpa se falhar
+      sessionStorage.removeItem("authType");
       setErr(friendlyError(e?.code));
     } finally {
       setLoading(false);
@@ -109,7 +136,6 @@ export default function Login() {
         max-w-[420px] sm:max-w-[480px] md:max-w-[560px]
         lg:max-w-[640px] xl:max-w-[720px] 2xl:max-w-[820px]">
 
-        {/* + espaço da logo para o título */}
         <img src={LOGO} alt="COMPARAFY" className="mx-auto mt-2 mb-8 sm:mb-10 h-7 w-auto" />
 
         <h1 className="text-center text-2xl font-semibold text-slate-900">

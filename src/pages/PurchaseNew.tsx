@@ -1,19 +1,17 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/ui/PageHeader";
 
 const PurchaseNew: React.FC = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
+    <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Nova compra" />
 
-      <div className="space-y-4 mt-6">
+      <div className="mt-6 space-y-4">
         <Link
           to="/purchases/receipt"
-          className="block rounded-2xl border border-gray-200 bg-white p-4 active:scale-[.995]"
+          className="block rounded-2xl border border-gray-200 bg-white p-4 transition active:scale-[.995]"
         >
           <div className="font-semibold text-gray-900">Via QR Code (NFC-e)</div>
           <div className="text-sm text-gray-500">
@@ -23,7 +21,7 @@ const PurchaseNew: React.FC = () => {
 
         <Link
           to="/purchases/from-list"
-          className="block rounded-2xl border border-gray-200 bg-white p-4 active:scale-[.995]"
+          className="block rounded-2xl border border-gray-200 bg-white p-4 transition active:scale-[.995]"
         >
           <div className="font-semibold text-gray-900">A partir de uma lista</div>
           <div className="text-sm text-gray-500">
@@ -33,7 +31,7 @@ const PurchaseNew: React.FC = () => {
       </div>
 
       <BottomNav activeTab="purchases" />
-    </div>
+    </main>
   );
 };
 
