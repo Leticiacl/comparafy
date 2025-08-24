@@ -34,19 +34,19 @@ const routes: Record<Tab, string> = {
   profile: "/profile",
 };
 
-export default function BottomNav({ activeTab }: { activeTab: Tab }) {
+export default function BottomNav({ activeTab }: { activeTab?: Tab }) {
   const tabs: Tab[] = ["home", "lists", "compare", "purchases", "profile"];
 
   return (
     <div
       data-bottom-nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70"
+      className="
+        fixed inset-x-0 bottom-0 z-40 border-t border-gray-200
+        bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70
+      "
     >
-      {/* paddingBottom mais enxuto + safe area explícita */}
-      <nav
-        className="mx-auto w-full max-w-3xl px-2 sm:px-4 pt-1"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}
-      >
+      {/* padding inferior enxuto, encostando mais no gesto bar */}
+      <nav className="mx-auto w-full max-w-3xl px-2 sm:px-4 pt-1 pb-safe-tight">
         <ul className="grid grid-cols-5 gap-1 sm:gap-2">
           {tabs.map((t) => {
             const Icon = icons[t];
@@ -57,11 +57,14 @@ export default function BottomNav({ activeTab }: { activeTab: Tab }) {
               <li key={t} className="min-w-0">
                 <Link
                   to={to}
-                  className={`flex h-[58px] sm:h-[60px] w-full flex-col items-center justify-center rounded-xl transition
+                  className={`flex h-[50px] sm:h-[52px] w-full flex-col items-center justify-center rounded-xl transition
                     ${active ? "text-yellow-600" : "text-gray-500 hover:text-gray-700"}`}
                 >
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                  <span className="mt-1 truncate text-[11px] sm:text-xs">{labels[t]}</span>
+                  {/* ícones ligeiramente maiores */}
+                  <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
+                  <span className="mt-0.5 truncate text-[11px] sm:text-xs">
+                    {labels[t]}
+                  </span>
                 </Link>
               </li>
             );

@@ -1,6 +1,6 @@
 import { ReactElement, ReactNode, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, Outlet } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./services/firebase";
 
 // Páginas
@@ -48,20 +48,32 @@ function getStoredUserId(): string | null {
 /* ---------- bootstrap de auth --------- */
 const AuthBootstrap = ({ children }: { children: ReactNode }) => {
   const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user?.uid) {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      const authType = sessionStorage.getItem("authType"); // "email" | "google" | "anonymous"
+
+      // ✅ Só consideramos logado nesta SESSÃO se o Login tiver marcado o authType
+      if (user?.uid && authType) {
         sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
         sessionStorage.setItem("userId", user.uid);
       } else {
         sessionStorage.removeItem("user");
         sessionStorage.removeItem("userId");
+
+        // Bloqueia qualquer usuário que chegou “de carona” (persistência),
+        // inclusive anônimo não iniciado pelo botão "Visitante".
+        if (user && !authType) {
+          try { await signOut(auth); } catch {}
+        }
       }
+
       setReady(true);
     });
     return () => unsub();
   }, []);
-  if (!ready) return null;
+
+  if (!ready) return null; // pode trocar por um Splash/Spinner
   return <>{children}</>;
 };
 
@@ -71,6 +83,7 @@ const ProtectedRoute = ({ children }: { children: ReactElement }) => {
   if (!uid) return <Navigate to="/login" replace />;
   return children;
 };
+
 /** Layout que exige ter visto o onboarding */
 const RequireOnboardingLayout = () => {
   const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
@@ -78,16 +91,26 @@ const RequireOnboardingLayout = () => {
   if (!seen) return <Navigate to="/onboarding" replace state={{ from: loc }} />;
   return <Outlet />;
 };
-/** Páginas públicas que só aparecem se NÃO logado */
+
+/** Páginas públicas que só aparecem se NÃO logado (nesta sessão) */
 const PublicOnlyRoute = ({ children }: { children: ReactElement }) => {
   const uid = getStoredUserId();
   if (uid) return <Navigate to="/" replace />;
   return children;
 };
+
 /* Util */
-const ScrollToTop = () => { const { pathname } = useLocation(); useEffect(() => window.scrollTo(0, 0), [pathname]); return null; };
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
 /* Index: decide entre dashboard e login (onboarding já garantido pelo layout) */
-const RootIndex = () => { const uid = getStoredUserId(); return uid ? <Dashboard /> : <Navigate to="/login" replace />; };
+const RootIndex = () => {
+  const uid = getStoredUserId();
+  return uid ? <Dashboard /> : <Navigate to="/login" replace />;
+};
 
 /* -------------- App --------------- */
 export default function App() {
