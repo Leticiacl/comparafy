@@ -1,341 +1,273 @@
+// src/services/firestoreService.ts
 import {
-  collection,
   addDoc,
-  getDocs,
+  collection,
+  deleteDoc,
   doc,
   getDoc,
-  updateDoc,
-  deleteDoc,
-  setDoc,
+  getDocs,
+  orderBy,
+  query,
   serverTimestamp,
+  setDoc,
+  updateDoc,
+  Timestamp,
 } from "firebase/firestore";
-import { db } from "@/services/firebase";
+import { db } from "./firebase";
 
-/* =========================================================
- * TIPOS
- * =======================================================*/
-
-export type PurchaseItem = {
-  id?: string;
+/* ======================== Tipos exportados ======================== */
+export type NewItem = {
   nome: string;
   quantidade?: number;
   unidade?: string;
-  preco: number;         // preço unitário
+  preco?: number;
   mercado?: string;
   observacoes?: string;
   peso?: number;
+  comprado?: boolean;
+};
+
+export type PurchaseItem = {
+  nome: string;
+  quantidade: number;
+  unidade?: string;
+  peso?: number;
+  preco: number; // unitário (ou total quando item por peso)
+  mercado?: string;
+  total?: number; // opcional (quando já vem total da linha)
 };
 
 export type Purchase = {
   id: string;
-  name: string;          // nome da compra
+  name: string;
   market?: string;
+  createdAt: Date | Timestamp | number | string;
   itens: PurchaseItem[];
-  itemCount: number;     // soma das quantidades
-  total: number;         // soma (preco * quantidade)
-  createdAt: any;        // Timestamp | ms
-  source: "list" | "receipt";
+  itemCount?: number;
+  total?: number;
+  source?: "list" | "receipt";
   sourceRefId?: string;
   sourceRefName?: string;
 };
 
-/* ====== tipo do novo item (usado no AddItemModal) ====== */
-export type NewItem = {
-  nome: string;
-  quantidade: number;
-  peso?: number | "";
-  unidade: string;
-  preco?: number | "";
-  observacoes?: string;
-};
+/* ======================== Helpers ======================== */
+const listsCol = (userId: string) => collection(db, "users", userId, "lists");
+const listDoc = (userId: string, listId: string) =>
+  doc(db, "users", userId, "lists", listId);
+const listItemsCol = (userId: string, listId: string) =>
+  collection(db, "users", userId, "lists", listId, "items");
 
-/* =========================================================
- * HELPERS
- * =======================================================*/
-const toMs = (ts: any) =>
-  typeof ts === "number"
-    ? ts
-    : ts?.seconds
-    ? ts.seconds * 1000
-    : Date.parse(ts || "") || Date.now();
+const purchasesCol = (userId: string) =>
+  collection(db, "users", userId, "purchases");
+const purchaseDoc = (userId: string, purchaseId: string) =>
+  doc(db, "users", userId, "purchases", purchaseId);
+const purchaseItemsCol = (userId: string, purchaseId: string) =>
+  collection(db, "users", userId, "purchases", purchaseId, "items");
 
-// remove chaves com undefined (recursivo)
-function stripUndefined<T>(val: T): T {
-  if (Array.isArray(val)) {
-    // @ts-expect-error - mapeando genericamente
-    return val.map(stripUndefined) as T;
-  }
-  if (val && typeof val === "object") {
-    const out: any = {};
-    for (const [k, v] of Object.entries(val as any)) {
-      if (v !== undefined) out[k] = stripUndefined(v as any);
-    }
-    return out;
-  }
-  return val;
+function toJsDate(any: any): Date {
+  if (any instanceof Date) return any;
+  if (any && typeof any.seconds === "number")
+    return new Date(any.seconds * 1000);
+  const d = new Date(any);
+  return isNaN(d.getTime()) ? new Date() : d;
 }
 
-/* =========================================================
- * LISTAS
- * =======================================================*/
+/* ======================== LISTAS ======================== */
 
+// Lista todas as listas (sem itens — itens são buscados em fetchItemsFromList)
 export async function fetchUserLists(userId: string) {
-  const listsRef = collection(db, "users", userId, "lists");
-  const snapshot = await getDocs(listsRef);
-  const lists = await Promise.all(
-    snapshot.docs.map(async (docSnap) => {
-      const items = await fetchItemsFromList(userId, docSnap.id);
-      const data = docSnap.data() as any;
-      return {
-        id: docSnap.id,
-        nome: data.name || "Sem nome",
-        createdAt: data.createdAt || null,
-        market: data.market || "",
-        itens: items,
-      };
-    })
-  );
+  const snap = await getDocs(listsCol(userId));
+  const lists = snap.docs.map((d) => {
+    const data = d.data() as any;
+    return {
+      id: d.id,
+      nome: data.nome || data.name || "Minha lista",
+      market: data.market || data.mercado || undefined,
+      itens: [] as any[],
+      createdAt: data.createdAt || null,
+    };
+  });
   return lists;
 }
 
-export async function createNewList(userId: string, name: string) {
-  const trimmed = name.trim();
-  const listsRef = collection(db, "users", userId, "lists");
-  const createdAt = new Date();
-  const newDoc = await addDoc(listsRef, {
-    name: trimmed,
-    createdAt,
-  });
-  return {
-    id: newDoc.id,
-    nome: trimmed,
-    createdAt,
-    itens: [],
-  };
-}
-
-export async function updateListName(
-  userId: string,
-  listId: string,
-  newName: string
-) {
-  const listRef = doc(db, "users", userId, "lists", listId);
-  await updateDoc(listRef, { name: newName.trim() });
-}
-
-export async function fetchItemsFromList(userId: string, listId: string) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const snapshot = await getDocs(itemsRef);
-  return snapshot.docs.map((docSnap) => {
-    const data = docSnap.data() as any;
-    return {
-      id: docSnap.id,
-      nome: data.nome,
-      quantidade: data.quantidade,
-      unidade: data.unidade,
-      preco: data.preco,
-      mercado: data.mercado,
-      observacoes: data.observacoes,
-      comprado: data.purchased ?? data.comprado ?? false,
-      peso: data.peso, // pode ser undefined
-    };
-  });
-}
-
-export async function toggleItemPurchased(
-  userId: string,
-  listId: string,
-  itemId: string
-) {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
-  const itemSnap = await getDoc(itemRef);
-  const current = itemSnap.exists()
-    ? (itemSnap.data() as any).purchased ?? (itemSnap.data() as any).comprado
-    : false;
-  await updateDoc(itemRef, { purchased: !current });
-  return { comprado: !current };
-}
-
-export async function deleteItem(
-  userId: string,
-  listId: string,
-  itemId: string
-) {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
-  await deleteDoc(itemRef);
-}
-
-/* ====== NOVO: addItemToList (subcoleção 'items' + retorno id) ====== */
-export async function addItemToList(
-  uid: string,
-  listId: string,
-  item: NewItem
-): Promise<string> {
-  if (!uid) throw new Error("Sem usuário autenticado");
-  if (!listId || typeof listId !== "string") {
-    throw new Error("listId inválido");
-  }
-
-  const listRef = doc(db, "users", uid, "lists", listId);
-  const itemsCol = collection(listRef, "items");
-
-  const toNumber = (v: number | string | "" | undefined) => {
-    if (v === "" || v === undefined || v === null) return null;
-    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
-    return Number.isFinite(n) ? n : null;
-    };
-
-  const payload = stripUndefined({
-    nome: item.nome.trim(),
-    quantidade: toNumber(item.quantidade) ?? 1,
-    peso: toNumber(item.peso),
-    unidade: item.unidade || "kg",
-    preco: toNumber(item.preco),
-    observacoes: (item.observacoes || "").trim(),
-    purchased: false, // campo usado nas regras existentes
+// Cria uma nova lista
+export async function createNewList(userId: string, nome: string) {
+  const ref = await addDoc(listsCol(userId), {
+    nome: (nome || "Minha lista").trim(),
     createdAt: serverTimestamp(),
   });
-
-  const docRef = await addDoc(itemsCol, payload);
-  return docRef.id;
+  return { id: ref.id, nome, itens: [] as any[], createdAt: new Date() };
 }
 
+// Busca itens de uma lista
+export async function fetchItemsFromList(userId: string, listId: string) {
+  // tentamos ordenar por createdAt; se o dado antigo não tiver, ainda funciona
+  let itemsSnap;
+  try {
+    itemsSnap = await getDocs(query(listItemsCol(userId, listId), orderBy("createdAt", "asc")));
+  } catch {
+    itemsSnap = await getDocs(listItemsCol(userId, listId));
+  }
+  return itemsSnap.docs.map((d) => {
+    const x = d.data() as any;
+    return {
+      id: d.id,
+      nome: x.nome,
+      quantidade: Number(x.quantidade ?? 1),
+      unidade: x.unidade ?? "un",
+      preco: Number(x.preco ?? 0),
+      mercado: x.mercado ?? "",
+      observacoes: x.observacoes ?? "",
+      comprado: !!x.comprado,
+      peso: typeof x.peso === "number" ? x.peso : undefined,
+    };
+  });
+}
+
+// Adiciona item
+export async function addItemToList(userId: string, listId: string, item: NewItem) {
+  const ref = await addDoc(listItemsCol(userId, listId), {
+    nome: item.nome,
+    quantidade: Number(item.quantidade ?? 1),
+    unidade: item.unidade ?? "un",
+    preco: Number(item.preco ?? 0),
+    mercado: item.mercado ?? "",
+    observacoes: item.observacoes ?? "",
+    comprado: !!item.comprado,
+    peso: typeof item.peso === "number" ? item.peso : null,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+// Atualiza item
 export async function updateItem(
   userId: string,
   listId: string,
   itemId: string,
-  data: {
-    nome?: string;
-    quantidade?: number;
-    unidade?: string;
-    peso?: number;
-    preco?: number;
-    mercado?: string;
-    observacoes?: string;
-  }
+  data: Omit<NewItem, "comprado">
 ) {
-  const itemRef = doc(db, "users", userId, "lists", listId, "items", itemId);
-  const snap = await getDoc(itemRef);
-  const existingPurchased = snap.exists()
-    ? (snap.data() as any).purchased ?? (snap.data() as any).comprado
-    : false;
-  await setDoc(
-    itemRef,
-    {
-      ...stripUndefined({
-        ...(data.nome !== undefined && { nome: data.nome }),
-        ...(data.quantidade !== undefined && { quantidade: data.quantidade }),
-        ...(data.unidade !== undefined && { unidade: data.unidade }),
-        ...(data.peso !== undefined && { peso: data.peso }),
-        ...(data.preco !== undefined && { preco: data.preco }),
-        ...(data.mercado !== undefined && { mercado: data.mercado }),
-        ...(data.observacoes !== undefined && { observacoes: data.observacoes }),
-        purchased: existingPurchased,
-      }),
-    },
-    { merge: true }
-  );
+  await updateDoc(doc(db, "users", userId, "lists", listId, "items", itemId), {
+    nome: data.nome,
+    quantidade: Number(data.quantidade ?? 1),
+    unidade: data.unidade ?? "un",
+    preco: Number(data.preco ?? 0),
+    mercado: data.mercado ?? "",
+    observacoes: data.observacoes ?? "",
+    peso: typeof data.peso === "number" ? data.peso : null,
+  } as any);
 }
 
-export async function saveSuggestion(
-  userId: string,
-  field: string,
-  value: string
-) {
-  const ref = doc(db, "users", userId, "suggestions", field);
+// Alterna comprado
+export async function toggleItemPurchased(userId: string, listId: string, itemId: string) {
+  const ref = doc(db, "users", userId, "lists", listId, "items", itemId);
   const snap = await getDoc(ref);
-  const existing = snap.exists() ? ((snap.data() as any).list || []) : [];
-  if (!existing.includes(value)) {
-    await setDoc(ref, { list: [...existing, value] });
+  const cur = (snap.data() as any) || {};
+  const next = !cur.comprado;
+  await updateDoc(ref, { comprado: next });
+  return { ...cur, comprado: next };
+}
+
+// Exclui item
+export async function deleteItem(userId: string, listId: string, itemId: string) {
+  await deleteDoc(doc(db, "users", userId, "lists", listId, "items", itemId));
+}
+
+// Renomeia lista
+export async function updateListName(userId: string, listId: string, novoNome: string) {
+  await updateDoc(listDoc(userId, listId), { nome: (novoNome || "").trim() });
+}
+
+// Exclui lista (com itens)
+export async function deleteListFromFirestore(userId: string, listId: string) {
+  const items = await getDocs(listItemsCol(userId, listId));
+  await Promise.all(items.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(listDoc(userId, listId));
+}
+
+// Duplica lista (com itens)
+export async function duplicateList(userId: string, listId: string) {
+  const src = await getDoc(listDoc(userId, listId));
+  if (!src.exists()) return;
+  const data = src.data() as any;
+  const newRef = await addDoc(listsCol(userId), {
+    nome: (data?.nome ? `${data.nome} (cópia)` : "Minha lista (cópia)"),
+    createdAt: serverTimestamp(),
+  });
+  const items = await getDocs(listItemsCol(userId, listId));
+  for (const it of items.docs) {
+    const x = it.data() as any;
+    await addDoc(listItemsCol(userId, newRef.id), {
+      ...x,
+      createdAt: serverTimestamp(),
+      comprado: false,
+    });
   }
 }
+
+// Marca todos como comprados
+export async function markAllItemsPurchased(userId: string, listId: string) {
+  const items = await getDocs(listItemsCol(userId, listId));
+  await Promise.all(items.docs.map((d) => updateDoc(d.ref, { comprado: true })));
+}
+
+/* ======================== Sugestões ======================== */
+// users/{uid}/suggestions/{field} => { values: string[] }
+export async function saveSuggestion(userId: string, field: string, value: string) {
+  const ref = doc(db, "users", userId, "suggestions", field);
+  const snap = await getDoc(ref);
+  const existing = ((snap.data() as any)?.values as string[]) || [];
+  const v = (value || "").trim();
+  if (!v) return;
+  if (existing.includes(v)) return;
+  const next = [...existing, v].slice(-50); // limita
+  if (snap.exists()) await updateDoc(ref, { values: next });
+  else await setDoc(ref, { values: next });
+}
+
 export async function getSuggestionsForField(userId: string, field: string) {
   const ref = doc(db, "users", userId, "suggestions", field);
   const snap = await getDoc(ref);
-  return snap.exists() ? ((snap.data() as any).list || []) : [];
+  return ((snap.data() as any)?.values as string[]) || [];
 }
 
-export async function deleteListFromFirestore(
-  userId: string,
-  listId: string
-) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const snapshot = await getDocs(itemsRef);
-  await Promise.all(snapshot.docs.map((d) => deleteDoc(d.ref)));
-  const listRef = doc(db, "users", userId, "lists", listId);
-  await deleteDoc(listRef);
-}
+/* ======================== COMPRAS ======================== */
 
-export async function duplicateList(userId: string, originalListId: string) {
-  const originalRef = doc(db, "users", userId, "lists", originalListId);
-  const originalSnap = await getDoc(originalRef);
-  if (!originalSnap.exists()) return;
-  const originalData = originalSnap.data() as any;
-
-  const newRef = await addDoc(collection(db, "users", userId, "lists"), {
-    name: `${originalData.name} (cópia)`,
-    createdAt: new Date(),
-  });
-
-  const items = await fetchItemsFromList(userId, originalListId);
-  const itemsRef = collection(db, "users", userId, "lists", newRef.id, "items");
-  for (const item of items) {
-    const { id, comprado, ...rest } = item;
-    await addDoc(itemsRef, stripUndefined(rest));
-  }
-  return newRef.id;
-}
-
-export async function markAllItemsPurchased(userId: string, listId: string) {
-  const itemsRef = collection(db, "users", userId, "lists", listId, "items");
-  const snapshot = await getDocs(itemsRef);
-  for (const docSnap of snapshot.docs) {
-    await updateDoc(docSnap.ref, { purchased: true });
-  }
-}
-
-/* =========================================================
- * COMPRAS
- * =======================================================*/
-
+// Lista compras + itens
 export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]> {
-  const purchasesRef = collection(db, "users", userId, "purchases");
-  const snap = await getDocs(purchasesRef);
-
+  const ps = await getDocs(purchasesCol(userId));
   const out: Purchase[] = [];
-  for (const d of snap.docs) {
+  for (const d of ps.docs) {
     const data = d.data() as any;
-
-    // itens podem estar inline (novo) ou em subcoleção (legado)
-    let itens: PurchaseItem[] = Array.isArray(data.itens) ? data.itens : [];
-    if (!itens.length) {
-      const itemsSnap = await getDocs(collection(db, "users", userId, "purchases", d.id, "items"));
-      itens = itemsSnap.docs.map((i) => ({ id: i.id, ...(i.data() as any) }));
+    // tenta ordenar por createdAt dos itens; se não existir, lê “cru”
+    let itsSnap;
+    try {
+      itsSnap = await getDocs(query(purchaseItemsCol(userId, d.id), orderBy("createdAt", "asc")));
+    } catch {
+      itsSnap = await getDocs(purchaseItemsCol(userId, d.id));
     }
-
-    const computedTotal = itens.reduce(
-      (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+    const itens: PurchaseItem[] = itsSnap.docs.map((it) => it.data() as any);
+    const total = itens.reduce(
+      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
       0
     );
-    const computedCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-
     out.push({
       id: d.id,
-      name: data.name ?? "Compra",
-      market: data.market ?? "—",
+      name: data.name || data.sourceRefName || "Compra",
+      market: data.market || "",
+      createdAt: data.date || data.createdAt || new Date(),
       itens,
-      itemCount: Number.isFinite(Number(data.itemCount)) ? Number(data.itemCount) : computedCount,
-      total: Number.isFinite(Number(data.total)) ? Number(data.total) : computedTotal,
-      createdAt: data.createdAtMs ?? data.createdAt ?? Date.now(),
-      source: (data.source as any) || "list",
+      itemCount: itens.length,
+      total,
+      source: data.source,
       sourceRefId: data.sourceRefId,
       sourceRefName: data.sourceRefName,
     });
   }
-
-  return out.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+  return out;
 }
 
+// Compra a partir de LISTA (selecionando itens por ID + extras)
 export async function createPurchaseFromList(params: {
   userId: string;
   listId: string;
@@ -347,78 +279,58 @@ export async function createPurchaseFromList(params: {
 }): Promise<Purchase> {
   const { userId, listId, name, market, date, selectedItemIds = [], extras = [] } = params;
 
-  const listRef = doc(db, "users", userId, "lists", listId);
-  const listSnap = await getDoc(listRef);
-  const listData = (listSnap.data() || {}) as any;
-  const listName = listData.name || "Lista";
-
-  let listItems = await fetchItemsFromList(userId, listId);
-  if (selectedItemIds.length) {
-    const allow = new Set(selectedItemIds);
-    listItems = listItems.filter((it) => allow.has(it.id));
+  // carrega itens da lista
+  let listaItens: any[] = [];
+  const itemsSnap = await getDocs(listItemsCol(userId, listId));
+  for (const it of itemsSnap.docs) {
+    if (selectedItemIds.length && !selectedItemIds.includes(it.id)) continue;
+    const x = it.data() as any;
+    listaItens.push({
+      nome: x.nome,
+      quantidade: Number(x.quantidade ?? 1),
+      unidade: x.unidade ?? "un",
+      peso: typeof x.peso === "number" ? x.peso : undefined,
+      preco: Number(x.preco ?? 0),
+      mercado: x.mercado ?? "",
+    });
   }
+  const itens: PurchaseItem[] = [...listaItens, ...extras];
 
-  const itens: PurchaseItem[] = [
-    ...listItems.map(({ id, comprado, ...rest }) =>
-      stripUndefined({
-        ...rest,
-        quantidade: rest.quantidade ?? 1,
-        unidade: rest.unidade ?? "un",
-        preco: Number(rest.preco || 0),
-        mercado: rest.mercado ?? "",
-        observacoes: rest.observacoes ?? "",
-      })
-    ),
-    ...extras.map((e) =>
-      stripUndefined({
-        nome: e.nome,
-        quantidade: e.quantidade ?? 1,
-        unidade: e.unidade ?? "un",
-        preco: Number(e.preco || 0),
-        mercado: e.mercado ?? "",
-        observacoes: e.observacoes ?? "",
-        peso: e.peso,
-      })
-    ),
-  ];
-
-  const total = itens.reduce(
-    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-    0
-  );
-  const itemCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-
-  const createdAtMs = date?.getTime?.() || Date.now();
-
-  const payload = stripUndefined({
-    name,
-    market,
+  const pref = await addDoc(purchasesCol(userId), {
     source: "list",
     sourceRefId: listId,
-    sourceRefName: listName,
-    itens,
-    itemCount,
-    total,
-    createdAt: serverTimestamp(),
-    createdAtMs,
+    sourceRefName: name,
+    name: name,
+    market: market || "",
+    createdAt: date,
+    date,
   });
 
-  const pRef = await addDoc(collection(db, "users", userId, "purchases"), payload);
+  for (const it of itens) {
+    await addDoc(purchaseItemsCol(userId, pref.id), {
+      ...it,
+      createdAt: serverTimestamp(),
+    });
+  }
 
   return {
-    id: pRef.id,
+    id: pref.id,
     name,
     market,
+    createdAt: date,
     itens,
-    itemCount,
-    total,
-    createdAt: createdAtMs,
+    itemCount: itens.length,
+    total: itens.reduce(
+      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
+      0
+    ),
     source: "list",
     sourceRefId: listId,
-    sourceRefName: listName,
+    sourceRefName: name,
   };
 }
 
+// Compra a partir de CUPOM/NFC-e
 export async function createPurchaseFromReceipt(params: {
   userId: string;
   name: string;
@@ -428,161 +340,103 @@ export async function createPurchaseFromReceipt(params: {
 }): Promise<Purchase> {
   const { userId, name, market, date, itens = [] } = params;
 
-  const cleanItems = itens.map((i) =>
-    stripUndefined({
-      nome: i.nome,
-      quantidade: i.quantidade ?? 1,
-      unidade: i.unidade ?? "un",
-      preco: Number(i.preco || 0), // unitário
-      mercado: i.mercado ?? "",
-      observacoes: i.observacoes ?? "",
-      peso: i.peso,
-    })
-  );
-
-  const createdAtMs = date?.getTime?.() || Date.now();
-  const total = cleanItems.reduce(
-    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-    0
-  );
-  const itemCount = cleanItems.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-
-  const pRef = await addDoc(
-    collection(db, "users", userId, "purchases"),
-    stripUndefined({
-      name,
-      market,
-      source: "receipt",
-      itens: cleanItems,
-      itemCount,
-      total,
+  const pref = await addDoc(purchasesCol(userId), {
+    source: "receipt",
+    name,
+    market: market || "",
+    createdAt: date,
+    date,
+  });
+  for (const it of itens) {
+    await addDoc(purchaseItemsCol(userId, pref.id), {
+      ...it,
       createdAt: serverTimestamp(),
-      createdAtMs,
-    })
-  );
-
+    });
+  }
   return {
-    id: pRef.id,
+    id: pref.id,
     name,
     market,
-    itens: cleanItems,
-    itemCount,
-    total,
-    createdAt: createdAtMs,
+    createdAt: date,
+    itens,
+    itemCount: itens.length,
+    total: itens.reduce(
+      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
+      0
+    ),
     source: "receipt",
   };
 }
 
-/* ===== AÇÕES SOBRE A COMPRA (inline no doc) ===== */
-
-export async function updatePurchaseMeta(
-  userId: string,
-  purchaseId: string,
-  data: Partial<{ name: string; market: string; createdAtMs: number }>
-) {
-  const ref = doc(db, "users", userId, "purchases", purchaseId);
-  await updateDoc(ref, stripUndefined(data));
+// Acrescenta N itens em uma compra (assinatura usada pelo contexto)
+export async function appendItemsToPurchaseArray(userId: string, purchaseId: string, items: PurchaseItem[]) {
+  for (const it of items) {
+    await addDoc(purchaseItemsCol(userId, purchaseId), {
+      ...it,
+      createdAt: serverTimestamp(),
+    });
+  }
 }
 
-export async function deletePurchase(userId: string, purchaseId: string) {
-  const sub = collection(db, "users", userId, "purchases", purchaseId, "items");
-  const snap = await getDocs(sub);
-  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-  const ref = doc(db, "users", userId, "purchases", purchaseId);
-  await deleteDoc(ref);
-}
-
-export async function updatePurchaseItem(
-  userId: string,
-  purchaseId: string,
-  index: number,
-  item: PurchaseItem
-) {
-  const ref = doc(db, "users", userId, "purchases", purchaseId);
-  const snap = await getDoc(ref);
-  const data = snap.data() as any;
-  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
-  itens[index] = stripUndefined({
-    nome: item.nome,
-    quantidade: item.quantidade ?? 1,
-    unidade: item.unidade ?? "un",
-    preco: Number(item.preco || 0),
-    mercado: item.mercado ?? "",
-    observacoes: item.observacoes ?? "",
-    peso: item.peso,
-  });
-  const total = itens.reduce(
-    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-    0
-  );
-  const itemCount = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens, itemCount, total });
-}
-
-export async function deletePurchaseItem(
-  userId: string,
-  purchaseId: string,
-  index: number
-) {
-  const ref = doc(db, "users", userId, "purchases", purchaseId);
-  const snap = await getDoc(ref);
-  const data = snap.data() as any;
-  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
-  const next = itens.filter((_, i) => i !== index);
-  const total = next.reduce(
-    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-    0
-  );
-  const itemCount = next.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens: next, itemCount, total });
-}
-
-export async function appendItemsToPurchaseArray(
-  userId: string,
-  purchaseId: string,
-  items: PurchaseItem[]
-) {
-  const ref = doc(db, "users", userId, "purchases", purchaseId);
-  const snap = await getDoc(ref);
-  const data = snap.data() as any;
-  const itens: PurchaseItem[] = Array.isArray(data?.itens) ? data.itens : [];
-  const clean = items.map((i) =>
-    stripUndefined({
-      nome: i.nome,
-      quantidade: i.quantidade ?? 1,
-      unidade: i.unidade ?? "un",
-      preco: Number(i.preco || 0),
-      mercado: i.mercado ?? "",
-      observacoes: i.observacoes ?? "",
-      peso: i.peso,
-    })
-  );
-  const next = [...itens, ...clean];
-  const total = next.reduce(
-    (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-    0
-  );
-  const itemCount = next.reduce((s, it) => s + (Number(it.quantidade) || 1), 0);
-  await updateDoc(ref, { itens: next, itemCount, total });
-}
-
-/* ===== legado (subcoleção) — mantido para compatibilidade ===== */
+// Mesma ideia, mas com payload agrupado (outra call do contexto)
 export async function appendItemsToPurchase(params: {
   userId: string;
   purchaseId: string;
   items: PurchaseItem[];
 }) {
   const { userId, purchaseId, items } = params;
-  const itemsRef = collection(db, "users", userId, "purchases", purchaseId, "items");
-  for (const it of items) {
-    await addDoc(itemsRef, stripUndefined({
-      nome: it.nome,
-      quantidade: it.quantidade ?? 1,
-      unidade: it.unidade ?? "",
-      preco: it.preco ?? 0,
-      mercado: it.mercado ?? "",
-      observacoes: it.observacoes ?? "",
-      peso: it.peso,
-    }));
+  await appendItemsToPurchaseArray(userId, purchaseId, items);
+}
+
+// Atualiza metadados (nome/market/data…)
+export async function updatePurchaseMeta(
+  userId: string,
+  purchaseId: string,
+  meta: Partial<Pick<Purchase, "name" | "market" | "createdAt">>
+) {
+  await updateDoc(purchaseDoc(userId, purchaseId), {
+    ...(meta.name !== undefined ? { name: meta.name } : {}),
+    ...(meta.market !== undefined ? { market: meta.market } : {}),
+    ...(meta.createdAt !== undefined ? { createdAt: meta.createdAt, date: meta.createdAt } : {}),
+  });
+}
+
+// Atualiza um item por ÍNDICE (como o DataContext espera)
+export async function updatePurchaseItem(
+  userId: string,
+  purchaseId: string,
+  index: number,
+  item: PurchaseItem
+) {
+  // tenta manter uma ordem determinística por createdAt
+  let itemsSnap;
+  try {
+    itemsSnap = await getDocs(query(purchaseItemsCol(userId, purchaseId), orderBy("createdAt", "asc")));
+  } catch {
+    itemsSnap = await getDocs(purchaseItemsCol(userId, purchaseId));
   }
+  const docs = itemsSnap.docs;
+  if (index < 0 || index >= docs.length) return;
+  const targetRef = docs[index].ref;
+  await updateDoc(targetRef, { ...item });
+}
+
+// Exclui item por ÍNDICE
+export async function deletePurchaseItem(userId: string, purchaseId: string, index: number) {
+  let itemsSnap;
+  try {
+    itemsSnap = await getDocs(query(purchaseItemsCol(userId, purchaseId), orderBy("createdAt", "asc")));
+  } catch {
+    itemsSnap = await getDocs(purchaseItemsCol(userId, purchaseId));
+  }
+  const docs = itemsSnap.docs;
+  if (index < 0 || index >= docs.length) return;
+  await deleteDoc(docs[index].ref);
+}
+
+// Exclui compra inteira
+export async function deletePurchase(userId: string, purchaseId: string) {
+  const its = await getDocs(purchaseItemsCol(userId, purchaseId));
+  await Promise.all(its.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(purchaseDoc(userId, purchaseId));
 }
