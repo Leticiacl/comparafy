@@ -5,9 +5,18 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#F0B90B",
+  "description": "Gerencie listas de compras, compare preços e acompanhe seus gastos.",
   "icons": [
-    { "src": "/LOGO_REDUZIDA.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/LOGO_REDUZIDA.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/LOGO_REDUZIDA.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/LOGO_REDUZIDA.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/COMPARAFY.png",
+      "sizes": "1024x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

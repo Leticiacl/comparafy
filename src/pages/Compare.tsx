@@ -1,224 +1,344 @@
 import React, { useMemo, useState } from "react";
-import PageHeader from "../components/ui/PageHeader";
-import BottomNav from "../components/BottomNav";
-import { useData } from "../context/DataContext";
-import { normalizeString } from "../utils/normalizeString";
-import { formatCurrency } from "../utils/formatCurrency";
-import { BuildingStorefrontIcon, CalendarDaysIcon, TagIcon } from "@heroicons/react/24/outline";
+import { useLocation } from "react-router-dom";
+import BottomNav from "@/components/BottomNav";
+import PageHeader from "@/components/ui/PageHeader";
+import RoundCheck from "@/components/RoundCheck";
+import { useData } from "@/context/DataContext";
+import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 
-type CtxPurchase = { kind: "purchase"; purchaseName: string; market?: string; price: number };
-type ProductRow = { name: string; contexts: CtxPurchase[]; bestPrice: number };
+type Tab = "produtos" | "compras" | "estatisticas";
+const brl = (n: number) =>
+  (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const currency = (n: number) => formatCurrency(Number(n || 0));
-const parseDate = (any: any) => {
-  const ms = typeof any === "number" ? any : any?.seconds ? any.seconds * 1000 : Date.parse(any || "");
-  if (!Number.isFinite(ms)) return null;
-  return new Date(ms);
-};
-const dateOnly = (any: any) => {
-  const d = parseDate(any);
-  return d ? d.toLocaleDateString("pt-BR") : "-";
-};
-const ymLabel = (d: Date) =>
-  d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^./, (s) => s.toUpperCase());
-
-type AnyItem = Record<string, any>;
-const getItems = (p: any): AnyItem[] => {
-  const list = (p?.itens || p?.items || p?.produtos || p?.products || []) as AnyItem[];
-  return Array.isArray(list) ? list : [];
-};
-const getName = (it: AnyItem): string =>
-  String(it?.nome ?? it?.name ?? it?.descricao ?? it?.descricaoItem ?? it?.xProd ?? "").trim();
-const getUnit = (it: AnyItem): string =>
-  String(it?.unidade ?? it?.unit ?? it?.uCom ?? it?.uTrib ?? "").trim();
-const getPrice = (it: AnyItem): number =>
-  Number(it?.preco ?? it?.price ?? it?.vUnCom ?? it?.vProd ?? 0) || 0;
-
-const lettersOnly = (s: string) => normalizeString(s).replace(/[^a-z]/g, "");
-const seqN = (s: string, n: number) => {
-  const t = lettersOnly(s);
-  const out: string[] = [];
-  for (let i = 0; i <= t.length - n; i++) out.push(t.slice(i, i + n));
-  return out;
-};
-const hasCommonSeq = (a: string, b: string, n = 4) => {
-  const A = seqN(a, n);
-  const setB = new Set(seqN(b, n));
-  for (const x of A) if (setB.has(x)) return true;
-  return false;
-};
+function norm(s: string) {
+  return (s || "")
+    .normalize("NFD")
+    // @ts-ignore
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/ç/gi, "c")
+    .toLowerCase()
+    .trim();
+}
+function variantKey(nome: string, peso?: number, unidade?: string) {
+  const u = (unidade || "").toLowerCase();
+  const p = peso ?? 0;
+  return `${norm(nome)}|${p}|${u}`;
+}
+function variantLabel(nome: string, peso?: number, unidade?: string) {
+  return peso ? `${nome} — ${peso} ${unidade || ""}` : nome;
+}
 
 const Compare: React.FC = () => {
-  const { purchases = [] } = useData() as any;
-  const [active, setActive] = useState<"produtos" | "compras" | "stats">("produtos");
+  const { lists = [], purchases = [] } = useData();
+
+  // aba inicial via ?tab=
+  const { search } = useLocation();
+  const qp = new URLSearchParams(search);
+  const [tab, setTab] = useState<Tab>((qp.get("tab") as Tab) || "produtos");
+
+  /* ========================= PRODUTOS ========================= */
   const [query, setQuery] = useState("");
-
-  // container responsivo + safe-area topo + espaço p/ BottomNav
-  const containerClass =
-    "mx-auto w-full max-w-screen-sm md:max-w-screen-md lg=max-w-screen-lg xl=max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]";
-
-  const products: ProductRow[] = useMemo(() => {
-    const map = new Map<string, ProductRow>();
-    for (const p of (purchases as any[]) || []) {
-      for (const it of getItems(p)) {
-        const rawName = getName(it);
-        if (!rawName) continue;
-        const key = normalizeString(rawName);
-        const price = getPrice(it);
-        const row = map.get(key) || { name: rawName, contexts: [], bestPrice: Infinity };
-        row.name = row.name.length >= rawName.length ? row.name : rawName;
-        row.contexts.push({
-          kind: "purchase",
-          purchaseName: String(p?.name ?? p?.nome ?? "Compra"),
-          market: (p as any)?.market ?? (p as any)?.mercado,
-          price,
-        });
-        row.bestPrice = Math.min(row.bestPrice, price || Infinity);
-        map.set(key, row);
-      }
-    }
-    const q = normalizeString(query);
-    const arr = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-    return q ? arr.filter((r) => normalizeString(r.name).includes(q)) : arr;
-  }, [purchases, query]);
+  const canSearch = query.trim().length > 0;
 
   type Row = {
-    key: string;
-    display: string;
-    a: number;
-    b: number;
-    aPurchaseName: string;
-    bPurchaseName: string;
-    aMarket?: string;
-    bMarket?: string;
+    market: string;
+    price: number;
+    sourceKind: "compra" | "lista";
+    sourceName: string;
+    nome: string;
+    peso?: number;
+    unidade?: string;
   };
-  const [selPurch, setSelPurch] = useState<string[]>([]);
-  const togglePurch = (id: string) => {
-    setSelPurch((prev) => {
+  type Group = { variant: { nome: string; peso?: number; unidade?: string }; rows: Row[] };
+
+  const produtoGrupos: Group[] = useMemo(() => {
+    if (!canSearch) return [];
+    const q = norm(query);
+    const rows: Row[] = [];
+
+    // compras
+    for (const p of purchases) {
+      for (const it of p.itens || []) {
+        if (!norm(it.nome).includes(q)) continue;
+        rows.push({
+          market: p.market || "—",
+          price: Number(it.preco) || 0,
+          sourceKind: "compra",
+          sourceName: p.name || "Compra",
+          nome: it.nome,
+          peso: it.peso,
+          unidade: it.unidade,
+        });
+      }
+    }
+    // listas
+    for (const l of lists) {
+      for (const it of l.itens || []) {
+        if (!norm(it.nome).includes(q)) continue;
+        rows.push({
+          market: it.mercado || "—",
+          price: Number(it.preco) || 0,
+          sourceKind: "lista",
+          sourceName: l.nome || "Lista",
+          nome: it.nome,
+          peso: it.peso,
+          unidade: it.unidade,
+        });
+      }
+    }
+
+    // agrupa por variante
+    const map = new Map<string, Group>();
+    for (const r of rows) {
+      const k = variantKey(r.nome, r.peso, r.unidade);
+      if (!map.has(k)) map.set(k, { variant: { nome: r.nome, peso: r.peso, unidade: r.unidade }, rows: [] });
+      map.get(k)!.rows.push(r);
+    }
+    const gs = Array.from(map.values());
+    gs.sort((a, b) => norm(a.variant.nome).localeCompare(norm(b.variant.nome)));
+    return gs;
+  }, [canSearch, query, purchases, lists]);
+
+  /* ========================= COMPRAS (comparar 2) ========================= */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const togglePurchase = (id: string) => {
+    setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 2) return [prev[1], id];
       return [...prev, id];
     });
   };
-  const selectedPurchases = useMemo(() => purchases.filter((p: any) => selPurch.includes(p.id)), [purchases, selPurch]);
+  const selectedPurchases = useMemo(
+    () => purchases.filter((p) => selectedIds.includes(p.id)),
+    [purchases, selectedIds]
+  );
 
-  const commonPurchRows: Row[] = useMemo(() => {
-    if (selectedPurchases.length !== 2) return [];
-    const [A, B] = selectedPurchases as any[];
-    const itemsA = getItems(A).map((it) => {
-      const name = getName(it);
-      const unit = getUnit(it);
-      const display = unit ? `${name} — ${unit}` : name;
-      return { name, full: `${name} ${unit}`.trim(), display, price: getPrice(it) };
-    });
-    const itemsB = getItems(B).map((it) => {
-      const name = getName(it);
-      const unit = getUnit(it);
-      const display = unit ? `${name} — ${unit}` : name;
-      return { name, full: `${name} ${unit}`.trim(), display, price: getPrice(it) };
-    });
-    const usedB = new Set<number>();
-    const rows: Row[] = [];
-    for (let i = 0; i < itemsA.length; i++) {
-      const a = itemsA[i];
-      let bestJ = -1;
-      let matched = false;
-      for (let j = 0; j < itemsB.length; j++) {
-        if (usedB.has(j)) continue;
-        const b = itemsB[j];
-        if (hasCommonSeq(a.name, b.name, 4)) {
-          bestJ = j; matched = true; break;
-        }
+  const compraComparacao = useMemo(() => {
+    if (selectedPurchases.length !== 2) return null;
+    const [A, B] = selectedPurchases;
+    type V = { nome: string; peso?: number; unidade?: string; preco: number };
+    const map = new Map<string, { label: string; a?: V; b?: V }>();
+
+    const fill = (side: "a" | "b", p: typeof A) => {
+      for (const it of p.itens || []) {
+        const k = variantKey(it.nome, it.peso, it.unidade);
+        const label = variantLabel(it.nome, it.peso, it.unidade);
+        const v: V = { nome: it.nome, peso: it.peso, unidade: it.unidade, preco: Number(it.preco) || 0 };
+        if (!map.has(k)) map.set(k, { label });
+        (map.get(k) as any)[side] = v;
       }
-      if (matched && bestJ >= 0) {
-        const b = itemsB[bestJ];
-        usedB.add(bestJ);
-        const display = a.display.length >= b.display.length ? a.display : b.display;
-        rows.push({
-          key: `${normalizeString(a.full)}__${normalizeString(b.full)}`,
-          display,
-          a: a.price,
-          b: b.price,
-          aPurchaseName: String(A?.name ?? "Compra A"),
-          bPurchaseName: String(B?.name ?? "Compra B"),
-          aMarket: String(A?.market ?? "—"),
-          bMarket: String(B?.market ?? "—"),
-        });
-      }
-    }
-    rows.sort((x, y) => x.display.localeCompare(y.display));
-    return rows;
+    };
+    fill("a", A);
+    fill("b", B);
+
+    const rows = Array.from(map.values()).sort((x, y) => norm(x.label).localeCompare(norm(y.label)));
+    return { A, B, rows };
   }, [selectedPurchases]);
 
+  /* ========================= ESTATÍSTICAS ========================= */
   const stats = useMemo(() => {
-    const itemCount = new Map<string, { name: string; count: number }>();
-    for (const p of (purchases as any[]) || []) {
-      for (const it of getItems(p)) {
-        const nm = getName(it);
-        if (!nm) continue;
-        const key = normalizeString(nm);
-        const qnty = Number((it as any)?.quantidade ?? (it as any)?.qty ?? 1) || 1;
-        const entry = itemCount.get(key) || { name: nm, count: 0 };
-        entry.name = entry.name.length >= nm.length ? entry.name : nm;
-        entry.count += qnty;
-        itemCount.set(key, entry);
+    const counts: Record<string, { nome: string; c: number }> = {};
+    const byMarket: Record<string, number> = {};
+    for (const p of purchases) {
+      const total =
+        typeof p.total === "number"
+          ? p.total
+          : (p.itens || []).reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+      const market = p.market || "—";
+      byMarket[market] = (byMarket[market] || 0) + total;
+
+      for (const it of p.itens || []) {
+        const k = variantKey(it.nome, it.peso, it.unidade);
+        if (!counts[k]) counts[k] = { nome: variantLabel(it.nome, it.peso, it.unidade), c: 0 };
+        counts[k].c += 1;
       }
     }
-    const topItems = Array.from(itemCount.values()).sort((a, b) => b.count - a.count);
-
-    const byMarket = new Map<string, number>();
-    for (const p of (purchases as any[]) || []) {
-      const market = String(p?.market ?? "—");
-      byMarket.set(market, (byMarket.get(market) || 0) + (Number(p?.total) || 0));
-    }
-    const spendByMarket = Array.from(byMarket.entries())
-      .map(([market, total]) => ({ market, total }))
-      .sort((a, b) => b.total - a.total);
-
-    const byMonth = new Map<string, { label: string; total: number; date: Date }>();
-    for (const p of (purchases as any[]) || []) {
-      const d = parseDate(p?.createdAt);
-      if (!d) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = byMonth.get(key) || { label: ymLabel(d), total: 0, date: d };
-      entry.total += Number(p?.total) || 0;
-      byMonth.set(key, entry);
-    }
-    const spendByMonth = Array.from(byMonth.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    return { topItems, spendByMarket, spendByMonth };
+    const topItems = Object.values(counts).sort((a, b) => b.c - a.c);
+    const markets = Object.entries(byMarket).sort((a, b) => b[1] - a[1]);
+    return { topItems, markets };
   }, [purchases]);
 
+  /* ========================= RENDER ========================= */
   return (
-    <div className={containerClass}>
+    <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Comparar" />
 
-      {/* Tabs */}
-      <div className="mt-2 flex gap-2">
-        <button
-          className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium ${active === "produtos" ? "bg-white shadow" : "bg-gray-100 text-gray-600"}`}
-          onClick={() => setActive("produtos")}
-        >
-          Produtos
-        </button>
-        <button
-          className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium ${active === "compras" ? "bg-white shadow" : "bg-gray-100 text-gray-600"}`}
-          onClick={() => setActive("compras")}
-        >
-          Compras
-        </button>
-        <button
-          className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium ${active === "stats" ? "bg-white shadow" : "bg-gray-100 text-gray-600"}`}
-          onClick={() => setActive("stats")}
-        >
-          Estatísticas
-        </button>
+      {/* Abas */}
+      <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1 text-sm">
+        {(["produtos", "compras", "estatisticas"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-lg py-2 font-medium ${tab === t ? "bg-white shadow" : "text-gray-600"}`}
+          >
+            {t === "produtos" ? "Produtos" : t === "compras" ? "Compras" : "Estatísticas"}
+          </button>
+        ))}
       </div>
 
-      {/* …restante inalterado… (lista de produtos, comparação, estatísticas) */}
+      {/* ------------------------ PRODUTOS ------------------------ */}
+      {tab === "produtos" && (
+        <>
+          <div className="mb-3">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nome…"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+
+          {!canSearch ? (
+            <p className="text-sm text-gray-500">Digite o nome do produto para buscar.</p>
+          ) : produtoGrupos.length === 0 ? (
+            <p className="text-sm text-gray-500">Nenhum resultado encontrado.</p>
+          ) : (
+            <div className="space-y-4">
+              {produtoGrupos.map((g, i) => {
+                const min = Math.min(...g.rows.map((r) => r.price || 0));
+                return (
+                  <div key={i} className="overflow-hidden rounded-2xl border border-gray-200">
+                    <div className="border-b bg-white p-3">
+                      <div className="font-semibold text-gray-900">
+                        {variantLabel(g.variant.nome, g.variant.peso, g.variant.unidade)}
+                      </div>
+                    </div>
+                    {g.rows
+                      .sort((a, b) => a.price - b.price)
+                      .map((r, j) => (
+                        <div key={j} className="flex items-center justify-between p-3">
+                          <div className="text-gray-800">{r.market}</div>
+                          <div className={r.price <= min ? "font-semibold text-green-600" : "text-gray-900"}>
+                            {brl(r.price)}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ------------------------ COMPRAS ------------------------ */}
+      {tab === "compras" && (
+        <>
+          <div className="mb-3 text-sm text-gray-600">Selecione até duas compras para comparar.</div>
+          <div className="mb-4 space-y-2">
+            {purchases.map((p) => {
+              const checked = selectedIds.includes(p.id);
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => togglePurchase(p.id)}
+                  className="flex cursor-pointer items-center justify-between rounded-xl border p-3 active:scale-[.995]"
+                >
+                  <div className="flex items-center gap-3">
+                    <RoundCheck checked={checked} onChange={() => togglePurchase(p.id)} />
+                    <div>
+                      <div className="font-medium text-gray-900">{p.name || "Compra"}</div>
+                      <div className="text-sm text-gray-500">
+                        {p.market || "—"} · {(p.itens || []).length} itens
+                      </div>
+                    </div>
+                  </div>
+                  <div className="font-semibold text-gray-900">{brl(Number(p.total) || 0)}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {compraComparacao ? (
+            <div className="overflow-hidden rounded-2xl border border-gray-200">
+              <div className="grid grid-cols-[1fr,140px,140px] items-center gap-2 border-b bg-white p-3 text-sm font-semibold">
+                <div>Produto</div>
+                <div className="text-right">{compraComparacao.A.name}</div>
+                <div className="text-right">{compraComparacao.B.name}</div>
+              </div>
+              {compraComparacao.rows.map((r, i) => {
+                const a: any = (r as any).a;
+                const b: any = (r as any).b;
+                const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
+                return (
+                  <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3">
+                    <div className="font-medium text-gray-900">{(r as any).label}</div>
+                    <div className="text-right">
+                      {a ? (
+                        <div className={a.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>
+                          {brl(a.preco)}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {b ? (
+                        <div className={b.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>
+                          {brl(b.preco)}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="px-1 text-sm text-gray-500">Escolha duas compras para ver a comparação.</p>
+          )}
+        </>
+      )}
+
+      {/* ---------------------- ESTATÍSTICAS --------------------- */}
+      {tab === "estatisticas" && (
+        <>
+          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <ShoppingCartIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Itens mais comprados</div>
+            </div>
+            {stats.topItems.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500">Sem dados ainda.</div>
+            ) : (
+              stats.topItems.slice(0, 30).map((it, i) => (
+                <div key={i} className="flex items-center justify-between p-3">
+                  <div className="text-gray-800">{it.nome}</div>
+                  <div className="text-gray-700">{it.c}x</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <BuildingStorefrontIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Gastos por supermercado</div>
+            </div>
+            <div className="p-3">
+              {stats.markets.map(([market, total], i) => {
+                const max = stats.markets[0]?.[1] || 1;
+                const pct = Math.max(3, Math.round((total as number / max) * 100));
+                return (
+                  <div key={i} className="mb-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="text-gray-800">{market}</div>
+                      <div className="font-semibold text-gray-900">{brl(total as number)}</div>
+                    </div>
+                    <div className="mt-1 h-2 w-full rounded bg-gray-100">
+                      <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <BottomNav activeTab="compare" />
-    </div>
+    </main>
   );
 };
 
