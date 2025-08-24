@@ -104,10 +104,11 @@ export default function PurchasesReceipt() {
   const [parsed, setParsed] = useState<ReceiptParseResult | null>(null);
   const [market, setMarket] = useState("");
   const [listName, setListName] = useState("");
-  const [dateISO, setDateISO] = useState("");
+  const [dateISO, setDateISO] = useState<string>(toISODate(new Date())); // padrão: hoje
   const [showAll, setShowAll] = useState(false);
 
   const lastScan = useRef(0);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (localStorage.getItem(LS_KEY) === "1") {
@@ -139,11 +140,12 @@ export default function PurchasesReceipt() {
       setMarket((data as any)?.market || "");
       setListName((data as any)?.name || "");
 
-      // 1) tenta usar o campo date em QUALQUER formato comum
+      // 1) tenta usar o campo date
       let iso = anyToISODate((data as any)?.date);
-      // 2) se não vier, varre o objeto e pega a ÚLTIMA data do conteúdo (rodapé)
+      // 2) tenta rodapé
       if (!iso) iso = extractFooterDateISO(data);
-      // 3) se continuar vazio, não preenche (nada de 1969/1970)
+      // 3) fallback = hoje (evita placeholder cinza)
+      if (!iso) iso = toISODate(new Date());
       setDateISO(iso);
 
       const n = (data as any)?.totalItems ?? (data as any)?.itens?.length ?? 0;
@@ -169,23 +171,27 @@ export default function PurchasesReceipt() {
   };
 
   const handleSave = async () => {
-    if (!parsed) return;
+    if (!parsed || savingRef.current) return;
+    savingRef.current = true;
     setLoading(true);
     try {
-      const dateObj = dateISO ? new Date(`${dateISO}T00:00:00`) : new Date();
+      const iso = dateISO || toISODate(new Date());
+      const dateObj = new Date(`${iso}T00:00:00`);
       await createPurchaseFromReceiptInContext({
-        name: listName || "Compra (NFC-e)",
-        market: market || "—",
+        name: (listName || "Compra (NFC-e)").trim(),
+        market: (market || "—").trim(),
         date: dateObj,
         itens: (parsed as any)?.itens || [],
       });
       toast.success("Compra importada!");
-      nav("/purchases");
+      nav("/purchases", { replace: true }); // fecha a tela
+      setParsed(null);
     } catch (e) {
       console.error(e);
       toast.error("Falha ao salvar a compra.");
     } finally {
       setLoading(false);
+      savingRef.current = false;
     }
   };
 
@@ -255,6 +261,7 @@ export default function PurchasesReceipt() {
               setMarket("");
               setListName("");
               setShowAll(false);
+              setDateISO(toISODate(new Date()));
               setScanning(true);
             }}
             className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 active:scale-95"
@@ -333,7 +340,7 @@ export default function PurchasesReceipt() {
             <label className="mb-1 block text-sm font-medium text-gray-800">Data da compra</label>
             <input
               type="date"
-              value={dateISO}
+              value={dateISO || toISODate(new Date())}
               onChange={(e) => setDateISO(e.target.value)}
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-yellow-400"
             />

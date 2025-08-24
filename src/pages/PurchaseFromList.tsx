@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import PageHeader from "../components/ui/PageHeader";
@@ -45,6 +45,10 @@ const PurchaseFromList: React.FC = () => {
   const [extras, setExtras] = useState<PurchaseExtraItem[]>([]);
   const [openModal, setOpenModal] = useState(false);
 
+  // salvar/duplo clique
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+
   // Prefill lista inicial
   useEffect(() => {
     if (lists.length && !listId) {
@@ -58,7 +62,7 @@ const PurchaseFromList: React.FC = () => {
   );
   const list = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
 
-  // Auto-preencher nome (enquanto usuário não digitar) e mercado
+  // Auto-preencher nome e mercado
   useEffect(() => {
     if (list && !nameTouched) setPurchaseName(list.nome || "");
     if (list?.market && !purchaseMarket) setPurchaseMarket(list.market);
@@ -98,7 +102,7 @@ const PurchaseFromList: React.FC = () => {
 
   const grandTotal = totalSelected + extrasTotal;
 
-  // Avançar do Passo 1 para Passo 2
+  // Avançar
   const handleContinueToItems = async () => {
     try {
       if (!listId) {
@@ -120,6 +124,9 @@ const PurchaseFromList: React.FC = () => {
 
   // Criar compra
   const handleCreate = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     try {
       if (!list) {
         toast.error("Selecione uma lista");
@@ -145,10 +152,13 @@ const PurchaseFromList: React.FC = () => {
 
       await fetchPurchases();
       toast.success("Compra criada!");
-      navigate("/purchases");
+      navigate("/purchases", { replace: true });
     } catch (err) {
       console.error(err);
       toast.error("Não foi possível criar a compra");
+    } finally {
+      setSaving(false);
+      savingRef.current = false;
     }
   };
 
@@ -184,7 +194,6 @@ const PurchaseFromList: React.FC = () => {
           />
 
           <label className="mb-2 block font-medium text-gray-800">Data</label>
-          {/* Campo que abre calendário inline ao clicar */}
           <div
             className="mb-2 w-full cursor-pointer select-none rounded-2xl border border-gray-200 px-4 py-3"
             onClick={() => setShowCalendar((v) => !v)}
@@ -313,9 +322,10 @@ const PurchaseFromList: React.FC = () => {
             </button>
             <button
               onClick={handleCreate}
-              className="w-2/3 rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99]"
+              disabled={saving}
+              className="w-2/3 rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
             >
-              Criar compra
+              {saving ? "Salvando..." : "Criar compra"}
             </button>
           </div>
 

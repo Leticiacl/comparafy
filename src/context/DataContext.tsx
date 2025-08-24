@@ -59,7 +59,7 @@ interface DataContextType {
   createList(nome: string): Promise<Lista | null>;
   fetchItems(listId: string): Promise<void>;
   addItem(listId: string, item: NewItem): Promise<string>;
-  addItemToList?(listId: string, item: NewItem): Promise<string>; // alias
+  addItemToList?(listId: string, item: NewItem): Promise<string>;
   updateItem(listId: string, itemId: string, data: Omit<Item, "id" | "comprado">): Promise<void>;
   toggleItem(listId: string, itemId: string): Promise<void>;
   deleteItem(listId: string, itemId: string): Promise<void>;
@@ -263,7 +263,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }) => {
     const userId = requireUid();
     const p = await createPurchaseFromList({ userId, ...params } as any);
-    setPurchases((prev) => [p, ...prev]);
+    // se o service já devolver o objeto completo, mantém; se devolver apenas ID, uma atualização seguinte sincroniza
+    setPurchases((prev) => [p as any, ...prev]);
     return p;
   };
 
@@ -274,8 +275,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     itens?: PurchaseItem[];
   }) => {
     const userId = requireUid();
-    const p = await createPurchaseFromReceipt({ userId, ...params } as any);
-    setPurchases((prev) => [p, ...prev]);
+
+    // pode retornar ID ou objeto; lidamos com os dois
+    const created = await createPurchaseFromReceipt({ userId, ...params } as any);
+
+    const itens = params.itens || [];
+    const total = itens.reduce(
+      (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
+      0
+    );
+
+    const id = typeof created === "string" ? created : (created as any)?.id;
+
+    // adiciona otimistamente para não aparecer “0 itens”
+    setPurchases((prev) => [
+      {
+        id: id || crypto.randomUUID(),
+        name: params.name,
+        market: params.market,
+        source: "receipt",
+        createdAt: params.date,
+        itens,
+        itemCount: itens.length,
+        total,
+      } as any,
+      ...prev,
+    ]);
+
+    // sincroniza com o Firestore (garante subcoleção carregada)
+    try {
+      await fetchPurchases();
+    } catch {}
   };
 
   const renamePurchaseInContext = async (purchaseId: string, newName: string) => {

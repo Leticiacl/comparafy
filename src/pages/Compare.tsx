@@ -250,40 +250,44 @@ const Compare: React.FC = () => {
           </div>
 
           {compraComparacao ? (
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <div className="grid grid-cols-[1fr,140px,140px] items-center gap-2 border-b bg-white p-3 text-sm font-semibold">
-                <div>Produto</div>
-                <div className="text-right">{compraComparacao.A.name}</div>
-                <div className="text-right">{compraComparacao.B.name}</div>
+            <div className="-mx-4 md:mx-0 overflow-x-auto">
+              <div className="min-w-[720px]">
+                <div className="grid grid-cols-[1fr,140px,140px] items-center gap-2 border rounded-t-2xl border-b-0 bg-white p-3 text-sm font-semibold">
+                  <div>Produto</div>
+                  <div className="text-right truncate">{compraComparacao.A.name}</div>
+                  <div className="text-right truncate">{compraComparacao.B.name}</div>
+                </div>
+                <div className="border border-t-0 rounded-b-2xl">
+                  {compraComparacao.rows.map((r, i) => {
+                    const a: any = (r as any).a;
+                    const b: any = (r as any).b;
+                    const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
+                    return (
+                      <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3 border-t first:border-t-0">
+                        <div className="font-medium text-gray-900">{(r as any).label}</div>
+                        <div className="text-right">
+                          {a ? (
+                            <div className={a.preco <= min ? "font-semibold text-green-600 whitespace-nowrap" : "text-gray-800 whitespace-nowrap"}>
+                              {brl(a.preco)}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {b ? (
+                            <div className={b.preco <= min ? "font-semibold text-green-600 whitespace-nowrap" : "text-gray-800 whitespace-nowrap"}>
+                              {brl(b.preco)}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              {compraComparacao.rows.map((r, i) => {
-                const a: any = (r as any).a;
-                const b: any = (r as any).b;
-                const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
-                return (
-                  <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3">
-                    <div className="font-medium text-gray-900">{(r as any).label}</div>
-                    <div className="text-right">
-                      {a ? (
-                        <div className={a.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>
-                          {brl(a.preco)}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {b ? (
-                        <div className={b.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>
-                          {brl(b.preco)}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           ) : (
             <p className="px-1 text-sm text-gray-500">Escolha duas compras para ver a comparação.</p>

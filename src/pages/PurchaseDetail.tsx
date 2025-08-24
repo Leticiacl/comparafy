@@ -262,8 +262,8 @@ export default function PurchaseDetail() {
             <div className="flex justify-end gap-2">
               <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setConfirmDelete(false)}>Cancelar</button>
               <button
-                className="rounded-lg bg-red-500 px-3 py-2 text-white"
-                onClick={async () => { await deletePurchaseInContext(p.id); setConfirmDelete(false); navigate("/purchases"); }}
+                className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
+                onClick={async () => { await deletePurchaseInContext(p.id); setConfirmDelete(false); navigate("/purchases", { replace: true }); }}
               >
                 Excluir
               </button>
