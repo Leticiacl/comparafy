@@ -7,8 +7,7 @@ import { useData } from "@/context/DataContext";
 import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 
 type Tab = "produtos" | "compras" | "estatisticas";
-const brl = (n: number) =>
-  (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const brl = (n: number) => (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function norm(s: string) {
   return (s || "")
@@ -31,7 +30,6 @@ function variantLabel(nome: string, peso?: number, unidade?: string) {
 const Compare: React.FC = () => {
   const { lists = [], purchases = [] } = useData();
 
-  // aba inicial via ?tab=
   const { search } = useLocation();
   const qp = new URLSearchParams(search);
   const [tab, setTab] = useState<Tab>((qp.get("tab") as Tab) || "produtos");
@@ -40,15 +38,7 @@ const Compare: React.FC = () => {
   const [query, setQuery] = useState("");
   const canSearch = query.trim().length > 0;
 
-  type Row = {
-    market: string;
-    price: number;
-    sourceKind: "compra" | "lista";
-    sourceName: string;
-    nome: string;
-    peso?: number;
-    unidade?: string;
-  };
+  type Row = { market: string; price: number; sourceKind: "compra" | "lista"; sourceName: string; nome: string; peso?: number; unidade?: string; };
   type Group = { variant: { nome: string; peso?: number; unidade?: string }; rows: Row[] };
 
   const produtoGrupos: Group[] = useMemo(() => {
@@ -56,38 +46,19 @@ const Compare: React.FC = () => {
     const q = norm(query);
     const rows: Row[] = [];
 
-    // compras
     for (const p of purchases) {
       for (const it of p.itens || []) {
         if (!norm(it.nome).includes(q)) continue;
-        rows.push({
-          market: p.market || "—",
-          price: Number(it.preco) || 0,
-          sourceKind: "compra",
-          sourceName: p.name || "Compra",
-          nome: it.nome,
-          peso: it.peso,
-          unidade: it.unidade,
-        });
+        rows.push({ market: p.market || "—", price: Number(it.preco) || 0, sourceKind: "compra", sourceName: p.name || "Compra", nome: it.nome, peso: it.peso, unidade: it.unidade });
       }
     }
-    // listas
     for (const l of lists) {
       for (const it of l.itens || []) {
         if (!norm(it.nome).includes(q)) continue;
-        rows.push({
-          market: it.mercado || "—",
-          price: Number(it.preco) || 0,
-          sourceKind: "lista",
-          sourceName: l.nome || "Lista",
-          nome: it.nome,
-          peso: it.peso,
-          unidade: it.unidade,
-        });
+        rows.push({ market: it.mercado || "—", price: Number(it.preco) || 0, sourceKind: "lista", sourceName: l.nome || "Lista", nome: it.nome, peso: it.peso, unidade: it.unidade });
       }
     }
 
-    // agrupa por variante
     const map = new Map<string, Group>();
     for (const r of rows) {
       const k = variantKey(r.nome, r.peso, r.unidade);
@@ -99,7 +70,7 @@ const Compare: React.FC = () => {
     return gs;
   }, [canSearch, query, purchases, lists]);
 
-  /* ========================= COMPRAS (comparar 2) ========================= */
+  /* ========================= COMPRAS ========================= */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const togglePurchase = (id: string) => {
     setSelectedIds((prev) => {
@@ -108,10 +79,7 @@ const Compare: React.FC = () => {
       return [...prev, id];
     });
   };
-  const selectedPurchases = useMemo(
-    () => purchases.filter((p) => selectedIds.includes(p.id)),
-    [purchases, selectedIds]
-  );
+  const selectedPurchases = useMemo(() => purchases.filter((p) => selectedIds.includes(p.id)), [purchases, selectedIds]);
 
   const compraComparacao = useMemo(() => {
     if (selectedPurchases.length !== 2) return null;
@@ -158,12 +126,10 @@ const Compare: React.FC = () => {
     return { topItems, markets };
   }, [purchases]);
 
-  /* ========================= RENDER ========================= */
   return (
     <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Comparar" />
 
-      {/* Abas */}
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1 text-sm">
         {(["produtos", "compras", "estatisticas"] as Tab[]).map((t) => (
           <button
@@ -235,12 +201,13 @@ const Compare: React.FC = () => {
                   className="flex cursor-pointer items-center justify-between rounded-xl border p-3 active:scale-[.995]"
                 >
                   <div className="flex items-center gap-3">
-                    <RoundCheck checked={checked} onChange={() => togglePurchase(p.id)} />
+                    {/* RoundCheck vira “decoração”: o clique é no bloco inteiro */}
+                    <div className="pointer-events-none">
+                      <RoundCheck checked={checked} onChange={() => {}} />
+                    </div>
                     <div>
                       <div className="font-medium text-gray-900">{p.name || "Compra"}</div>
-                      <div className="text-sm text-gray-500">
-                        {p.market || "—"} · {(p.itens || []).length} itens
-                      </div>
+                      <div className="text-sm text-gray-500">{p.market || "—"} · {(p.itens || []).length} itens</div>
                     </div>
                   </div>
                   <div className="font-semibold text-gray-900">{brl(Number(p.total) || 0)}</div>
@@ -250,43 +217,37 @@ const Compare: React.FC = () => {
           </div>
 
           {compraComparacao ? (
-            <div className="-mx-4 md:mx-0 overflow-x-auto">
-              <div className="min-w-[720px]">
-                <div className="grid grid-cols-[1fr,140px,140px] items-center gap-2 border rounded-t-2xl border-b-0 bg-white p-3 text-sm font-semibold">
+            <div className="overflow-x-auto">
+              <div className="min-w-[280px] overflow-hidden rounded-2xl border border-gray-200">
+                <div className="grid grid-cols-[1fr,minmax(84px,1fr),minmax(84px,1fr)] items-center gap-2 border-b bg-white p-3 text-sm font-semibold">
                   <div>Produto</div>
-                  <div className="text-right truncate">{compraComparacao.A.name}</div>
-                  <div className="text-right truncate">{compraComparacao.B.name}</div>
+                  <div className="truncate text-right">{compraComparacao.A.name}</div>
+                  <div className="truncate text-right">{compraComparacao.B.name}</div>
                 </div>
-                <div className="border border-t-0 rounded-b-2xl">
-                  {compraComparacao.rows.map((r, i) => {
-                    const a: any = (r as any).a;
-                    const b: any = (r as any).b;
-                    const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
-                    return (
-                      <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3 border-t first:border-t-0">
-                        <div className="font-medium text-gray-900">{(r as any).label}</div>
-                        <div className="text-right">
-                          {a ? (
-                            <div className={a.preco <= min ? "font-semibold text-green-600 whitespace-nowrap" : "text-gray-800 whitespace-nowrap"}>
-                              {brl(a.preco)}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          {b ? (
-                            <div className={b.preco <= min ? "font-semibold text-green-600 whitespace-nowrap" : "text-gray-800 whitespace-nowrap"}>
-                              {brl(b.preco)}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </div>
+                {compraComparacao.rows.map((r, i) => {
+                  const a: any = (r as any).a;
+                  const b: any = (r as any).b;
+                  const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
+                  return (
+                    <div key={i} className="grid grid-cols-[1fr,minmax(84px,1fr),minmax(84px,1fr)] items-center gap-2 p-3">
+                      <div className="truncate font-medium text-gray-900">{(r as any).label}</div>
+                      <div className="truncate text-right">
+                        {a ? (
+                          <span className={a.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(a.preco)}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="truncate text-right">
+                        {b ? (
+                          <span className={b.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(b.preco)}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : (

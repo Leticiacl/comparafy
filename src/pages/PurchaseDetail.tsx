@@ -253,7 +253,7 @@ export default function PurchaseDetail() {
         </div>
       </Dialog>
 
-      {/* Confirmar exclusão */}
+      {/* Confirmar exclusão (amarelo) */}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">
@@ -263,7 +263,7 @@ export default function PurchaseDetail() {
               <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setConfirmDelete(false)}>Cancelar</button>
               <button
                 className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
-                onClick={async () => { await deletePurchaseInContext(p.id); setConfirmDelete(false); navigate("/purchases", { replace: true }); }}
+                onClick={async () => { await deletePurchaseInContext(p.id); setConfirmDelete(false); navigate("/purchases"); }}
               >
                 Excluir
               </button>

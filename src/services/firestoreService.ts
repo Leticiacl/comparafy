@@ -52,13 +52,11 @@ export type Purchase = {
 
 /* ======================== Helpers ======================== */
 const listsCol = (userId: string) => collection(db, "users", userId, "lists");
-const listDoc = (userId: string, listId: string) =>
-  doc(db, "users", userId, "lists", listId);
+const listDoc = (userId: string, listId: string) => doc(db, "users", userId, "lists", listId);
 const listItemsCol = (userId: string, listId: string) =>
   collection(db, "users", userId, "lists", listId, "items");
 
-const purchasesCol = (userId: string) =>
-  collection(db, "users", userId, "purchases");
+const purchasesCol = (userId: string) => collection(db, "users", userId, "purchases");
 const purchaseDoc = (userId: string, purchaseId: string) =>
   doc(db, "users", userId, "purchases", purchaseId);
 const purchaseItemsCol = (userId: string, purchaseId: string) =>
@@ -66,18 +64,53 @@ const purchaseItemsCol = (userId: string, purchaseId: string) =>
 
 function toJsDate(any: any): Date {
   if (any instanceof Date) return any;
-  if (any && typeof any.seconds === "number")
-    return new Date(any.seconds * 1000);
+  if (any && typeof any.seconds === "number") return new Date(any.seconds * 1000);
   const d = new Date(any);
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
+/** Remove campos `undefined`, define defaults e garante `total` numérico. */
+function sanitizePurchaseItem(raw: any) {
+  const nome = String(raw?.nome || raw?.name || "").trim() || "Item";
+  const quantidade = Number(raw?.quantidade ?? 1) || 1;
+
+  const precoUnit =
+    Number(
+      raw?.preco ??
+        // alguns parsers trazem "unitario"
+        raw?.unitario ??
+        // quando só temos "total" e "quantidade", inferimos o unitário
+        (typeof raw?.total === "number" && quantidade ? raw.total / quantidade : 0)
+    ) || 0;
+
+  const total =
+    Number(
+      raw?.total ??
+        precoUnit * quantidade
+    ) || 0;
+
+  const doc: any = {
+    nome,
+    quantidade,
+    preco: precoUnit,
+    total,
+    createdAt: serverTimestamp(),
+  };
+
+  // só inclui se existir (Firestore não aceita undefined)
+  if (raw?.unidade) doc.unidade = String(raw.unidade);
+  if (typeof raw?.peso === "number") doc.peso = Number(raw.peso);
+  if (raw?.mercado) doc.mercado = String(raw.mercado);
+
+  return doc;
+}
+
 /* ======================== LISTAS ======================== */
 
-// Lista todas as listas (sem itens — itens são buscados em fetchItemsFromList)
+// Lista todas as listas (sem itens)
 export async function fetchUserLists(userId: string) {
   const snap = await getDocs(listsCol(userId));
-  const lists = snap.docs.map((d) => {
+  return snap.docs.map((d) => {
     const data = d.data() as any;
     return {
       id: d.id,
@@ -87,7 +120,6 @@ export async function fetchUserLists(userId: string) {
       createdAt: data.createdAt || null,
     };
   });
-  return lists;
 }
 
 // Cria uma nova lista
@@ -101,7 +133,6 @@ export async function createNewList(userId: string, nome: string) {
 
 // Busca itens de uma lista
 export async function fetchItemsFromList(userId: string, listId: string) {
-  // tentamos ordenar por createdAt; se o dado antigo não tiver, ainda funciona
   let itemsSnap;
   try {
     itemsSnap = await getDocs(query(listItemsCol(userId, listId), orderBy("createdAt", "asc")));
@@ -191,7 +222,7 @@ export async function duplicateList(userId: string, listId: string) {
   if (!src.exists()) return;
   const data = src.data() as any;
   const newRef = await addDoc(listsCol(userId), {
-    nome: (data?.nome ? `${data.nome} (cópia)` : "Minha lista (cópia)"),
+    nome: data?.nome ? `${data.nome} (cópia)` : "Minha lista (cópia)",
     createdAt: serverTimestamp(),
   });
   const items = await getDocs(listItemsCol(userId, listId));
@@ -212,7 +243,6 @@ export async function markAllItemsPurchased(userId: string, listId: string) {
 }
 
 /* ======================== Sugestões ======================== */
-// users/{uid}/suggestions/{field} => { values: string[] }
 export async function saveSuggestion(userId: string, field: string, value: string) {
   const ref = doc(db, "users", userId, "suggestions", field);
   const snap = await getDoc(ref);
@@ -220,7 +250,7 @@ export async function saveSuggestion(userId: string, field: string, value: strin
   const v = (value || "").trim();
   if (!v) return;
   if (existing.includes(v)) return;
-  const next = [...existing, v].slice(-50); // limita
+  const next = [...existing, v].slice(-50);
   if (snap.exists()) await updateDoc(ref, { values: next });
   else await setDoc(ref, { values: next });
 }
@@ -233,24 +263,34 @@ export async function getSuggestionsForField(userId: string, field: string) {
 
 /* ======================== COMPRAS ======================== */
 
-// Lista compras + itens
 export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]> {
   const ps = await getDocs(purchasesCol(userId));
   const out: Purchase[] = [];
   for (const d of ps.docs) {
     const data = d.data() as any;
-    // tenta ordenar por createdAt dos itens; se não existir, lê “cru”
+
     let itsSnap;
     try {
       itsSnap = await getDocs(query(purchaseItemsCol(userId, d.id), orderBy("createdAt", "asc")));
     } catch {
       itsSnap = await getDocs(purchaseItemsCol(userId, d.id));
     }
-    const itens: PurchaseItem[] = itsSnap.docs.map((it) => it.data() as any);
-    const total = itens.reduce(
-      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
-      0
-    );
+
+    const itens: PurchaseItem[] = itsSnap.docs.map((it) => {
+      const x = it.data() as any;
+      return {
+        nome: x.nome,
+        quantidade: Number(x.quantidade ?? 1),
+        unidade: x.unidade,
+        peso: typeof x.peso === "number" ? x.peso : undefined,
+        preco: Number(x.preco ?? 0),
+        mercado: x.mercado,
+        total: typeof x.total === "number" ? Number(x.total) : Number(x.preco || 0) * Number(x.quantidade || 1),
+      };
+    });
+
+    const total = itens.reduce((s, it) => s + (Number(it.total) || (Number(it.preco) || 0) * (Number(it.quantidade) || 1)), 0);
+
     out.push({
       id: d.id,
       name: data.name || data.sourceRefName || "Compra",
@@ -267,7 +307,7 @@ export async function fetchPurchasesForUser(userId: string): Promise<Purchase[]>
   return out;
 }
 
-// Compra a partir de LISTA (selecionando itens por ID + extras)
+// Compra a partir de LISTA
 export async function createPurchaseFromList(params: {
   userId: string;
   listId: string;
@@ -279,8 +319,8 @@ export async function createPurchaseFromList(params: {
 }): Promise<Purchase> {
   const { userId, listId, name, market, date, selectedItemIds = [], extras = [] } = params;
 
-  // carrega itens da lista
-  let listaItens: any[] = [];
+  // carrega itens da lista (apenas os selecionados)
+  const listaItens: any[] = [];
   const itemsSnap = await getDocs(listItemsCol(userId, listId));
   for (const it of itemsSnap.docs) {
     if (selectedItemIds.length && !selectedItemIds.includes(it.id)) continue;
@@ -294,7 +334,7 @@ export async function createPurchaseFromList(params: {
       mercado: x.mercado ?? "",
     });
   }
-  const itens: PurchaseItem[] = [...listaItens, ...extras];
+  const itens: PurchaseItem[] = [...listaItens, ...(extras || [])];
 
   const pref = await addDoc(purchasesCol(userId), {
     source: "list",
@@ -307,11 +347,13 @@ export async function createPurchaseFromList(params: {
   });
 
   for (const it of itens) {
-    await addDoc(purchaseItemsCol(userId, pref.id), {
-      ...it,
-      createdAt: serverTimestamp(),
-    });
+    await addDoc(purchaseItemsCol(userId, pref.id), sanitizePurchaseItem(it));
   }
+
+  const total = itens.reduce((s, it) => {
+    const t = typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
+    return s + t;
+  }, 0);
 
   return {
     id: pref.id,
@@ -320,10 +362,7 @@ export async function createPurchaseFromList(params: {
     createdAt: date,
     itens,
     itemCount: itens.length,
-    total: itens.reduce(
-      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
-      0
-    ),
+    total,
     source: "list",
     sourceRefId: listId,
     sourceRefName: name,
@@ -347,12 +386,16 @@ export async function createPurchaseFromReceipt(params: {
     createdAt: date,
     date,
   });
+
   for (const it of itens) {
-    await addDoc(purchaseItemsCol(userId, pref.id), {
-      ...it,
-      createdAt: serverTimestamp(),
-    });
+    await addDoc(purchaseItemsCol(userId, pref.id), sanitizePurchaseItem(it));
   }
+
+  const total = itens.reduce((s, it) => {
+    const t = typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
+    return s + t;
+  }, 0);
+
   return {
     id: pref.id,
     name,
@@ -360,25 +403,19 @@ export async function createPurchaseFromReceipt(params: {
     createdAt: date,
     itens,
     itemCount: itens.length,
-    total: itens.reduce(
-      (s, it) => s + (typeof it.total === "number" ? it.total : (Number(it.preco) || 0) * (Number(it.quantidade) || 1)),
-      0
-    ),
+    total,
     source: "receipt",
   };
 }
 
-// Acrescenta N itens em uma compra (assinatura usada pelo contexto)
+// Acrescenta N itens em uma compra
 export async function appendItemsToPurchaseArray(userId: string, purchaseId: string, items: PurchaseItem[]) {
   for (const it of items) {
-    await addDoc(purchaseItemsCol(userId, purchaseId), {
-      ...it,
-      createdAt: serverTimestamp(),
-    });
+    await addDoc(purchaseItemsCol(userId, purchaseId), sanitizePurchaseItem(it));
   }
 }
 
-// Mesma ideia, mas com payload agrupado (outra call do contexto)
+// Payload agrupado
 export async function appendItemsToPurchase(params: {
   userId: string;
   purchaseId: string;
@@ -388,7 +425,7 @@ export async function appendItemsToPurchase(params: {
   await appendItemsToPurchaseArray(userId, purchaseId, items);
 }
 
-// Atualiza metadados (nome/market/data…)
+// Atualiza metadados
 export async function updatePurchaseMeta(
   userId: string,
   purchaseId: string,
@@ -401,14 +438,13 @@ export async function updatePurchaseMeta(
   });
 }
 
-// Atualiza um item por ÍNDICE (como o DataContext espera)
+// Atualiza um item por ÍNDICE
 export async function updatePurchaseItem(
   userId: string,
   purchaseId: string,
   index: number,
   item: PurchaseItem
 ) {
-  // tenta manter uma ordem determinística por createdAt
   let itemsSnap;
   try {
     itemsSnap = await getDocs(query(purchaseItemsCol(userId, purchaseId), orderBy("createdAt", "asc")));
@@ -417,8 +453,7 @@ export async function updatePurchaseItem(
   }
   const docs = itemsSnap.docs;
   if (index < 0 || index >= docs.length) return;
-  const targetRef = docs[index].ref;
-  await updateDoc(targetRef, { ...item });
+  await updateDoc(docs[index].ref, sanitizePurchaseItem(item));
 }
 
 // Exclui item por ÍNDICE

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import PageHeader from "../components/ui/PageHeader";
@@ -45,8 +45,6 @@ const PurchaseFromList: React.FC = () => {
   const [extras, setExtras] = useState<PurchaseExtraItem[]>([]);
   const [openModal, setOpenModal] = useState(false);
 
-  // salvar/duplo clique
-  const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
 
   // Prefill lista inicial
@@ -102,7 +100,7 @@ const PurchaseFromList: React.FC = () => {
 
   const grandTotal = totalSelected + extrasTotal;
 
-  // Avançar
+  // Avançar do Passo 1 para Passo 2
   const handleContinueToItems = async () => {
     try {
       if (!listId) {
@@ -122,16 +120,15 @@ const PurchaseFromList: React.FC = () => {
     }
   };
 
-  // Criar compra
+  // Criar compra (fecha tela e trava cliques)
   const handleCreate = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
+    if (saving) return;
     try {
       if (!list) {
         toast.error("Selecione uma lista");
         return;
       }
+      setSaving(true);
 
       const ids = Object.entries(selected)
         .filter(([, v]) => v)
@@ -152,13 +149,12 @@ const PurchaseFromList: React.FC = () => {
 
       await fetchPurchases();
       toast.success("Compra criada!");
-      navigate("/purchases", { replace: true });
+      return navigate("/purchases");
     } catch (err) {
       console.error(err);
       toast.error("Não foi possível criar a compra");
     } finally {
       setSaving(false);
-      savingRef.current = false;
     }
   };
 
@@ -325,7 +321,7 @@ const PurchaseFromList: React.FC = () => {
               disabled={saving}
               className="w-2/3 rounded-xl bg-yellow-500 py-3 font-semibold text-black active:scale-[0.99] disabled:opacity-60"
             >
-              {saving ? "Salvando..." : "Criar compra"}
+              Criar compra
             </button>
           </div>
 

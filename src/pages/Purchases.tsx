@@ -1,6 +1,7 @@
+// src/pages/Purchases.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import PageHeader from "@/components/ui/PageHeader";
+import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import { useData } from "@/context/DataContext";
 import { Menu, Dialog } from "@headlessui/react";
@@ -21,13 +22,20 @@ const Purchases: React.FC = () => {
   const [renameValue, setRenameValue] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  useEffect(() => { fetchPurchases(); }, []);
+  useEffect(() => {
+    fetchPurchases();
+  }, []); // ok
 
   const fromList = useMemo(() => purchases.filter((p) => p.source === "list"), [purchases]);
   const fromReceipt = useMemo(() => purchases.filter((p) => p.source === "receipt"), [purchases]);
 
   const Card: React.FC<{
-    id?: string; name: string; market?: string; createdAt?: any; total: number; count: number;
+    id?: string;
+    name: string;
+    market?: string;
+    createdAt?: any;
+    total: number;
+    count: number;
   }> = ({ id, name, market, createdAt, total, count }) => {
     const handleOpen = () => { if (id) navigate(`/purchases/${id}`); };
     const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
@@ -35,13 +43,17 @@ const Purchases: React.FC = () => {
     };
     return (
       <div
-        role="button" tabIndex={0} onClick={handleOpen} onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={handleKeyDown}
         className="relative cursor-pointer rounded-2xl border border-gray-200 bg-white p-4 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
       >
         <div className="flex items-start justify-between">
           <div className="text-left" style={{ maxWidth: "calc(100% - 44px)" }}>
-            <div className="line-clamp-1 text-lg font-semibold text-gray-900">{name || "Compra"}</div>
+            <div className="text-lg font-semibold text-gray-900 line-clamp-1">{name || "Compra"}</div>
           </div>
+
           {id && (
             <Menu as="div" className="absolute right-1 top-1">
               <Menu.Button className="rounded p-2 hover:bg-gray-100" onClick={(e) => e.stopPropagation()}>
@@ -87,12 +99,12 @@ const Purchases: React.FC = () => {
   };
 
   return (
-    <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
+    <div className="p-4 pb-28 max-w-xl mx-auto bg-white">
       <PageHeader title="Compras" />
 
       <Link
         to="/purchases/new"
-        className="mb-4 mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 py-3 font-medium text-black hover:brightness-95"
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-yellow-500 py-3 font-medium text-black hover:bg-yellow-500/90"
       >
         <span className="text-xl">+</span>
         <span>Nova compra</span>
@@ -102,45 +114,32 @@ const Purchases: React.FC = () => {
       <div className="space-y-3">
         {fromList.length === 0 && <div className="px-1 text-sm text-gray-500">Nenhuma compra criada por lista.</div>}
         {fromList.map((p) => (
-          <Card
-            key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt}
-            total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0}
-          />
+          <Card key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt} total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0} />
         ))}
       </div>
 
       <h2 className="mb-2 mt-8 text-sm font-semibold uppercase text-gray-500">A partir de nota fiscal</h2>
       <div className="space-y-3">
-        {fromReceipt.length === 0 && (
-          <div className="px-1 text-sm text-gray-500">Nenhuma compra importada de NFC-e.</div>
-        )}
+        {fromReceipt.length === 0 && <div className="px-1 text-sm text-gray-500">Nenhuma compra importada de NFC-e.</div>}
         {fromReceipt.map((p) => (
-          <Card
-            key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt}
-            total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0}
-          />
+          <Card key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt} total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0} />
         ))}
       </div>
 
       <BottomNav activeTab="purchases" />
 
-      {/* Dialogs */}
+      {/* Renomear */}
       <Dialog open={!!renameId} onClose={() => setRenameId(null)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">
           <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
             <Dialog.Title className="mb-3 text-lg font-semibold">Renomear compra</Dialog.Title>
-            <input
-              autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2" placeholder="Novo nome"
-            />
+            <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="w-full rounded-lg border px-3 py-2" placeholder="Novo nome" />
             <div className="mt-4 flex justify-end gap-2">
               <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setRenameId(null)}>Cancelar</button>
               <button
                 className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
-                onClick={async () => {
-                  if (renameId && renameValue.trim()) { await renamePurchaseInContext(renameId, renameValue.trim()); setRenameId(null); }
-                }}
+                onClick={async () => { if (renameId && renameValue.trim()) { await renamePurchaseInContext(renameId, renameValue.trim()); setRenameId(null); } }}
               >
                 Salvar
               </button>
@@ -149,6 +148,7 @@ const Purchases: React.FC = () => {
         </div>
       </Dialog>
 
+      {/* Excluir — botão amarelo como em listas */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">
@@ -157,7 +157,7 @@ const Purchases: React.FC = () => {
             <div className="flex justify-end gap-2">
               <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setDeleteId(null)}>Cancelar</button>
               <button
-                className="rounded-lg bg-red-500 px-3 py-2 text-white"
+                className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
                 onClick={async () => { if (deleteId) { await deletePurchaseInContext(deleteId); setDeleteId(null); } }}
               >
                 Excluir
@@ -166,7 +166,7 @@ const Purchases: React.FC = () => {
           </Dialog.Panel>
         </div>
       </Dialog>
-    </main>
+    </div>
   );
 };
 

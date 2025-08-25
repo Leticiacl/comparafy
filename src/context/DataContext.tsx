@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+// src/context/DataContext.tsx
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "@/services/firebase";
+import { signInAnonymously } from "firebase/auth";
 import {
-  // listas
   fetchUserLists,
   createNewList,
   fetchItemsFromList,
@@ -17,7 +17,6 @@ import {
   saveSuggestion,
   getSuggestionsForField,
   type NewItem,
-  // compras
   fetchPurchasesForUser,
   createPurchaseFromList,
   createPurchaseFromReceipt,
@@ -29,9 +28,9 @@ import {
   deletePurchaseItem,
   type Purchase,
   type PurchaseItem,
-} from "@/services/firestoreService";
+} from "../services/firestoreService";
 
-/* ================== Tipos locais ================== */
+/* Tipos locais */
 export interface Item {
   id: string;
   nome: string;
@@ -53,7 +52,6 @@ export interface Lista {
 }
 
 interface DataContextType {
-  // listas
   lists: Lista[];
   fetchUserData(): Promise<void>;
   createList(nome: string): Promise<Lista | null>;
@@ -71,7 +69,6 @@ interface DataContextType {
   getSuggestions(field: string): Promise<string[]>;
   savings: number;
 
-  // compras
   purchases: Purchase[];
   fetchPurchases(): Promise<void>;
   createPurchaseFromListInContext(params: {
@@ -96,82 +93,56 @@ interface DataContextType {
   appendItemsToPurchaseInContext(items: PurchaseItem[]): Promise<string | null>;
 }
 
-/* ================== Contexto ================== */
+/* Helpers Auth */
+async function ensureAuth(): Promise<string> {
+  if (auth.currentUser?.uid) return auth.currentUser.uid;
+  await signInAnonymously(auth);
+  return auth.currentUser!.uid;
+}
+
+function getUid(): string | null {
+  return auth.currentUser?.uid || null;
+}
+
+/* Contexto */
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lists, setLists] = useState<Lista[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const uidRef = useRef<string | null>(null);
-
-  /* -------- exige UID atual -------- */
-  const requireUid = () => {
-    const u = auth.currentUser?.uid || uidRef.current;
-    if (!u) throw new Error("missing-user");
-    return u;
-  };
-
-  /* -------- escuta mudanças de auth e (re)carrega dados -------- */
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      const newUid = user?.uid ?? null;
-      uidRef.current = newUid;
-
-      if (!newUid) {
-        // Logout: limpa estado
-        setLists([]);
-        setPurchases([]);
-        return;
-      }
-
-      // Login: carrega dados do usuário
-      const [l, p] = await Promise.all([
-        fetchUserLists(newUid),
-        fetchPurchasesForUser(newUid),
-      ]);
-
-      setLists(l);
-      setPurchases(
-        [...p].sort((a, b) => {
-          const ta = new Date(a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime();
-          const tb = new Date(b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime();
-          return tb - ta;
-        })
-      );
-    });
-    return () => unsub();
-  }, []);
 
   /* ======== Listas ======== */
   const fetchUserData = async () => {
-    const userId = uidRef.current;
+    const userId = getUid();
     if (!userId) return;
     const data = await fetchUserLists(userId);
     setLists(data);
   };
 
   const createList = async (nome: string) => {
-    const userId = requireUid();
-    const newList = await createNewList(userId, nome);
+    const uid = await ensureAuth();
+    const newList = await createNewList(uid, nome);
     setLists((prev) => [...prev, newList]);
     return newList;
   };
 
   const fetchItems = async (listId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     const itens = await fetchItemsFromList(userId, listId);
     setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, itens } : l)));
   };
 
   const addItem = async (listId: string, item: NewItem) => {
-    const userId = requireUid();
-    const newId = await addItemToListService(userId, listId, item);
+    const uid = await ensureAuth();
+    const newId = await addItemToListService(uid, listId, item);
     await fetchItems(listId);
     return newId;
   };
 
   const updateItem = async (listId: string, itemId: string, data: Omit<Item, "id" | "comprado">) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await updateItemInFirestore(userId, listId, itemId, data);
     setLists((prev) =>
       prev.map((l) =>
@@ -181,7 +152,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleItem = async (listId: string, itemId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     const updated = await toggleItemPurchased(userId, listId, itemId);
     setLists((prev) =>
       prev.map((l) =>
@@ -193,44 +165,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteItem = async (listId: string, itemId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await deleteItemFromFirestore(userId, listId, itemId);
-    setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, itens: (l.itens || []).filter((i) => i.id !== itemId) } : l))
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, itens: (l.itens || []).filter((i) => i.id !== itemId) } : l)));
   };
 
   const updateListNameInContext = (listId: string, novoNome: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     updateListName(userId, listId, novoNome);
     setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, nome: novoNome } : l)));
   };
 
   const deleteList = async (listId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await deleteListFromFirestore(userId, listId);
     setLists((prev) => prev.filter((l) => l.id !== listId));
   };
 
   const duplicateListInContext = async (listId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await duplicateList(userId, listId);
     await fetchUserData();
   };
 
   const markAllInList = async (listId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await markAllItemsPurchased(userId, listId);
     const itens = await fetchItemsFromList(userId, listId);
     setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, itens } : l)));
   };
 
   const saveSuggestions = async (field: string, value: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await saveSuggestion(userId, field, value);
   };
   const getSuggestions = async (field: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return [];
     return await getSuggestionsForField(userId, field);
   };
 
@@ -241,7 +218,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /* ======== Compras ======== */
   const fetchPurchases = async () => {
-    const userId = uidRef.current;
+    const userId = getUid();
     if (!userId) return;
     const data = await fetchPurchasesForUser(userId);
     setPurchases(
@@ -261,10 +238,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedItemIds?: string[];
     extras?: PurchaseItem[];
   }) => {
-    const userId = requireUid();
-    const p = await createPurchaseFromList({ userId, ...params } as any);
-    // se o service já devolver o objeto completo, mantém; se devolver apenas ID, uma atualização seguinte sincroniza
-    setPurchases((prev) => [p as any, ...prev]);
+    const uid = await ensureAuth();
+    const p = await createPurchaseFromList({ userId: uid, ...params });
+    setPurchases((prev) => [p, ...prev]);
     return p;
   };
 
@@ -274,54 +250,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     date: Date;
     itens?: PurchaseItem[];
   }) => {
-    const userId = requireUid();
-
-    // pode retornar ID ou objeto; lidamos com os dois
-    const created = await createPurchaseFromReceipt({ userId, ...params } as any);
-
-    const itens = params.itens || [];
-    const total = itens.reduce(
-      (s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1),
-      0
-    );
-
-    const id = typeof created === "string" ? created : (created as any)?.id;
-
-    // adiciona otimistamente para não aparecer “0 itens”
-    setPurchases((prev) => [
-      {
-        id: id || crypto.randomUUID(),
-        name: params.name,
-        market: params.market,
-        source: "receipt",
-        createdAt: params.date,
-        itens,
-        itemCount: itens.length,
-        total,
-      } as any,
-      ...prev,
-    ]);
-
-    // sincroniza com o Firestore (garante subcoleção carregada)
-    try {
-      await fetchPurchases();
-    } catch {}
+    const uid = await ensureAuth();
+    const p = await createPurchaseFromReceipt({ userId: uid, ...params });
+    setPurchases((prev) => [p, ...prev]);
   };
 
   const renamePurchaseInContext = async (purchaseId: string, newName: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await updatePurchaseMeta(userId, purchaseId, { name: newName.trim() });
     setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, name: newName.trim() } : p)));
   };
 
   const deletePurchaseInContext = async (purchaseId: string) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await deletePurchase(userId, purchaseId);
     setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
   };
 
   const updatePurchaseItemInContext = async (purchaseId: string, index: number, item: PurchaseItem) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await updatePurchaseItem(userId, purchaseId, index, item);
     setPurchases((prev) =>
       prev.map((p) => {
@@ -334,7 +284,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deletePurchaseItemInContext = async (purchaseId: string, index: number) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await deletePurchaseItem(userId, purchaseId, index);
     setPurchases((prev) =>
       prev.map((p) => {
@@ -347,7 +298,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const appendItemsToPurchaseById = async (purchaseId: string, items: PurchaseItem[]) => {
-    const userId = requireUid();
+    const userId = getUid();
+    if (!userId) return;
     await appendItemsToPurchaseArray(userId, purchaseId, items);
     setPurchases((prev) =>
       prev.map((p) =>
@@ -366,18 +318,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const appendItemsToPurchaseInContext = async (items: PurchaseItem[]): Promise<string | null> => {
-    const userId = requireUid();
-    if (!purchases.length) return null;
+    const userId = getUid();
+    if (!userId || !purchases.length) return null;
     const purchaseId = purchases[0].id;
-    await appendItemsToPurchase({ userId, purchaseId, items } as any);
+    await appendItemsToPurchase({ userId, purchaseId, items });
     setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, itens: [...(p.itens || []), ...items] } : p)));
     return purchaseId;
   };
 
+  useEffect(() => {
+    (async () => {
+      await ensureAuth();
+      await Promise.all([fetchUserData(), fetchPurchases()]);
+    })();
+  }, []);
+
   return (
     <DataContext.Provider
       value={{
-        // listas
         lists,
         fetchUserData,
         createList,
@@ -394,7 +352,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveSuggestions,
         getSuggestions,
         savings,
-        // compras
         purchases,
         fetchPurchases,
         createPurchaseFromListInContext,
