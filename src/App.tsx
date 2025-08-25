@@ -1,6 +1,6 @@
 import { ReactElement, ReactNode, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, Outlet } from "react-router-dom";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./services/firebase";
 
 // Páginas
@@ -51,25 +51,26 @@ const AuthBootstrap = ({ children }: { children: ReactNode }) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      const authType = sessionStorage.getItem("authType"); // "email" | "google" | "anonymous"
-
-      if (user?.uid && authType) {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      // ✅ Se o Firebase restaurou uma sessão (uid existe), mantemos a sessão no sessionStorage
+      if (user?.uid) {
         sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
         sessionStorage.setItem("userId", user.uid);
+        if (!sessionStorage.getItem("authType")) {
+          // marca que a sessão foi restaurada (não forçamos signOut)
+          sessionStorage.setItem("authType", "restored");
+        }
       } else {
         sessionStorage.removeItem("user");
         sessionStorage.removeItem("userId");
-        if (user && !authType) {
-          try { await signOut(auth); } catch {}
-        }
+        sessionStorage.removeItem("authType");
       }
       setReady(true);
     });
     return () => unsub();
   }, []);
 
-  if (!ready) return null;
+  if (!ready) return null; // pode trocar por um Splash
   return <>{children}</>;
 };
 

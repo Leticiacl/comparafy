@@ -2,32 +2,38 @@ import React from "react";
 
 /**
  * InstallButton
- * - Se o navegador suportar beforeinstallprompt, mostra "Instalar app"
- * - Caso contrário, abre um pequeno guia "Como instalar"
- * Uso: colocar em qualquer página. Ideal no Perfil acima de "Termos de uso".
+ * - Mostra "Instalar app" quando houver beforeinstallprompt
+ * - Caso contrário, abre um guia "Como instalar"
  */
 const InstallButton: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
   const [openGuide, setOpenGuide] = React.useState(false);
-  const canInstall = !!deferredPrompt;
 
   React.useEffect(() => {
-    const handler = (e: any) => {
-      // impede o browser de mostrar o banner nativo
+    const onBeforeInstall = (e: Event & { prompt?: () => void; userChoice?: Promise<any> }) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
-    window.addEventListener("beforeinstallprompt", handler as any);
-    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+    const onAppInstalled = () => setDeferredPrompt(null);
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstall as any, { passive: false });
+    window.addEventListener("appinstalled", onAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall as any);
+      window.removeEventListener("appinstalled", onAppInstalled);
+    };
   }, []);
 
+  const canInstall = !!deferredPrompt;
+
   const onClick = async () => {
-    if (deferredPrompt) {
+    if (deferredPrompt?.prompt) {
       deferredPrompt.prompt();
       try {
         await deferredPrompt.userChoice;
       } catch {}
-      setDeferredPrompt(null); // só pode usar 1x
+      setDeferredPrompt(null); // evento só pode ser usado 1x
     } else {
       setOpenGuide(true);
     }
@@ -52,15 +58,8 @@ const InstallButton: React.FC = () => {
       </button>
 
       {openGuide && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50"
-        >
-          <div
-            className="absolute inset-0 bg-black/30"
-            onClick={() => setOpenGuide(false)}
-          />
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOpenGuide(false)} />
           <div className="absolute inset-x-4 top-16 rounded-2xl bg-white p-4 shadow-lg md:mx-auto md:max-w-lg">
             <div className="mb-2 text-lg font-semibold">Como instalar o Comparafy</div>
 
