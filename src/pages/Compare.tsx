@@ -4,7 +4,7 @@ import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/ui/PageHeader";
 import RoundCheck from "@/components/RoundCheck";
 import { useData } from "@/context/DataContext";
-import { ShoppingCartIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
+import { ShoppingCartIcon, BuildingStorefrontIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 
 type Tab = "produtos" | "compras" | "estatisticas";
 const brl = (n: number) => (Number(n || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -18,13 +18,16 @@ function norm(s: string) {
     .toLowerCase()
     .trim();
 }
-function variantKey(nome: string, peso?: number, unidade?: string) {
-  const u = (unidade || "").toLowerCase();
-  const p = peso ?? 0;
-  return `${norm(nome)}|${p}|${u}`;
-}
-function variantLabel(nome: string, peso?: number, unidade?: string) {
-  return peso ? `${nome} — ${peso} ${unidade || ""}` : nome;
+function hasCommon4(a: string, b: string) {
+  const x = norm(a);
+  const y = norm(b);
+  if (!x || !y) return false;
+  const [shorter, longer] = x.length <= y.length ? [x, y] : [y, x];
+  for (let i = 0; i <= shorter.length - 4; i++) {
+    const sub = shorter.slice(i, i + 4);
+    if (longer.includes(sub)) return true;
+  }
+  return false;
 }
 
 const Compare: React.FC = () => {
@@ -38,7 +41,15 @@ const Compare: React.FC = () => {
   const [query, setQuery] = useState("");
   const canSearch = query.trim().length > 0;
 
-  type Row = { market: string; price: number; sourceKind: "compra" | "lista"; sourceName: string; nome: string; peso?: number; unidade?: string; };
+  type Row = {
+    market: string;
+    price: number;
+    sourceKind: "compra" | "lista";
+    sourceName: string;
+    nome: string;
+    peso?: number;
+    unidade?: string;
+  };
   type Group = { variant: { nome: string; peso?: number; unidade?: string }; rows: Row[] };
 
   const produtoGrupos: Group[] = useMemo(() => {
@@ -61,7 +72,7 @@ const Compare: React.FC = () => {
 
     const map = new Map<string, Group>();
     for (const r of rows) {
-      const k = variantKey(r.nome, r.peso, r.unidade);
+      const k = `${norm(r.nome)}|${r.peso ?? 0}|${(r.unidade || "").toLowerCase()}`;
       if (!map.has(k)) map.set(k, { variant: { nome: r.nome, peso: r.peso, unidade: r.unidade }, rows: [] });
       map.get(k)!.rows.push(r);
     }
@@ -70,7 +81,7 @@ const Compare: React.FC = () => {
     return gs;
   }, [canSearch, query, purchases, lists]);
 
-  /* ========================= COMPRAS ========================= */
+  /* ========================= COMPRAS (comparar 2) ========================= */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const togglePurchase = (id: string) => {
     setSelectedIds((prev) => {
@@ -81,50 +92,78 @@ const Compare: React.FC = () => {
   };
   const selectedPurchases = useMemo(() => purchases.filter((p) => selectedIds.includes(p.id)), [purchases, selectedIds]);
 
+  // Somente itens repetidos, via substring >= 4 chars
   const compraComparacao = useMemo(() => {
     if (selectedPurchases.length !== 2) return null;
     const [A, B] = selectedPurchases;
-    type V = { nome: string; peso?: number; unidade?: string; preco: number };
-    const map = new Map<string, { label: string; a?: V; b?: V }>();
 
-    const fill = (side: "a" | "b", p: typeof A) => {
-      for (const it of p.itens || []) {
-        const k = variantKey(it.nome, it.peso, it.unidade);
-        const label = variantLabel(it.nome, it.peso, it.unidade);
-        const v: V = { nome: it.nome, peso: it.peso, unidade: it.unidade, preco: Number(it.preco) || 0 };
-        if (!map.has(k)) map.set(k, { label });
-        (map.get(k) as any)[side] = v;
+    type V = { nome: string; preco: number };
+    type RowComp = { label: string; a?: V; b?: V };
+
+    const rows: RowComp[] = [];
+    const usedB = new Set<number>();
+
+    (A.itens || []).forEach((ia: any) => {
+      const na = ia?.nome || "";
+      let matchIndex = -1;
+      (B.itens || []).forEach((ib: any, j: number) => {
+        if (usedB.has(j)) return;
+        if (hasCommon4(na, ib?.nome || "")) matchIndex = (matchIndex === -1 ? j : matchIndex);
+      });
+      if (matchIndex >= 0) {
+        const ib = (B.itens || [])[matchIndex];
+        usedB.add(matchIndex);
+        rows.push({
+          label: na.length >= (ib?.nome || "").length ? na : ib?.nome || na,
+          a: { nome: na, preco: Number(ia?.preco) || 0 },
+          b: { nome: ib?.nome || "", preco: Number(ib?.preco) || 0 },
+        });
       }
-    };
-    fill("a", A);
-    fill("b", B);
+    });
 
-    const rows = Array.from(map.values()).sort((x, y) => norm(x.label).localeCompare(norm(y.label)));
+    rows.sort((x, y) => norm(x.label).localeCompare(norm(y.label)));
     return { A, B, rows };
   }, [selectedPurchases]);
 
   /* ========================= ESTATÍSTICAS ========================= */
   const stats = useMemo(() => {
-    const counts: Record<string, { nome: string; c: number }> = {};
     const byMarket: Record<string, number> = {};
+    const byMonth: Record<string, number> = {}; // AAAA-MM -> total
+    const counts: Record<string, { nome: string; c: number }> = {};
+
     for (const p of purchases) {
       const total =
         typeof p.total === "number"
           ? p.total
           : (p.itens || []).reduce((s, it) => s + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0);
+
       const market = p.market || "—";
       byMarket[market] = (byMarket[market] || 0) + total;
 
+      const ms = typeof p.createdAt === "number" ? p.createdAt : (p as any)?.createdAt?.seconds ? (p as any).createdAt.seconds * 1000 : Date.parse(p.createdAt as any);
+      const d = Number.isFinite(ms) ? new Date(ms) : new Date();
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      byMonth[key] = (byMonth[key] || 0) + total;
+
       for (const it of p.itens || []) {
-        const k = variantKey(it.nome, it.peso, it.unidade);
-        if (!counts[k]) counts[k] = { nome: variantLabel(it.nome, it.peso, it.unidade), c: 0 };
+        const k = norm(it.nome);
+        if (!counts[k]) counts[k] = { nome: it.nome, c: 0 };
         counts[k].c += 1;
       }
     }
+
+    const months = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0]));
+    const markets = Object.entries(byMarket).sort((a, b) => (b[1] as number) - (a[1] as number));
     const topItems = Object.values(counts).sort((a, b) => b.c - a.c);
-    const markets = Object.entries(byMarket).sort((a, b) => b[1] - a[1]);
-    return { topItems, markets };
+
+    return { months, markets, topItems };
   }, [purchases]);
+
+  const monthLabel = (key: string) => {
+    const [y, m] = key.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  };
 
   return (
     <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
@@ -166,7 +205,7 @@ const Compare: React.FC = () => {
                   <div key={i} className="overflow-hidden rounded-2xl border border-gray-200">
                     <div className="border-b bg-white p-3">
                       <div className="font-semibold text-gray-900">
-                        {variantLabel(g.variant.nome, g.variant.peso, g.variant.unidade)}
+                        {g.variant.peso ? `${g.variant.nome} — ${g.variant.peso} ${g.variant.unidade || ""}` : g.variant.nome}
                       </div>
                     </div>
                     {g.rows
@@ -201,10 +240,7 @@ const Compare: React.FC = () => {
                   className="flex cursor-pointer items-center justify-between rounded-xl border p-3 active:scale-[.995]"
                 >
                   <div className="flex items-center gap-3">
-                    {/* RoundCheck vira “decoração”: o clique é no bloco inteiro */}
-                    <div className="pointer-events-none">
-                      <RoundCheck checked={checked} onChange={() => {}} />
-                    </div>
+                    <RoundCheck checked={checked} onChange={() => togglePurchase(p.id)} />
                     <div>
                       <div className="font-medium text-gray-900">{p.name || "Compra"}</div>
                       <div className="text-sm text-gray-500">{p.market || "—"} · {(p.itens || []).length} itens</div>
@@ -217,39 +253,32 @@ const Compare: React.FC = () => {
           </div>
 
           {compraComparacao ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[280px] overflow-hidden rounded-2xl border border-gray-200">
-                <div className="grid grid-cols-[1fr,minmax(84px,1fr),minmax(84px,1fr)] items-center gap-2 border-b bg-white p-3 text-sm font-semibold">
+            compraComparacao.rows.length === 0 ? (
+              <p className="px-1 text-sm text-gray-500">As compras selecionadas não têm itens em comum.</p>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <div className="grid grid-cols-[1fr,140px,140px] items-center gap-2 border-b bg-white p-3 text-sm font-semibold">
                   <div>Produto</div>
-                  <div className="truncate text-right">{compraComparacao.A.name}</div>
-                  <div className="truncate text-right">{compraComparacao.B.name}</div>
+                  <div className="text-right">{compraComparacao.A.name}</div>
+                  <div className="text-right">{compraComparacao.B.name}</div>
                 </div>
                 {compraComparacao.rows.map((r, i) => {
-                  const a: any = (r as any).a;
-                  const b: any = (r as any).b;
+                  const a = r.a, b = r.b;
                   const min = Math.min(a?.preco ?? Infinity, b?.preco ?? Infinity);
                   return (
-                    <div key={i} className="grid grid-cols-[1fr,minmax(84px,1fr),minmax(84px,1fr)] items-center gap-2 p-3">
-                      <div className="truncate font-medium text-gray-900">{(r as any).label}</div>
-                      <div className="truncate text-right">
-                        {a ? (
-                          <span className={a.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(a.preco)}</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                    <div key={i} className="grid grid-cols-[1fr,140px,140px] items-center gap-2 p-3">
+                      <div className="font-medium text-gray-900">{r.label}</div>
+                      <div className="text-right">
+                        {a ? <div className={a.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(a.preco)}</div> : <span className="text-gray-400">—</span>}
                       </div>
-                      <div className="truncate text-right">
-                        {b ? (
-                          <span className={b.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(b.preco)}</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <div className="text-right">
+                        {b ? <div className={b.preco <= min ? "font-semibold text-green-600" : "text-gray-800"}>{brl(b.preco)}</div> : <span className="text-gray-400">—</span>}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            )
           ) : (
             <p className="px-1 text-sm text-gray-500">Escolha duas compras para ver a comparação.</p>
           )}
@@ -259,7 +288,66 @@ const Compare: React.FC = () => {
       {/* ---------------------- ESTATÍSTICAS --------------------- */}
       {tab === "estatisticas" && (
         <>
+          {/* Gastos por mês */}
           <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <CalendarDaysIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Gastos por mês</div>
+            </div>
+            <div className="p-3">
+              {stats.months.length === 0 ? (
+                <div className="text-sm text-gray-500">Sem dados ainda.</div>
+              ) : (
+                stats.months.map(([key, total], i) => {
+                  const max = stats.months.reduce((m, [, t]) => Math.max(m, t as number), 1);
+                  const pct = Math.max(3, Math.round(((total as number) / max) * 100));
+                  return (
+                    <div key={i} className="mb-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="text-gray-800">{monthLabel(key)}</div>
+                        <div className="font-semibold text-gray-900">{brl(total as number)}</div>
+                      </div>
+                      <div className="mt-1 h-2 w-full rounded bg-gray-100">
+                        <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Gastos por mercado */}
+          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200">
+            <div className="flex items-center gap-2 border-b bg-white p-3">
+              <BuildingStorefrontIcon className="h-5 w-5 text-yellow-500" />
+              <div className="font-semibold text-gray-900">Gastos por mercado</div>
+            </div>
+            <div className="p-3">
+              {stats.markets.length === 0 ? (
+                <div className="text-sm text-gray-500">Sem dados ainda.</div>
+              ) : (
+                stats.markets.map(([market, total], i) => {
+                  const max = stats.markets[0]?.[1] || 1;
+                  const pct = Math.max(3, Math.round((Number(total) / Number(max)) * 100));
+                  return (
+                    <div key={i} className="mb-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="text-gray-800">{market}</div>
+                        <div className="font-semibold text-gray-900">{brl(total as number)}</div>
+                      </div>
+                      <div className="mt-1 h-2 w-full rounded bg-gray-100">
+                        <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Itens mais comprados */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200">
             <div className="flex items-center gap-2 border-b bg-white p-3">
               <ShoppingCartIcon className="h-5 w-5 text-yellow-500" />
               <div className="font-semibold text-gray-900">Itens mais comprados</div>
@@ -274,30 +362,6 @@ const Compare: React.FC = () => {
                 </div>
               ))
             )}
-          </div>
-
-          <div className="overflow-hidden rounded-2xl border border-gray-200">
-            <div className="flex items-center gap-2 border-b bg-white p-3">
-              <BuildingStorefrontIcon className="h-5 w-5 text-yellow-500" />
-              <div className="font-semibold text-gray-900">Gastos por supermercado</div>
-            </div>
-            <div className="p-3">
-              {stats.markets.map(([market, total], i) => {
-                const max = stats.markets[0]?.[1] || 1;
-                const pct = Math.max(3, Math.round((total as number / max) * 100));
-                return (
-                  <div key={i} className="mb-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="text-gray-800">{market}</div>
-                      <div className="font-semibold text-gray-900">{brl(total as number)}</div>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded bg-gray-100">
-                      <div className="h-2 rounded bg-yellow-500" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </>
       )}

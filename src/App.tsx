@@ -14,6 +14,7 @@ import PurchaseNew from "./pages/PurchaseNew";
 import PurchaseFromList from "./pages/PurchaseFromList";
 import PurchasesReceipt from "./pages/PurchasesReceipt";
 import PurchaseDetail from "./pages/PurchaseDetail";
+import PurchaseEdit from "./pages/PurchaseEdit";
 import Profile from "./pages/Profile";
 import Terms from "./pages/Terms";
 
@@ -53,27 +54,22 @@ const AuthBootstrap = ({ children }: { children: ReactNode }) => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       const authType = sessionStorage.getItem("authType"); // "email" | "google" | "anonymous"
 
-      // ✅ Só consideramos logado nesta SESSÃO se o Login tiver marcado o authType
       if (user?.uid && authType) {
         sessionStorage.setItem("user", JSON.stringify({ uid: user.uid }));
         sessionStorage.setItem("userId", user.uid);
       } else {
         sessionStorage.removeItem("user");
         sessionStorage.removeItem("userId");
-
-        // Bloqueia qualquer usuário que chegou “de carona” (persistência),
-        // inclusive anônimo não iniciado pelo botão "Visitante".
         if (user && !authType) {
           try { await signOut(auth); } catch {}
         }
       }
-
       setReady(true);
     });
     return () => unsub();
   }, []);
 
-  if (!ready) return null; // pode trocar por um Splash/Spinner
+  if (!ready) return null;
   return <>{children}</>;
 };
 
@@ -84,7 +80,6 @@ const ProtectedRoute = ({ children }: { children: ReactElement }) => {
   return children;
 };
 
-/** Layout que exige ter visto o onboarding */
 const RequireOnboardingLayout = () => {
   const seen = typeof window !== "undefined" && localStorage.getItem("onboardingSeen") === "1";
   const loc = useLocation();
@@ -92,21 +87,18 @@ const RequireOnboardingLayout = () => {
   return <Outlet />;
 };
 
-/** Páginas públicas que só aparecem se NÃO logado (nesta sessão) */
 const PublicOnlyRoute = ({ children }: { children: ReactElement }) => {
   const uid = getStoredUserId();
   if (uid) return <Navigate to="/" replace />;
   return children;
 };
 
-/* Util */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return null;
 };
 
-/* Index: decide entre dashboard e login (onboarding já garantido pelo layout) */
 const RootIndex = () => {
   const uid = getStoredUserId();
   return uid ? <Dashboard /> : <Navigate to="/login" replace />;
@@ -137,11 +129,14 @@ export default function App() {
           <Route path="/lists/:id" element={<ProtectedRoute><ListDetail /></ProtectedRoute>} />
           <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
           <Route path="/products" element={<ProtectedRoute><Prices /></ProtectedRoute>} />
+
           <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
           <Route path="/purchases/new" element={<ProtectedRoute><PurchaseNew /></ProtectedRoute>} />
           <Route path="/purchases/from-list" element={<ProtectedRoute><PurchaseFromList /></ProtectedRoute>} />
           <Route path="/purchases/receipt" element={<ProtectedRoute><PurchasesReceipt /></ProtectedRoute>} />
           <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetail /></ProtectedRoute>} />
+          <Route path="/purchases/:id/edit" element={<ProtectedRoute><PurchaseEdit /></ProtectedRoute>} />
+
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Fallback */}

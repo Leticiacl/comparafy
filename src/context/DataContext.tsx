@@ -1,8 +1,8 @@
-// src/context/DataContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "@/services/firebase";
 import { signInAnonymously } from "firebase/auth";
 import {
+  // listas
   fetchUserLists,
   createNewList,
   fetchItemsFromList,
@@ -17,6 +17,7 @@ import {
   saveSuggestion,
   getSuggestionsForField,
   type NewItem,
+  // compras
   fetchPurchasesForUser,
   createPurchaseFromList,
   createPurchaseFromReceipt,
@@ -30,7 +31,7 @@ import {
   type PurchaseItem,
 } from "../services/firestoreService";
 
-/* Tipos locais */
+/* ================== Tipos locais ================== */
 export interface Item {
   id: string;
   nome: string;
@@ -52,6 +53,7 @@ export interface Lista {
 }
 
 interface DataContextType {
+  // listas
   lists: Lista[];
   fetchUserData(): Promise<void>;
   createList(nome: string): Promise<Lista | null>;
@@ -69,6 +71,7 @@ interface DataContextType {
   getSuggestions(field: string): Promise<string[]>;
   savings: number;
 
+  // compras
   purchases: Purchase[];
   fetchPurchases(): Promise<void>;
   createPurchaseFromListInContext(params: {
@@ -86,6 +89,10 @@ interface DataContextType {
     itens?: PurchaseItem[];
   }): Promise<void>;
   renamePurchaseInContext(purchaseId: string, newName: string): Promise<void>;
+  updatePurchaseMetaInContext(
+    purchaseId: string,
+    meta: Partial<Pick<Purchase, "name" | "market" | "createdAt">>
+  ): Promise<void>;
   deletePurchaseInContext(purchaseId: string): Promise<void>;
   updatePurchaseItemInContext(purchaseId: string, index: number, item: PurchaseItem): Promise<void>;
   deletePurchaseItemInContext(purchaseId: string, index: number): Promise<void>;
@@ -93,7 +100,20 @@ interface DataContextType {
   appendItemsToPurchaseInContext(items: PurchaseItem[]): Promise<string | null>;
 }
 
-/* Helpers Auth */
+/* ================== Helpers de UID/Auth ================== */
+function getStoredUserId(): string | null {
+  const direct = sessionStorage.getItem("userId");
+  if (direct) return direct;
+  const raw = sessionStorage.getItem("user");
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    return obj?.uid || obj?.id || obj?.userId || null;
+  } catch {
+    return raw || null;
+  }
+}
+
 async function ensureAuth(): Promise<string> {
   if (auth.currentUser?.uid) return auth.currentUser.uid;
   await signInAnonymously(auth);
@@ -101,10 +121,10 @@ async function ensureAuth(): Promise<string> {
 }
 
 function getUid(): string | null {
-  return auth.currentUser?.uid || null;
+  return auth.currentUser?.uid || getStoredUserId();
 }
 
-/* Contexto */
+/* ================== Contexto ================== */
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -120,8 +140,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const createList = async (nome: string) => {
-    const uid = await ensureAuth();
-    const newList = await createNewList(uid, nome);
+    const userId = getUid();
+    if (!userId) return null;
+    const newList = await createNewList(userId, nome);
     setLists((prev) => [...prev, newList]);
     return newList;
   };
@@ -136,7 +157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addItem = async (listId: string, item: NewItem) => {
     const uid = await ensureAuth();
     const newId = await addItemToListService(uid, listId, item);
-    await fetchItems(listId);
+    await fetchUserData();
     return newId;
   };
 
@@ -238,8 +259,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     selectedItemIds?: string[];
     extras?: PurchaseItem[];
   }) => {
-    const uid = await ensureAuth();
-    const p = await createPurchaseFromList({ userId: uid, ...params });
+    const userId = getUid();
+    if (!userId) throw new Error("missing-user");
+    const p = await createPurchaseFromList({ userId, ...params });
     setPurchases((prev) => [p, ...prev]);
     return p;
   };
@@ -250,8 +272,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     date: Date;
     itens?: PurchaseItem[];
   }) => {
-    const uid = await ensureAuth();
-    const p = await createPurchaseFromReceipt({ userId: uid, ...params });
+    const userId = getUid();
+    if (!userId) throw new Error("missing-user");
+    const p = await createPurchaseFromReceipt({ userId, ...params });
     setPurchases((prev) => [p, ...prev]);
   };
 
@@ -260,6 +283,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!userId) return;
     await updatePurchaseMeta(userId, purchaseId, { name: newName.trim() });
     setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, name: newName.trim() } : p)));
+  };
+
+  const updatePurchaseMetaInContext = async (
+    purchaseId: string,
+    meta: Partial<Pick<Purchase, "name" | "market" | "createdAt">>
+  ) => {
+    const userId = getUid();
+    if (!userId) return;
+    await updatePurchaseMeta(userId, purchaseId, meta);
+    setPurchases((prev) =>
+      prev.map((p) =>
+        p.id === purchaseId
+          ? {
+              ...p,
+              ...(meta.name !== undefined ? { name: meta.name } : {}),
+              ...(meta.market !== undefined ? { market: meta.market } : {}),
+              ...(meta.createdAt !== undefined ? { createdAt: meta.createdAt } : {}),
+            }
+          : p
+      )
+    );
   };
 
   const deletePurchaseInContext = async (purchaseId: string) => {
@@ -319,9 +363,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const appendItemsToPurchaseInContext = async (items: PurchaseItem[]): Promise<string | null> => {
     const userId = getUid();
-    if (!userId || !purchases.length) return null;
+    if (!userId) return null;
+    if (!purchases.length) return null;
+
     const purchaseId = purchases[0].id;
     await appendItemsToPurchase({ userId, purchaseId, items });
+
     setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, itens: [...(p.itens || []), ...items] } : p)));
     return purchaseId;
   };
@@ -331,11 +378,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await ensureAuth();
       await Promise.all([fetchUserData(), fetchPurchases()]);
     })();
-  }, []);
+  }, []); // eslint-disable-line
 
   return (
     <DataContext.Provider
       value={{
+        // listas
         lists,
         fetchUserData,
         createList,
@@ -352,11 +400,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveSuggestions,
         getSuggestions,
         savings,
+        // compras
         purchases,
         fetchPurchases,
         createPurchaseFromListInContext,
         createPurchaseFromReceiptInContext,
         renamePurchaseInContext,
+        updatePurchaseMetaInContext,
         deletePurchaseInContext,
         updatePurchaseItemInContext,
         deletePurchaseItemInContext,

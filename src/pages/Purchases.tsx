@@ -1,11 +1,15 @@
-// src/pages/Purchases.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import PageHeader from "../components/ui/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import { useData } from "@/context/DataContext";
 import { Menu, Dialog } from "@headlessui/react";
-import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  EllipsisVerticalIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  WrenchScrewdriverIcon, // ícone diferente para Editar
+} from "@heroicons/react/24/outline";
 
 const currency = (n: number) => `R$ ${Number(n || 0).toFixed(2)}`;
 const dateOnly = (any: any) => {
@@ -24,7 +28,7 @@ const Purchases: React.FC = () => {
 
   useEffect(() => {
     fetchPurchases();
-  }, []); // ok
+  }, []); // eslint-disable-line
 
   const fromList = useMemo(() => purchases.filter((p) => p.source === "list"), [purchases]);
   const fromReceipt = useMemo(() => purchases.filter((p) => p.source === "receipt"), [purchases]);
@@ -37,9 +41,14 @@ const Purchases: React.FC = () => {
     total: number;
     count: number;
   }> = ({ id, name, market, createdAt, total, count }) => {
-    const handleOpen = () => { if (id) navigate(`/purchases/${id}`); };
+    const handleOpen = () => {
+      if (id) navigate(`/purchases/${id}`);
+    };
     const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleOpen(); }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleOpen();
+      }
     };
     return (
       <div
@@ -59,11 +68,33 @@ const Purchases: React.FC = () => {
               <Menu.Button className="rounded p-2 hover:bg-gray-100" onClick={(e) => e.stopPropagation()}>
                 <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
               </Menu.Button>
-              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
+              <Menu.Items
+                className="absolute right-0 z-10 mt-2 w-56 overflow-hidden rounded-md bg-white shadow ring-1 ring-black/5"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Menu.Item>
                   {({ active }) => (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setRenameId(id); setRenameValue(name || ""); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/purchases/${id}/edit`);
+                      }}
+                      className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
+                    >
+                      <WrenchScrewdriverIcon className="h-5 w-5 text-gray-700" />
+                      Editar
+                    </button>
+                  )}
+                </Menu.Item>
+                <div className="h-px bg-gray-100" />
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenameId(id);
+                        setRenameValue(name || "");
+                      }}
                       className={`flex w-full items-center gap-2 px-4 py-2 text-left ${active ? "bg-gray-100" : ""}`}
                     >
                       <PencilSquareIcon className="h-5 w-5 text-gray-600" />
@@ -75,7 +106,10 @@ const Purchases: React.FC = () => {
                 <Menu.Item>
                   {({ active }) => (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteId(id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(id);
+                      }}
                       className={`flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 ${active ? "bg-gray-100" : ""}`}
                     >
                       <TrashIcon className="h-5 w-5" />
@@ -114,7 +148,15 @@ const Purchases: React.FC = () => {
       <div className="space-y-3">
         {fromList.length === 0 && <div className="px-1 text-sm text-gray-500">Nenhuma compra criada por lista.</div>}
         {fromList.map((p) => (
-          <Card key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt} total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0} />
+          <Card
+            key={p.id}
+            id={p.id}
+            name={p.name}
+            market={p.market}
+            createdAt={p.createdAt}
+            total={p.total ?? 0}
+            count={p.itemCount ?? p.itens?.length ?? 0}
+          />
         ))}
       </div>
 
@@ -122,24 +164,44 @@ const Purchases: React.FC = () => {
       <div className="space-y-3">
         {fromReceipt.length === 0 && <div className="px-1 text-sm text-gray-500">Nenhuma compra importada de NFC-e.</div>}
         {fromReceipt.map((p) => (
-          <Card key={p.id} id={p.id} name={p.name} market={p.market} createdAt={p.createdAt} total={p.total ?? 0} count={p.itemCount ?? p.itens?.length ?? 0} />
+          <Card
+            key={p.id}
+            id={p.id}
+            name={p.name}
+            market={p.market}
+            createdAt={p.createdAt}
+            total={p.total ?? 0}
+            count={p.itemCount ?? p.itens?.length ?? 0}
+          />
         ))}
       </div>
 
       <BottomNav activeTab="purchases" />
 
-      {/* Renomear */}
       <Dialog open={!!renameId} onClose={() => setRenameId(null)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">
           <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
             <Dialog.Title className="mb-3 text-lg font-semibold">Renomear compra</Dialog.Title>
-            <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="w-full rounded-lg border px-3 py-2" placeholder="Novo nome" />
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2"
+              placeholder="Novo nome"
+            />
             <div className="mt-4 flex justify-end gap-2">
-              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setRenameId(null)}>Cancelar</button>
+              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setRenameId(null)}>
+                Cancelar
+              </button>
               <button
                 className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
-                onClick={async () => { if (renameId && renameValue.trim()) { await renamePurchaseInContext(renameId, renameValue.trim()); setRenameId(null); } }}
+                onClick={async () => {
+                  if (renameId && renameValue.trim()) {
+                    await renamePurchaseInContext(renameId, renameValue.trim());
+                    setRenameId(null);
+                  }
+                }}
               >
                 Salvar
               </button>
@@ -148,17 +210,23 @@ const Purchases: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* Excluir — botão amarelo como em listas */}
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">
           <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
             <Dialog.Title className="mb-4 text-lg font-semibold">Deseja excluir esta compra?</Dialog.Title>
             <div className="flex justify-end gap-2">
-              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setDeleteId(null)}>Cancelar</button>
+              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setDeleteId(null)}>
+                Cancelar
+              </button>
               <button
-                className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
-                onClick={async () => { if (deleteId) { await deletePurchaseInContext(deleteId); setDeleteId(null); } }}
+                className="rounded-lg bg-red-500 px-3 py-2 text-white"
+                onClick={async () => {
+                  if (deleteId) {
+                    await deletePurchaseInContext(deleteId);
+                    setDeleteId(null);
+                  }
+                }}
               >
                 Excluir
               </button>
