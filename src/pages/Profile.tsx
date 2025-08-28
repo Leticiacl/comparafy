@@ -8,6 +8,8 @@ import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/ui/PageHeader";
 import InstallHowToModal from "@/components/ui/InstallHowToModal";
 import TermsModal from "@/components/ui/TermsModal";
+import { backfillPurchaseItemCategories } from "@/services/catalogBackfill";
+import { toast } from "react-hot-toast";
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ const Profile: React.FC = () => {
   const [photoURL, setPhotoURL] = useState<string>(() => user?.photoURL || "");
   const [howToOpen, setHowToOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [devBusy, setDevBusy] = useState(false);
 
   useEffect(() => {
     setName(user?.displayName || "");
@@ -57,7 +60,7 @@ const Profile: React.FC = () => {
       <PageHeader title="Perfil" />
 
       <div className="space-y-6">
-        {/* Avatar + nome */}
+        {/* Card avatar + nome */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-4">
             {/* Avatar */}
