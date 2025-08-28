@@ -1,102 +1,107 @@
 // src/pages/Prices.tsx
-import React, { useState, useMemo } from "react";
-import { useData, Item } from "../context/DataContext";
-import BottomNav from "../components/BottomNav";
-import { normalizeString } from "../utils/normalizeString";
-import PageHeader from "../components/ui/PageHeader";
-
-interface FlatItem extends Item {
-  listName: string;
-}
-
-interface GroupedMarket {
-  key: string;            // mercado normalizado
-  label: string;          // rótulo para exibição
-  entries: Array<{
-    preco: number;
-    listName: string;
-  }>;
-}
+import React, { useEffect, useMemo, useState } from "react";
+import BottomNav from "@/components/BottomNav";
+import PageHeader from "@/components/ui/PageHeader";
+import { useData } from "@/context/DataContext";
+import { buildPriceIndex, indexToArray } from "@/utils/priceIndex";
+import { formatBRL } from "@/utils/price";
 
 const Prices: React.FC = () => {
-  const { lists } = useData();
-  const [query, setQuery] = useState("");
+  const { purchases = [], fetchPurchases } = useData() as any;
 
-  // 1) Achata todas as listas num único array, carregando nome
-  const allItems = useMemo<FlatItem[]>(
-    () =>
-      lists.flatMap((list) =>
-        list.itens.map((item) => ({
-          ...item,
-          listName: list.nome,
-        }))
-      ),
-    [lists]
-  );
+  useEffect(() => { fetchPurchases?.(); }, [fetchPurchases]);
 
-  // 2) Filtra pelo nome do produto
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"alpha" | "min" | "avg" | "max">("min");
+
+  const idx = useMemo(() => buildPriceIndex(purchases || []), [purchases]);
+
   const filtered = useMemo(() => {
-    const q = normalizeString(query);
-    if (!q) return [];
-    return allItems.filter((item) => normalizeString(item.nome).includes(q));
-  }, [query, allItems]);
-
-  // 3) Agrupa por mercado (normalized)
-  const grouped = useMemo((): GroupedMarket[] => {
-    const map = new Map<string, GroupedMarket>();
-    for (const item of filtered) {
-      const key = normalizeString(item.mercado);
-      if (!map.has(key)) {
-        map.set(key, { key, label: item.mercado.trim(), entries: [] });
-      }
-      map.get(key)!.entries.push({ preco: item.preco, listName: item.listName });
-    }
-    return Array.from(map.values());
-  }, [filtered]);
+    const all = indexToArray(idx, { sort });
+    if (!q.trim()) return all;
+    const term = q.trim().toLowerCase();
+    return all.filter((p) =>
+      (p.name || p.normalizedName).toLowerCase().includes(term) ||
+      (p.brand || "").toLowerCase().includes(term) ||
+      (p.category || "").toLowerCase().includes(term)
+    );
+  }, [idx, sort, q]);
 
   return (
-    <div className="p-4 pb-32 max-w-xl mx-auto bg-white space-y-6">
-      <PageHeader title="Preços" />
+    <div className="mx-auto max-w-3xl bg-white p-4 pb-28">
+      <PageHeader title="Produtos & preços" subtitle="Histórico agregado por produto" />
 
-      {/* search bar */}
-      <div className="flex gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <input
-          type="text"
-          placeholder="Buscar produto…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar produto, marca ou categoria…"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
+        <select
+          className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as any)}
+        >
+          <option value="min">Menor preço</option>
+          <option value="avg">Médio</option>
+          <option value="max">Maior preço</option>
+          <option value="alpha">A–Z</option>
+        </select>
       </div>
 
-      {/* resultados */}
-      {grouped.length === 0 ? (
-        <p className="mt-10 text-center text-gray-500">
-          {query.trim()
-            ? "Nenhum preço encontrado."
-            : "Digite o nome de um produto para buscar."}
-        </p>
-      ) : (
-        <ul className="mt-4 space-y-4">
-          {grouped.map((market) => (
-            <li key={market.key} className="rounded-2xl border border-gray-200 p-4">
-              <strong className="block text-lg text-gray-900 mb-2">{market.label}</strong>
-              <ul className="space-y-1">
-                {market.entries.map((e, i) => (
-                  <li key={i} className="flex items-center justify-between">
-                    <span className="text-gray-800">{e.listName}</span>
-                    <span className="font-semibold text-gray-900">
-                      R$ {(Number(e.preco) || 0).toFixed(2)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-3">
+        {filtered.map((p) => {
+          const markets = Object.entries(p.markets).sort((a, b) => (a[0] || "").localeCompare(b[0] || ""));
+          return (
+            <li key={p.key} className="rounded-xl border border-gray-200 p-3">
+              <div className="mb-1 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{p.name || p.normalizedName}</h3>
+                  <p className="text-xs text-gray-600">
+                    {p.brand ? `${p.brand} · ` : ""}{p.category ? p.category : "—"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Faixa global</div>
+                  <div className="text-base font-semibold">
+                    {formatBRL(p.global.min)} – {formatBRL(p.global.max)}
+                  </div>
+                </div>
+              </div>
 
-      <BottomNav activeTab="compare" />
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {markets.map(([marketName, m]) => (
+                  <div key={marketName} className="rounded-lg border border-gray-100 p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-800">{marketName}</span>
+                      <span className="text-xs text-gray-500">{m.count} amostra(s)</span>
+                    </div>
+                    <div className="mt-1 text-sm">
+                      <div>Min: <strong>{formatBRL(m.min)}</strong></div>
+                      <div>Médio: <strong>{formatBRL(m.avg)}</strong></div>
+                      <div>Max: <strong>{formatBRL(m.max)}</strong></div>
+                      {m.last && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Último: {formatBRL(m.last.unitPrice || m.last.total || 0)}
+                          {m.last.date ? ` · ${new Date(m.last.date).toLocaleDateString()}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </li>
+          );
+        })}
+        {!filtered.length && (
+          <li className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-600">
+            Nada encontrado.
+          </li>
+        )}
+      </ul>
+
+      <BottomNav activeTab="products" />
     </div>
   );
 };

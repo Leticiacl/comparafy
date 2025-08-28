@@ -1,3 +1,4 @@
+// src/pages/PurchaseEdit.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -5,25 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import SimpleCalendar from "@/components/ui/SimpleCalendar";
 import { useData } from "@/context/DataContext";
-
-function toISO(any: any): string {
-  const ms =
-    typeof any === "number"
-      ? any
-      : any?.seconds
-      ? any.seconds * 1000
-      : Date.parse(any || "");
-  const d = Number.isFinite(ms) ? new Date(ms) : new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-function isoToDisplay(iso?: string) {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
+import { toISO, isoToDisplay } from "@/utils/date";
 
 const PurchaseEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +18,7 @@ const PurchaseEdit: React.FC = () => {
   const [loading, setLoading] = useState(!p);
   const [name, setName] = useState<string>(p?.name || "");
   const [market, setMarket] = useState<string>(p?.market || "");
-  const [dateISO, setDateISO] = useState<string>(p ? toISO(p.createdAt) : "");
+  const [dateISO, setDateISO] = useState<string>(p ? toISO(new Date(p.createdAt?.seconds ? p.createdAt.seconds * 1000 : p.createdAt)) : "");
   const [showCal, setShowCal] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -53,7 +36,12 @@ const PurchaseEdit: React.FC = () => {
     if (p) {
       setName(p.name || "");
       setMarket(p.market || "");
-      setDateISO(toISO(p.createdAt));
+      const ms = typeof p.createdAt === "number"
+        ? p.createdAt
+        : p.createdAt?.seconds
+        ? p.createdAt.seconds * 1000
+        : Date.parse(p.createdAt || "");
+      setDateISO(toISO(new Date(ms)));
     }
   }, [p]);
 

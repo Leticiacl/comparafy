@@ -12,7 +12,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import { auth } from "@/services/firebase";
 
-const logoUrl = "/COMPARAFY.png"; // ✅ evita LOGO indefinido / funciona no Vite (public/)
+const logoUrl = import.meta.env.BASE_URL + "COMPARAFY.png"; // ✅ BASE_URL padronizado
 
 const GoogleIcon = ({ className = "h-5 w-5" }) => (
   <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
@@ -79,11 +79,9 @@ export default function Login() {
     try {
       sessionStorage.setItem("authType", "google");
       await setPersistence(auth, browserLocalPersistence);
-      // 1ª tentativa: popup
       await signInWithPopup(auth, provider);
       goHome();
     } catch (e: any) {
-      // Fallback para iOS/Safari/iframes: redirect
       if (
         e?.code === "auth/popup-blocked" ||
         e?.code === "auth/operation-not-supported-in-this-environment"
@@ -91,7 +89,7 @@ export default function Login() {
         try {
           setErr("O navegador bloqueou o popup. Redirecionando…");
           await signInWithRedirect(auth, provider);
-          return; // o fluxo continua após o redirect
+          return;
         } catch (er: any) {
           sessionStorage.removeItem("authType");
           setErr(friendlyError(er?.code));

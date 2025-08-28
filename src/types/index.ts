@@ -62,6 +62,22 @@ export interface Purchase {
   purchasedAt: number;
 }
 
+// src/types/index.ts
+export type PurchaseItem = {
+  id?: string;
+  nome: string;
+  quantidade: number;
+  unidade?: string;
+  peso?: number;
+  preco: number;
+  total?: number;
+
+  // P2 — enriquecimento (opcionais)
+  normalizedName?: string;
+  category?: string | null;
+  brand?: string | null;
+};
+
 export interface ReceiptItem {
   productId?: string;
   ean?: string;

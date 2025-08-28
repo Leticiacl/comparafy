@@ -2,8 +2,10 @@ import { ReactElement, ReactNode, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, Outlet } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./services/firebase";
+import { seedCatalogIfEmpty, fetchCatalog, suggestForName } from "@/services/catalog";
 
 // Páginas
+import ProductDetail from "./pages/ProductDetail";
 import Dashboard from "./pages/Dashboard";
 import Lists from "./pages/Lists";
 import ListDetail from "./pages/ListDetail";
@@ -44,6 +46,25 @@ function getStoredUserId(): string | null {
     const uid = obj?.uid || obj?.id || obj?.userId || null;
     return looksLikeUid(uid) ? uid : null;
   } catch { return looksLikeUid(raw) ? raw : null; }
+}
+
+/** Roda somente em DEV para semear e testar o catálogo. */
+function DevCatalogSeed() {
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    (async () => {
+      const created = await seedCatalogIfEmpty();
+      if (created) console.log("Catalog seeded:", created);
+
+      const cat = await fetchCatalog();
+      console.log("Catalog size:", cat.length);
+
+      const s = suggestForName("coca cola 2l", cat);
+      console.log("Suggestion:", s);
+    })();
+  }, []);
+  return null;
 }
 
 /* ---------- bootstrap de auth --------- */
@@ -109,6 +130,7 @@ const RootIndex = () => {
 export default function App() {
   return (
     <AuthBootstrap>
+      {import.meta.env.DEV && <DevCatalogSeed />}
       <ScrollToTop />
       <Routes>
         {/* Sempre acessível */}
@@ -137,7 +159,7 @@ export default function App() {
           <Route path="/purchases/receipt" element={<ProtectedRoute><PurchasesReceipt /></ProtectedRoute>} />
           <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetail /></ProtectedRoute>} />
           <Route path="/purchases/:id/edit" element={<ProtectedRoute><PurchaseEdit /></ProtectedRoute>} />
-
+          <Route path="/product/:name" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Fallback */}

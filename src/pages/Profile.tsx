@@ -1,3 +1,4 @@
+// src/pages/Profile.tsx
 import React, { useState, useEffect, ChangeEvent, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth } from "@/services/firebase";
@@ -55,9 +56,8 @@ const Profile: React.FC = () => {
     <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader title="Perfil" />
 
-      {/* mesmo respiro do login/início */}
       <div className="space-y-6">
-        {/* Card avatar + nome */}
+        {/* Avatar + nome */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-4">
             {/* Avatar */}
@@ -99,7 +99,10 @@ const Profile: React.FC = () => {
                     onChange={(e) => setName(e.target.value)}
                     className="w-full rounded border px-2 py-1"
                   />
-                  <button onClick={handleNameSave} className="text-sm font-semibold text-yellow-600">
+                  <button
+                    onClick={handleNameSave}
+                    className="text-sm font-semibold text-yellow-600"
+                  >
                     Salvar
                   </button>
                 </div>
@@ -108,7 +111,10 @@ const Profile: React.FC = () => {
                   <h2 className="truncate text-lg font-semibold text-gray-900">
                     {name || "Visitante"}
                   </h2>
-                  <button onClick={() => setEditingName(true)} className="text-sm text-yellow-600 underline">
+                  <button
+                    onClick={() => setEditingName(true)}
+                    className="text-sm text-yellow-600 underline"
+                  >
                     Editar
                   </button>
                 </div>

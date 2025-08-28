@@ -1,8 +1,5 @@
 // src/services/nfceParser.ts
-// > Remove "(código: 123)" do nome
-// > Para na linha "Qtde total de itens" (não inclui rodapé como item)
-// > Filtra "Seq. cnc/cliente/tributos/valor pago/valor total" fora da grade
-// > Mantém as normalizações de unidade/quantidade/peso já combinadas
+import { T, numBR, parseQtyMG, unitMap, capFirst, stripCodigo } from "@/utils/nfce";
 
 export type ReceiptItem = {
   nome: string;
@@ -24,43 +21,6 @@ export type ReceiptParseResult = {
 
 const PROXY = (import.meta as any).env?.VITE_NFCE_PROXY || "/api/nfce-proxy";
 const FORCE_PROXY = ((import.meta as any).env?.VITE_FORCE_PROXY || "0") === "1";
-
-const T = (el: Element | null | undefined) =>
-  (el?.textContent || "").replace(/\s+/g, " ").trim();
-
-const numBR = (s: string) => {
-  const n = Number(s.replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) ? +n.toFixed(2) : 0;
-};
-
-// MG: “1.000” (unidade) = 1 ; “0.158” (peso) = 0.158
-const parseQtyMG = (s: string) => {
-  const v = s.replace(/\s/g, "");
-  if (v.includes(",")) return numBR(v);
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const unitMap = (u?: string) => {
-  const x = (u || "").toLowerCase();
-  if (/^un|und|unid$/.test(x)) return "un";
-  if (/^kg$/.test(x)) return "kg";
-  if (/^g$/.test(x)) return "g";
-  if (/^l$/.test(x)) return "l";
-  if (/^ml$/.test(x)) return "ml";
-  if (/^bd/.test(x)) return "bd";
-  if (/^dz/.test(x)) return "dz";
-  if (x === "fr") return "un"; // alguns portais exibem "FR" na coluna "UN:" — trata como unidade
-  return x || undefined;
-};
-
-const capFirst = (s: string) => {
-  const t = (s || "").toLowerCase().trim();
-  return t ? t[0].toUpperCase() + t.slice(1) : t;
-};
-
-// remove qualquer "(código: 12345)" que apareça
-const stripCodigo = (s: string) => s.replace(/\s*\(c[oó]digo:\s*\d+\)\s*/gi, "").trim();
 
 /* ---------------- fetch helpers ---------------- */
 async function fetchViaProxy(url: string): Promise<string | null> {
@@ -137,36 +97,24 @@ function parsePortalMG(doc: Document): ReceiptParseResult | null {
     const cells = tds.map(T);
     const joined = cells.join(" | ");
 
-    // Ao encontrar o bloco "Qtde total de itens", paramos — dali pra baixo é rodapé.
     if (/Qtde\s+total\s+de\s+itens/i.test(joined)) break;
-
-    // Descarta linhas informativas fora da grade de itens
-    if (
-      /valor aproximado dos tributos|cliente:|seq\.?\s*cnc|forma de pagamento|valor pago r\$/i.test(joined)
-    ) continue;
-
-    // Linha de moeda solta (ex.: "R$ 255,20")
+    if (/valor aproximado dos tributos|cliente:|seq\.?\s*cnc|forma de pagamento|valor pago r\$/i.test(joined))
+      continue;
     if (tds.length <= 2 && /^\s*R\$\s*[\d.,]+\s*$/i.test(joined)) continue;
-
-    // Itens válidos têm "(Código: NNNN)" em MG; garantimos isso
     if (!/\(c[oó]digo:\s*\d+\)/i.test(joined)) continue;
 
-    // nome: texto ANTES de “(Código: …)”
     const firstCell = cells[0] || joined.split("|")[0] || "";
     let nome = firstCell.replace(/\(c[oó]digo:\s*\d+\)/i, "");
     nome = capFirst(stripCodigo(nome));
 
-    // quantidade (pega da célula "Qtde total de itens: X")
     const qtdCell = cells.find((c) => /qtde\s+total\s+de\s+i?tens/i.test(c));
     const qtdStr = qtdCell ? qtdCell.replace(/.*?[:]\s*/i, "") : "";
     let quantidade = parseQtyMG(qtdStr);
 
-    // unidade (fica após um "UN:" em outra célula)
     let unidade: string | undefined;
     const idxUn = cells.findIndex((c) => /^UN:?$/i.test(c) || /UN:\s*$/i.test(c));
     if (idxUn >= 0 && cells[idxUn + 1]) unidade = unitMap(cells[idxUn + 1]);
 
-    // valor total da linha
     let total = 0;
     const idxVal = cells.findIndex((c) => /valor\s+total\s+r\$/i.test(c));
     if (idxVal >= 0 && cells[idxVal + 1]) {
@@ -174,7 +122,6 @@ function parsePortalMG(doc: Document): ReceiptParseResult | null {
     }
     if (!total) continue;
 
-    // normalizações
     if (unidade && /^(un|bd|dz)$/.test(unidade)) {
       quantidade = Math.round(quantidade);
       while (quantidade >= 1000 && quantidade % 1000 === 0) quantidade /= 1000;
@@ -185,31 +132,23 @@ function parsePortalMG(doc: Document): ReceiptParseResult | null {
 
     if (unidade && /^(kg|g|l|ml)$/.test(unidade)) {
       peso = quantidade;
-      // alguns portais exibem frações como 0.158 (ok); se vier “158” (g) no mesmo lugar, converter
       if (peso > 10 && /\b0\.\d{1,3}\b/.test(qtdStr)) peso = +(peso / 1000).toFixed(3);
       quantidade = 1;
-      preco = total; // para peso, exibimos o total da linha
+      preco = total;
     } else {
       preco = quantidade > 0 ? +(total / quantidade).toFixed(2) : total;
     }
 
     if (!nome || (!preco && !total)) continue;
 
-    itens.push({
-      nome,
-      quantidade: Math.max(1, quantidade),
-      unidade,
-      peso,
-      preco,
-      total,
-    });
+    itens.push({ nome, quantidade: Math.max(1, quantidade), unidade, peso, preco, total });
   }
 
   if (!itens.length) return null;
   return { name: "Compra (NFC-e)", market, date, itens, totalItems, grandTotal };
 }
 
-/* -------- fallback genérico (com os mesmos cortes) -------- */
+/* -------- fallback genérico -------- */
 function parseGeneric(doc: Document): ReceiptParseResult | null {
   const itens: ReceiptItem[] = [];
   const rows = Array.from(doc.querySelectorAll("tr"));
@@ -218,8 +157,7 @@ function parseGeneric(doc: Document): ReceiptParseResult | null {
     const line = cells.join(" | ");
 
     if (/Qtde\s+total\s+de\s+itens/i.test(line)) break;
-    if (/valor aproximado dos tributos|cliente:|seq\.?\s*cnc|forma de pagamento|valor pago r\$/i.test(line))
-      continue;
+    if (/valor aproximado dos tributos|cliente:|seq\.?\s*cnc|forma de pagamento|valor pago r\$/i.test(line)) continue;
     if (cells.length <= 2 && /^\s*R\$\s*[\d.,]+\s*$/i.test(line)) continue;
     if (!/\(c[oó]digo:\s*\d+\)/i.test(line)) continue;
     if (!/R\$\s*[\d.,]+/i.test(line)) continue;

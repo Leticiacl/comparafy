@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData, Item } from "../context/DataContext";
 import BottomNav from "../components/BottomNav";
-import AddItemModal, { ListItemInput } from "../components/ui/AddItemModal";
+import AddItemModal from "../components/ui/AddItemModal";
 import PageHeader from "../components/ui/PageHeader";
 import { Menu } from "@headlessui/react";
 import {
@@ -13,6 +13,7 @@ import {
   DocumentDuplicateIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/24/solid";
+import { formatBRL } from "@/utils/price";
 
 const ListDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,8 +49,16 @@ const ListDetail: React.FC = () => {
   if (!lista) return null;
 
   const itens = lista.itens || [];
+
+  // totais
+  const totalGeral = +itens.reduce((sum, i) =>
+    sum + Number(i.preco || 0) * Number(i.quantidade || 1), 0).toFixed(2);
+
+  const subtotalMarcado = +itens.filter(i => i.comprado).reduce((sum, i) =>
+    sum + Number(i.preco || 0) * Number(i.quantidade || 1), 0).toFixed(2);
+
   const comprados = itens.filter((i) => i.comprado).length;
-  const totalGeral = itens.reduce((sum, i) => sum + Number(i.preco || 0) * Number(i.quantidade || 1), 0);
+  const pct = totalGeral > 0 ? Math.min(100, Math.round((subtotalMarcado / totalGeral) * 100)) : 0;
 
   const headerRight = (
     <Menu as="div" className="relative">
@@ -99,7 +108,7 @@ const ListDetail: React.FC = () => {
     <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
       <PageHeader
         title={lista.nome || "Minha lista"}
-        subtitle={`${comprados}/${itens.length} itens · Total: R$ ${totalGeral.toFixed(2)}`}
+        subtitle={`${comprados}/${itens.length} itens · Total: ${formatBRL(totalGeral)}`}
         leftSlot={
           <button onClick={() => navigate(-1)} className="p-1" aria-label="Voltar">
             <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
@@ -107,6 +116,21 @@ const ListDetail: React.FC = () => {
         }
         rightSlot={headerRight}
       />
+
+      {/* Progresso interno (selecionado vs total estimado) */}
+      <div className="mb-4 rounded-2xl border border-gray-200 p-3">
+        <div className="mb-2 flex items-center justify-between text-sm text-gray-700">
+          <span>Selecionado: <strong>{formatBRL(subtotalMarcado)}</strong></span>
+          <span>Total estimado: <strong>{formatBRL(totalGeral)}</strong></span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+          <div
+            className="h-full bg-yellow-500 transition-[width] duration-300"
+            style={{ width: `${pct}%` }}
+            aria-label={`Progresso ${pct}%`}
+          />
+        </div>
+      </div>
 
       {editing && (
         <div className="mb-3 flex items-center gap-2">
@@ -145,6 +169,7 @@ const ListDetail: React.FC = () => {
                   className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
                     item.comprado ? "border-yellow-500 bg-yellow-500" : "border-gray-300"
                   }`}
+                  aria-label={item.comprado ? "Desmarcar item" : "Marcar item"}
                 >
                   {item.comprado && <CheckIcon className="h-4 w-4 text-black" />}
                 </button>
@@ -159,8 +184,8 @@ const ListDetail: React.FC = () => {
               </div>
 
               <div className="text-right">
-                <p className="text-lg font-semibold text-gray-800">R$ {totalItem.toFixed(2)}</p>
-                <p className="text-sm text-gray-600">UN. R$ {Number(item.preco || 0).toFixed(2)}</p>
+                <p className="text-lg font-semibold text-gray-800">{formatBRL(totalItem)}</p>
+                <p className="text-sm text-gray-600">UN. {formatBRL(Number(item.preco || 0))}</p>
                 <div className="mt-1 flex justify-end gap-4 text-sm">
                   <button onClick={() => { setItemToEdit(item); setIsModalOpen(true); }} className="flex items-center gap-1 text-gray-700">
                     <PencilSquareIcon className="h-4 w-4" /> Editar

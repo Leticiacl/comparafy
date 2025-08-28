@@ -1,3 +1,4 @@
+// src/pages/PurchaseFromList.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -7,21 +8,13 @@ import PurchaseItemModal, { PurchaseExtraItem } from "@/components/PurchaseItemM
 import BottomNav from "@/components/BottomNav";
 import { useData } from "@/context/DataContext";
 import SimpleCalendar from "@/components/ui/SimpleCalendar";
+import { formatBRL } from "@/utils/price";
+import { toISO, isoToDisplay } from "@/utils/date";
 
 type ListOption = { id: string; nome: string; market?: string };
-const currency = (n: number) => `R$ ${Number(n || 0).toFixed(2)}`;
 
 function todayISO() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-function isoToDisplay(iso?: string) {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  return toISO(new Date());
 }
 
 const PurchaseFromList: React.FC = () => {
@@ -263,10 +256,10 @@ const PurchaseFromList: React.FC = () => {
                     <div className="text-lg font-semibold text-gray-900">{it.nome}</div>
                     <div className="text-sm text-gray-500">
                       {it.peso ? `${it.peso} ${it.unidade ?? ""}` : `${it.quantidade ?? 1} ${it.unidade || "un"}`} ·{" "}
-                      {currency(Number(it.preco) || 0)}
+                      {formatBRL(Number(it.preco) || 0)}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">{currency(Number(it.preco) || 0)}</div>
+                  <div className="text-sm font-semibold text-gray-900">{formatBRL(Number(it.preco) || 0)}</div>
                 </li>
               );
             })}
@@ -287,7 +280,7 @@ const PurchaseFromList: React.FC = () => {
                   <div>
                     <div className="font-medium text-gray-800">{ex.nome}</div>
                     <div className="text-sm text-gray-500">
-                      {ex.quantidade ?? 1}x {ex.peso ? `• ${ex.peso} ${ex.unidade}` : `• ${ex.unidade ?? "un"}`} • {currency(ex.preco)}
+                      {ex.quantidade ?? 1}x {ex.peso ? `• ${ex.peso} ${ex.unidade}` : `• ${ex.unidade ?? "un"}`} • {formatBRL(ex.preco)}
                     </div>
                   </div>
                   <button
@@ -306,7 +299,7 @@ const PurchaseFromList: React.FC = () => {
             <div className="text-sm text-gray-600">
               {selectedCount}/{list?.itens?.length ?? 0} itens
             </div>
-            <div className="text-sm font-semibold text-gray-900">{currency(grandTotal)}</div>
+            <div className="text-sm font-semibold text-gray-900">{formatBRL(grandTotal)}</div>
           </div>
 
           <div className="flex gap-3">

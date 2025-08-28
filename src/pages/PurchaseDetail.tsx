@@ -1,3 +1,4 @@
+// src/pages/PurchaseDetail.tsx
 import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Menu, Dialog } from "@headlessui/react";
@@ -5,13 +6,15 @@ import { ArrowLeftIcon, EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from
 import BottomNav from "@/components/BottomNav";
 import PurchaseItemModal, { PurchaseExtraItem as PurchaseItem } from "@/components/PurchaseItemModal";
 import { useData } from "@/context/DataContext";
+import { anyToISODate, isoToDisplay } from "@/utils/date";
+import { formatBRL, computePurchaseTotal } from "@/utils/price";
 
-const brl = (n: number) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const dateOnly = (any: any) => {
-  const ms = typeof any === "number" ? any : any?.seconds ? any.seconds * 1000 : Date.parse(any || "");
-  if (!Number.isFinite(ms)) return "";
-  return new Date(ms).toLocaleDateString("pt-BR");
-};
+function dateOnlyDisplay(any: any): string {
+  const iso = anyToISODate(
+    typeof any === "number" ? any : any?.seconds ? any.seconds * 1000 : any
+  );
+  return isoToDisplay(iso);
+}
 
 export default function PurchaseDetail() {
   const { id } = useParams();
@@ -45,7 +48,7 @@ export default function PurchaseDetail() {
   }
 
   const canAddItems = p?.source !== "receipt";
-  const total = p.itens?.reduce((acc: number, it: any) => acc + (Number(it.preco) || 0) * (Number(it.quantidade) || 1), 0) || 0;
+  const total = computePurchaseTotal(p);
 
   return (
     <main className="mx-auto w-full max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl bg-white px-4 md:px-6 pt-safe pb-[88px]">
@@ -65,7 +68,7 @@ export default function PurchaseDetail() {
                 className="flex-1 rounded-xl border px-3 py-2"
               />
               <button
-                className="rounded-xl bg-yellow-500 px-4 py-2 font-medium text-black"
+                className="rounded-xl bg-yellow-500 px-4 py-2 font-medium text:black"
                 onClick={async () => {
                   const v = newName.trim();
                   if (v && v !== p.name) await renamePurchaseInContext(p.id, v);
@@ -77,7 +80,7 @@ export default function PurchaseDetail() {
             </div>
           )}
           <div className="truncate text-sm text-gray-500">
-            {dateOnly(p.createdAt)} · {p.market || "—"} · {(p.itens || []).length} itens
+            {dateOnlyDisplay(p.createdAt)} · {p.market || "—"} · {(p.itens || []).length} itens
           </div>
         </div>
 
@@ -128,7 +131,9 @@ export default function PurchaseDetail() {
       {/* Itens */}
       <div className="overflow-hidden rounded-2xl border border-gray-200">
         {p.itens?.map((it: any, i: number) => {
-          const totalItem = (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
+          const linhaTotal =
+            (typeof it.total === "number" && it.total) ||
+            (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
           return (
             <div key={i} className="flex items-start justify-between border-b border-gray-100 p-4 last:border-b-0">
               <div>
@@ -136,7 +141,7 @@ export default function PurchaseDetail() {
                 <div className="text-sm text-gray-500">
                   {Number(it.quantidade) || 1}× · {it.unidade || "un"} {it.peso ? `· ${it.peso}` : ""}
                 </div>
-                <div className="text-sm text-gray-500">UN. {brl(it.preco)}</div>
+                <div className="text-sm text-gray-500">UN. {formatBRL(it.preco)}</div>
 
                 {canAddItems && (
                   <div className="mt-2 flex items-center gap-4 text-sm">
@@ -164,7 +169,7 @@ export default function PurchaseDetail() {
                 )}
               </div>
 
-              <div className="text-right font-semibold text-gray-900">{brl(totalItem)}</div>
+              <div className="text-right font-semibold text-gray-900">{formatBRL(linhaTotal)}</div>
             </div>
           );
         })}
@@ -173,7 +178,7 @@ export default function PurchaseDetail() {
       {/* Total */}
       <div className="mt-4 flex items-center justify-between">
         <span className="text-lg font-bold">Total</span>
-        <span className="text-lg font-extrabold">{brl(total)}</span>
+        <span className="text-lg font-extrabold">{formatBRL(total)}</span>
       </div>
 
       <BottomNav activeTab="purchases" />
@@ -253,7 +258,7 @@ export default function PurchaseDetail() {
         </div>
       </Dialog>
 
-      {/* Confirmar exclusão (amarelo) */}
+      {/* Confirmar exclusão */}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} className="relative z-50">
         <div className="fixed inset-0 bg-black/20" />
         <div className="fixed inset-0 grid place-items-center p-4">

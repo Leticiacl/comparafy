@@ -211,31 +211,41 @@ const Purchases: React.FC = () => {
       </Dialog>
 
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/20" />
-        <div className="fixed inset-0 grid place-items-center p-4">
-          <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
-            <Dialog.Title className="mb-4 text-lg font-semibold">Deseja excluir esta compra?</Dialog.Title>
-            <div className="flex justify-end gap-2">
-              <button className="rounded-lg bg-gray-100 px-3 py-2" onClick={() => setDeleteId(null)}>
-                Cancelar
-              </button>
-              <button
-                className="rounded-lg bg-red-500 px-3 py-2 text-white"
-                onClick={async () => {
-                  if (deleteId) {
-                    await deletePurchaseInContext(deleteId);
-                    setDeleteId(null);
-                  }
-                }}
-              >
-                Excluir
-              </button>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
+  <div className="fixed inset-0 bg-black/20" />
+  <div className="fixed inset-0 grid place-items-center p-4">
+    <Dialog.Panel className="w-full max-w-sm rounded-xl bg-white p-4 shadow">
+      <Dialog.Title className="mb-4 text-lg font-semibold">
+        Deseja excluir esta compra?
+      </Dialog.Title>
+
+      <div className="flex justify-end gap-2">
+        <button
+          className="rounded-lg bg-gray-100 px-3 py-2"
+          onClick={() => setDeleteId(null)}
+        >
+          Cancelar
+        </button>
+
+        <button
+          className="rounded-lg bg-yellow-500 px-3 py-2 text-black"
+          onClick={async () => {
+            if (deleteId) {
+              await deletePurchaseInContext(deleteId);
+              setDeleteId(null);
+              await fetchPurchases?.(); // ok se existir; ignora se não
+            }
+          }}
+        >
+          Excluir
+        </button>
+      </div>
+      </Dialog.Panel>
     </div>
-  );
-};
+  </Dialog>
+
+</div>
+
+); 
+}
 
 export default Purchases;

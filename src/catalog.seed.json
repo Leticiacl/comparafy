@@ -1,0 +1,35 @@
+[
+    {
+      "nome": "Coca-Cola",
+      "categoria": "Bebidas > Refrigerantes",
+      "marca": "Coca-Cola",
+      "unidade": "ml",
+      "sinonimos": ["coca", "coca cola", "refrigerante coca-cola"],
+      "volumeRegex": "(\\d+(?:[,\\.]\\d+)?)(?:\\s*)(l|ml)"
+    },
+    {
+      "nome": "Guaraná Antarctica",
+      "categoria": "Bebidas > Refrigerantes",
+      "marca": "Antarctica",
+      "unidade": "ml",
+      "sinonimos": ["guarana", "guaraná", "guaraná antarctica"],
+      "volumeRegex": "(\\d+(?:[,\\.]\\d+)?)(?:\\s*)(l|ml)"
+    },
+    {
+      "nome": "Arroz Branco",
+      "categoria": "Mercearia > Grãos",
+      "marca": "",
+      "unidade": "kg",
+      "sinonimos": ["arroz", "arroz tipo 1", "arroz branco tipo 1"],
+      "volumeRegex": "(\\d+(?:[,\\.]\\d+)?)(?:\\s*)(kg|g)"
+    },
+    {
+      "nome": "Leite UHT Integral",
+      "categoria": "Laticínios > Leite",
+      "marca": "",
+      "unidade": "ml",
+      "sinonimos": ["leite integral", "leite uht"],
+      "volumeRegex": "(\\d+(?:[,\\.]\\d+)?)(?:\\s*)(l|ml)"
+    }
+  ]
+  
