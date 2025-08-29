@@ -1,20 +1,21 @@
-import './registerSW';
 import React from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { DataProvider } from "./context/DataContext";
 import "./index.css";
 
-createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <DataProvider>
-        <App />
-      </DataProvider>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+// 🔸 GARANTE que o categorizador esteja pronto antes de montar a árvore
+import { initCategorizer } from "@/assets/catalog-data/initCategorizer";
 
-// registra o Service Worker do PWA (public/sw.js) – seguro rodar mesmo em dev
-import "./pwa";
+initCategorizer().finally(() => {
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <BrowserRouter>
+        <DataProvider>
+          <App />
+        </DataProvider>
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+});

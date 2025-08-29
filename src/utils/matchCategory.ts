@@ -1,5 +1,10 @@
 // src/utils/matchCategory.ts
 import raw from "@/data/category.synonyms.json";
+import { CAT_DICT_ENTRIES } from "@/assets/catalog/dict.generated";
+import { setDictionary } from "@/assets/catalog/categorizeFromDataset";
+const dict = new Map<string, string>(CAT_DICT_ENTRIES as readonly any[]);
+setDictionary(dict);
+export { categorize } from "@/assets/catalog/categorizeFromDataset";
 
 type Dict = Record<string, string[]>;
 const DICT: Dict = raw as Dict;

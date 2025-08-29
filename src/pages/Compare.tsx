@@ -1,4 +1,3 @@
-// src/pages/Compare.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/ui/PageHeader";
@@ -12,7 +11,13 @@ import {
   CheckIcon,
 } from "@heroicons/react/24/outline";
 import Sparkline from "@/components/ui/Sparkline";
-import { categorize } from "@/utils/category";
+
+// 🔸 além do categorize, importamos o “sinal” de pronto
+import {
+  categorize,
+  getCategorizerVersion,
+  onCategorizerReady,
+} from "@/assets/catalog-data/categorizeFromDataset";
 
 type Tab = "produtos" | "compras" | "estatisticas";
 type PeriodKey = "none" | "30" | "60" | "90" | "max";
@@ -41,14 +46,27 @@ const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); re
 const endOfDay   = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 const subDays    = (d: Date, days: number) => { const x = new Date(d); x.setDate(x.getDate() - days); return x; };
 
-/* ---------- Dropdown genérico (hover amarelo + check) ---------- */
+// 🔸 normaliza e devolve a categoria SEMPRE em minúsculas
+function toCategoryLabel(c: any): string {
+  const out =
+    (typeof c === "string" && c) ||
+    c?.categoria ||
+    c?.category ||
+    c?.cat ||
+    c?.nomeCategoria ||
+    c?.name ||
+    "outros";
+  return String(out || "outros").toLowerCase();
+}
+
+/* ---------- Dropdown genérico ---------- */
 function Dropdown({
   label,
   options,
   value,
   onChange,
-  showSelected = false,          // quando true mostra o valor selecionado no botão
-  align = "left",                // "left" | "right" (alinhamento do menu)
+  showSelected = false,
+  align = "left",
 }: {
   label: string;
   options: { value: string; label: string }[];
@@ -129,6 +147,13 @@ export default function Compare() {
   const { purchases = [] } = useData();
   const [tab, setTab] = useState<Tab>("produtos");
 
+  // 🔸 quando o categorizador ficar pronto, forçamos nova renderização
+  const [catVer, setCatVer] = useState(getCategorizerVersion());
+  useEffect(() => {
+    const off = onCategorizerReady(() => setCatVer(getCategorizerVersion()));
+    return off;
+  }, []);
+
   /* ------------------------- PRODUTOS ------------------------- */
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"az" | "min" | "max">("az");
@@ -174,7 +199,7 @@ export default function Compare() {
             (total && Number(it.quantidade) ? total / Number(it.quantidade) : 0);
           const price = +((unit || total) || 0).toFixed(2);
           const market = p.market || "—";
-          const categoria = categorize(it.nome || "");
+          const categoria = toCategoryLabel(categorize(it.nome || ""));
           const key = `${norm(it.nome)}|${market}`;
 
           const row: Row = { market, nome: it.nome, preco: price, date: d, categoria };
@@ -198,7 +223,7 @@ export default function Compare() {
             (total && Number(it.quantidade) ? total / Number(it.quantidade) : 0);
           const price = +((unit || total) || 0).toFixed(2);
           const market = p.market || "—";
-          const categoria = categorize(it.nome || "");
+          const categoria = toCategoryLabel(categorize(it.nome || ""));
 
           rows.push({ market, nome: it.nome, preco: price, date: d, categoria });
 
@@ -231,7 +256,8 @@ export default function Compare() {
     const categorias = [...new Set(groups.map((g) => g.categoria).filter(Boolean))].sort();
 
     return { produtoGrupos: groups, historyMap: history, categoriasDisponiveis: categorias };
-  }, [purchases, query, sort, histPeriod, histStart.getTime(), histEnd.getTime()]);
+    // 🔸 dependemos de catVer para recategorizar quando o dicionário ficar pronto
+  }, [purchases, query, sort, histPeriod, histStart.getTime(), histEnd.getTime(), catVer]);
 
   /* -------------------------- COMPRAS ------------------------- */
   const [aId, setAId] = useState<string>("");
@@ -350,10 +376,9 @@ export default function Compare() {
 
           {/* Filtros – ordem: Categorias, A–Z, Período */}
           <div className="mb-3 grid grid-cols-3 gap-2">
-            {/* Categorias: mostra "Categorias" até que o usuário selecione algo */}
             <Dropdown
               label="Categorias"
-              showSelected={catFilter !== ""}          // mostra o escolhido só se não for "Todas"
+              showSelected={catFilter !== ""}
               value={catFilter}
               onChange={(v) => setCatFilter(v)}
               options={[
@@ -363,7 +388,6 @@ export default function Compare() {
               align="left"
             />
 
-            {/* A–Z: sempre com rótulo fixo */}
             <Dropdown
               label="A–Z"
               value={sort}
@@ -376,10 +400,9 @@ export default function Compare() {
               align="left"
             />
 
-            {/* Período: mostra "Período" até que o usuário mude de "Nenhum" */}
             <Dropdown
               label="Período"
-              showSelected={histPeriod !== "none"}     // quando "none" fica só "Período"
+              showSelected={histPeriod !== "none"}
               value={histPeriod}
               onChange={(v) => setHistPeriod(v as PeriodKey)}
               options={[
@@ -389,11 +412,11 @@ export default function Compare() {
                 { value: "90", label: "90 dias" },
                 { value: "max", label: "Máximo" },
               ]}
-              align="right"                            // evita estourar na borda direita
+              align="right"
             />
           </div>
 
-          {/* Lista de produtos (com categoria) */}
+          {/* Lista de produtos */}
           <div className="space-y-3">
             {produtoGrupos
               .filter((g) => !catFilter || g.categoria === catFilter)
@@ -403,7 +426,6 @@ export default function Compare() {
                   ? `${brl(Math.min(...valores))} – ${brl(Math.max(...valores))}`
                   : "—";
 
-                // blocos por mercado quando há histórico
                 const rowsByMarket = g.rows.reduce<Record<string, Row[]>>((acc, r) => {
                   (acc[r.market] ||= []).push(r);
                   return acc;
@@ -737,7 +759,7 @@ function StatsSection({
                 const tot =
                   (typeof it.total === "number" && it.total) ||
                   (Number(it.preco) || 0) * (Number(it.quantidade) || 1);
-                const cat = categorize(it.nome || "");
+                const cat = toCategoryLabel(categorize(it.nome || ""));
                 map.set(cat, (map.get(cat) || 0) + (+tot || 0));
               }
             }
