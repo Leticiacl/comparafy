@@ -1,12 +1,6 @@
-// /src/assets/catalog-data/initCategorizer.ts
 // Inicializa o categorizador a partir do JSON estático (import estático).
-// Unifica/renomeia categorias:
-//   acougue → carnes
-//   cereais → alimentos
-//   doces/salgados → guloseimas
-//   frutas/verduras → feira
-//   itens domesticos → (removido; por padrão vira "limpeza"; se não encaixar, cai em "outros")
-// Bloqueia categorias inválidas (A/E/I/O/U, "em cadastro", etc.), reforça 1ª palavra e keywords.
+// Unifica/renomeia categorias (carnes, alimentos, guloseimas, feira…),
+// bloqueia categorias inválidas, força 1ª palavra e keywords.
 
 import rawDict from "./dict.json";
 import {
@@ -20,95 +14,63 @@ let bootstrapped = false;
 
 /* ---------- whitelist com nomes novos ---------- */
 const ALLOWED = new Set([
-  "carnes",
-  "aguas/sucos",
-  "biscoitos",
-  "alimentos",
-  "chocolates/bombons",
-  "condimentos",
-  "congelados",
-  "descartaveis",
-  "guloseimas",
-  "laticinios",
-  "limpeza",
-  "ovos",
-  "padaria",
-  "racao",
-  "refrigerante",
-  "feira",
-  "massas",      // mantida (macarrão/lasanha etc.)
-  "outros",
+  "carnes", "aguas/sucos", "biscoitos", "alimentos", "chocolates/bombons",
+  "condimentos", "congelados", "descartaveis", "guloseimas",
+  "laticinios", "limpeza", "ovos", "padaria", "racao",
+  "refrigerante", "feira", "massas", "outros",
 ]);
 
 /* ---------- stopwords para 1ª palavra ---------- */
 const STOPWORDS = new Set([
-  "a","e","i","o","u",
-  "de","da","do","das","dos",
+  "a","e","i","o","u","de","da","do","das","dos",
   "kg","g","gr","un","und","pct","pc","cx","lt","l","ml","emb","bd","bv",
 ]);
 
 /* ---------- normalização e unificação p/ nomes novos ---------- */
 function canonCategory(raw: string): string {
   let v = String(raw || "").toLowerCase().trim();
-
-  // remover sufixos numéricos e prefixos tipo "mat "
   v = v.replace(/\b\d+\b/g, "").replace(/\s{2,}/g, " ").trim();
   v = v.replace(/^mat\s+/, ""); // "mat limpeza" → "limpeza"
 
-  // mapear antigos → novos
   const map: Record<string, string> = {
     // inválidos/bloqueados
-    "a": "outros", "e": "outros", "i": "outros", "o": "outros", "u": "outros",
-    "em cadastro": "outros", "cadastro": "outros", "consumo interno": "outros",
+    "a":"outros","e":"outros","i":"outros","o":"outros","u":"outros",
+    "em cadastro":"outros","cadastro":"outros","consumo interno":"outros",
 
-    // renomeações solicitadas
-    "acougue": "carnes", "acougue 1": "carnes", "acougue 2": "carnes",
-    "cereais": "alimentos", "matinais": "alimentos",
-    "doces/salgados": "guloseimas", "doces/salgados 1": "guloseimas",
-    "frutas/verduras": "feira", "frutas/verduras 1": "feira",
-    "sacolao": "feira", "sacolão": "feira",
-    "itens domesticos": "limpeza", "itens domestico": "limpeza", "itens domestico 1": "limpeza",
+    // renomeações/unificações
+    "acougue":"carnes","acougue 1":"carnes","acougue 2":"carnes",
+    "cereais":"alimentos","matinais":"alimentos",
+    "doces/salgados":"guloseimas","doces/salgados 1":"guloseimas",
+    "frutas/verduras":"feira","frutas/verduras 1":"feira","sacolao":"feira","sacolão":"feira",
+    "itens domesticos":"limpeza","itens domestico":"limpeza","itens domestico 1":"limpeza",
 
-    // mantidas / consolidadas
-    "laticínios e frios": "laticinios",
-    "laticinios e frios": "laticinios",
-    "leite": "laticinios",
+    "laticínios e frios":"laticinios","laticinios e frios":"laticinios","leite":"laticinios",
 
-    "biscoitos": "biscoitos",
-    "padaria": "padaria", "confeitaria": "padaria",
+    "biscoitos":"biscoitos",
+    "padaria":"padaria","confeitaria":"padaria",
 
-    "refrigerante": "refrigerante", "bebidas": "refrigerante",
+    "refrigerante":"refrigerante","bebidas":"refrigerante",
 
-    "condimentos alhos": "condimentos",
-    "condimentos": "condimentos",
-    "temperos": "condimentos", "tempero": "condimentos",
-    "molhos": "condimentos", "molho": "condimentos",
+    "condimentos alhos":"condimentos","condimentos":"condimentos",
+    "temperos":"condimentos","tempero":"condimentos",
+    "molhos":"condimentos","molho":"condimentos",
 
-    "aguas/sucos": "aguas/sucos", "aguas/sucos 1": "aguas/sucos", "refrescos": "aguas/sucos",
+    "aguas/sucos":"aguas/sucos","aguas/sucos 1":"aguas/sucos","refrescos":"aguas/sucos",
 
-    "chocolates bombons": "chocolates/bombons",
-    "chocolates/bombons": "chocolates/bombons",
+    "chocolates bombons":"chocolates/bombons","chocolates/bombons":"chocolates/bombons",
 
-    "congelados": "congelados",
-    "congelados sorvetes": "congelados",
-
-    "limpeza": "limpeza",
-
-    "racao 1": "racao", "racao": "racao",
-
-    "descartaveis 1": "descartaveis", "descartaveis": "descartaveis",
-
-    "massas": "massas",
+    "congelados":"congelados","congelados sorvetes":"congelados",
+    "limpeza":"limpeza",
+    "racao 1":"racao","racao":"racao",
+    "descartaveis 1":"descartaveis","descartaveis":"descartaveis",
+    "massas":"massas",
   };
 
   v = map[v] || v;
-
-  // se não estiver na whitelist, volta "outros"
-  if (!ALLOWED.has(v)) return "outros";
-  return v;
+  return ALLOWED.has(v) ? v : "outros";
 }
 
-/* ---------- reforços por 1ª palavra (famílias) p/ nomes novos ---------- */
+/* ---------- reforços por 1ª palavra (famílias) ---------- */
 const FIRST_OVERRIDES_ENTRIES: Array<[string, string]> = [
   // feira
   ..."abobora alface banana batata brocolis cebola cebolinha cenoura chuchu inhame laranja limao manga mexerica morango pepino tomate uva couve"
@@ -117,10 +79,11 @@ const FIRST_OVERRIDES_ENTRIES: Array<[string, string]> = [
 
   // carnes
   ["carne","carnes"],["frango","carnes"],["linguica","carnes"],["bovina","carnes"],["suina","carnes"],
-  ["apresuntado","carnes"],["apres","carnes"], // apres → carnes (não laticínios)
+  ["apresuntado","carnes"],["apres","carnes"],
 
   // laticínios
-  ["queijo","laticinios"],["qj","laticinios"],["manteiga","laticinios"],["iogurte","laticinios"],["requeijao","laticinios"],["leite","laticinios"],
+  ["queijo","laticinios"],["qj","laticinios"],["manteiga","laticinios"],
+  ["iogurte","laticinios"],["requeijao","laticinios"],["leite","laticinios"],["mussa","laticinios"],
 
   // ovos
   ["ovo","ovos"],["ovos","ovos"],
@@ -130,7 +93,7 @@ const FIRST_OVERRIDES_ENTRIES: Array<[string, string]> = [
   ["farinha","alimentos"],["fermento","alimentos"],["canjica","alimentos"],["amendoim","alimentos"],
 
   // biscoitos
-  ["biscoito","biscoitos"],["bolacha","biscoitos"],
+  ["biscoito","biscoitos"],["bolacha","biscoitos"],["bisc","biscoitos"], // << garante "Bisc ..."
 
   // padaria
   ["pao","padaria"],["bolo","padaria"],["salgado","padaria"],["sonho","padaria"],
@@ -139,7 +102,9 @@ const FIRST_OVERRIDES_ENTRIES: Array<[string, string]> = [
   ["refrigerante","refrigerante"],["coca","refrigerante"],["guarana","refrigerante"],["pepsi","refrigerante"],
 
   // condimentos
-  ["ketchup","condimentos"],["mostarda","condimentos"],["maionese","condimentos"],["alho","condimentos"],["tempero","condimentos"],["molho","condimentos"],
+  ["ketchup","condimentos"],["catchup","condimentos"],["catsup","condimentos"],
+  ["mostarda","condimentos"],["maionese","condimentos"],["alho","condimentos"],
+  ["tempero","condimentos"],["molho","condimentos"],
 
   // limpeza
   ["detergente","limpeza"],["amaciante","limpeza"],["sabao","limpeza"],["esponja","limpeza"],
@@ -148,45 +113,59 @@ const FIRST_OVERRIDES_ENTRIES: Array<[string, string]> = [
   ["toalha","descartaveis"],["papel","descartaveis"],
 
   // guloseimas
-  ["pipoca","guloseimas"],["chiclete","guloseimas"],["bala","guloseimas"],["pirulito","guloseimas"],
+  ["pip","guloseimas"],        // << cobre “Pip doce …”
+  ["pipoca","guloseimas"],
+  ["chiclete","guloseimas"],["bala","guloseimas"],["pirulito","guloseimas"],
+  ["salgadinho","guloseimas"],
 
-  // óleo agora vai para alimentos
+  // óleo
   ["oleo","alimentos"],
+
+  // bebidas
+  ["refresco","bebidas"],  
+  ["suco","bebidas"],     
 ];
 
-/* ---------- keywords/abreviações/colados (novas categorias) ---------- */
+/* ---------- keywords/abreviações/colados ---------- */
 const EXTRA_KEYWORDS: Array<{ key: string; category: string }> = [
-  // abreviações citadas + correções
+  // abreviações + correções
   { key: "apres", category: "carnes" },
   { key: "canj", category: "alimentos" },
   { key: "espon", category: "limpeza" },
   { key: "far trig", category: "alimentos" },
   { key: "ferm bio", category: "alimentos" },
   { key: "qj", category: "laticinios" },
-  { key: "m.pi", category: "alimentos" },   // milho p/ pipoca cru
+  { key: "qjo", category: "laticinios" },
+  { key: "mussa", category: "laticinios" },
+
+  // biscoito/pipoca abreviado
+  { key: "bisc", category: "biscoitos" },        // << “Bisc aymore …”
+  { key: "pip doce", category: "guloseimas" },   // << “Pip doce …”
+  { key: "pipoca doce", category: "guloseimas" },
   { key: "pipoca", category: "guloseimas" },
   { key: "panko", category: "alimentos" },
 
   // feira colado
-  { key: "cebolaamar", category: "feira" },
-  { key: "cenouraverm", category: "feira" },
-  { key: "alfacecrespa", category: "feira" },
-  { key: "mangatommy", category: "feira" },
-  { key: "limaotahiti", category: "feira" },
-  { key: "brocolisninja", category: "feira" },
+  { key: "cebolaamar", category: "feira" },{ key: "cenouraverm", category: "feira" },
+  { key: "alfacecrespa", category: "feira" },{ key: "mangatommy", category: "feira" },
+  { key: "limaotahiti", category: "feira" },{ key: "brocolisninja", category: "feira" },
   { key: "bat.inglesa", category: "feira" },
 
   // gerais
-  { key: "achoc", category: "alimentos" },          // achocolatado
-  { key: "salgadin", category: "guloseimas" },      // salgadinho
-  { key: "chiclet", category: "guloseimas" },       // chiclete topline
+  { key: "ketchup", category: "condimentos" },
+  { key: "catchup", category: "condimentos" },
+  { key: "catsup",  category: "condimentos" },
+  { key: "refresco", category: "bebidass" },
+  { key: "achoc", category: "alimentos" },
+  { key: "salgadin", category: "guloseimas" },
+  { key: "salgadinho", category: "guloseimas" },
+  { key: "chiclet", category: "guloseimas" },
   { key: "refri", category: "refrigerante" },
   { key: "iog", category: "laticinios" },
   { key: "tempero", category: "condimentos" },
   { key: "molho", category: "condimentos" },
   { key: "toalha", category: "descartaveis" },
-  { key: "papel hig", category: "descartaveis" },   // papel higiênico
-  { key: "ketchup", category: "condimentos" },
+  { key: "papel hig", category: "descartaveis" },
   { key: "sonho", category: "padaria" },
 ];
 
@@ -196,8 +175,8 @@ const EXACT_MATCH_OVERRIDES: Record<string,string> = {
   "m.pi.pre.pach.500g": "alimentos",
   "sabao ype gl.160g": "limpeza",
   "iog.bat.ped.ab.450": "outros",
-  "bisc aymore aman": "biscoitos",
-  "pip doce kerus t": "guloseimas",
+  "bisc aymore aman": "biscoitos",     // << garantia extra
+  "pip doce kerus t": "guloseimas",     // << garantia extra
   "bat.inglesa esp.kg": "feira",
   "catchup heinz 1.0": "condimentos",
   "chiclete top line": "guloseimas",
@@ -206,7 +185,7 @@ const EXACT_MATCH_OVERRIDES: Record<string,string> = {
   "papel hig cotton": "descartaveis",
   "pres coz pif paf": "carnes",
   "qjo": "laticinios",
-  "refresco mid zero": "aguas/sucos",
+  "refresco mid zero": "bebidas",
   "sonho americano k": "padaria",
   "io.pens.ze.bat.850": "outros",
   "oleo": "alimentos",
@@ -222,7 +201,6 @@ export async function initCategorizer() {
         ? (rawDict as any).map
         : (rawDict as any);
 
-    // 1) montar dicionário normalizado + renomeado (sobrepõe com família se precisar)
     const dict = new Map<string, string>();
     const firstOverride = new Map<string, string>(FIRST_OVERRIDES_ENTRIES);
 
@@ -235,31 +213,27 @@ export async function initCategorizer() {
 
       // reforço por 1ª palavra (garante família correta)
       const first = nk.split(" ")[0];
-      if (first && firstOverride.has(first)) {
-        cat = firstOverride.get(first)!;
-      }
+      if (first && firstOverride.has(first)) cat = firstOverride.get(first)!;
 
       dict.set(nk, cat);
     }
 
-    // 2) index de 1ª palavra — ignora stopwords
+    // 1ª palavra — ignora stopwords
     const firstIdx = new Map<string, string>();
     for (const [k, v] of dict.entries()) {
       const first = k.split(" ")[0];
       if (!first || STOPWORDS.has(first)) continue;
       firstIdx.set(first, v);
     }
-    // garante que overrides entrem mesmo se não existirem no dict
+    // inclui overrides mesmo se não existirem no dict
     for (const [w, cat] of firstOverride.entries()) {
       const t = normalize(w).split(" ")[0];
       if (!t || STOPWORDS.has(t)) continue;
       firstIdx.set(t, cat);
     }
 
-    // 3) keywords (famílias + extras)
     const keywordRules = Array.from(firstIdx.entries()).map(([key, category]) => ({ key, category }));
 
-    // 4) aplicar
     setDictionary(dict);
     setFirstWordIndex(firstIdx);
     setKeywordPatterns([...keywordRules, ...EXTRA_KEYWORDS]);

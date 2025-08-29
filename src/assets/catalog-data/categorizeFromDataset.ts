@@ -1,4 +1,3 @@
-// /src/assets/catalog-data/categorizeFromDataset.ts
 // Carregador e categorizador com: dicionário, 1ª palavra, keywords e no-space.
 // Ordem: exato → 2 palavras → 1ª palavra → keywords/colados → no-space.
 
